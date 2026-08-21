@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lettuce Pi</title>
+<title>LettucePi</title>
 <style>
 /* Everything inline: the router may have no WAN, so no external assets. */
 :root{
@@ -57,7 +57,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:rgba(0,0,0,.22);
 </head>
 <body>
 <div class="card">
-  <h1>Lettuce Pi</h1>
+  <h1>LettucePi</h1>
   <div class="sub">Install the package you were sent.</div>
   <div class="meta" id="meta">Checking router&hellip;</div>
 
@@ -126,7 +126,7 @@ function refreshStatus(){
     if (p.status !== "OK") { $("meta").textContent = "Router did not respond correctly."; return; }
     $("meta").textContent = "Router " + (p.kv.model || p.kv.board || "?") +
         (p.kv.installed && p.kv.installed !== "none"
-          ? " — Lettuce Pi " + p.kv.installed + " installed"
+          ? " — LettucePi " + p.kv.installed + " installed"
           : " — nothing installed yet");
   }).catch(function(){ $("meta").textContent = "Could not reach the router."; });
 }

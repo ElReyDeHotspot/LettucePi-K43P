@@ -1,10 +1,10 @@
 #!/bin/sh
 # ============================================================================
-#  Lettuce Pi MAIN EVENT - firmware validator wrapper
-#  Router: M10K43P (board id M01K43P)
+#  LettucePi - firmware validator wrapper
+#  Router: Chester K43P (M10K43P, board id M01K43P)
 #
 #  Installs a wrapper at /sbin/wtcheck so the stock web UI
-#  (Settings -> Version) accepts Lettuce Pi firmware images.
+#  (Settings -> Version) accepts LettucePi firmware images.
 #
 #  Genuine vendor images are NOT affected: they are handed straight to the
 #  untouched factory validator at /rom/sbin/wtcheck.
@@ -17,20 +17,20 @@
 #  Non-interactive:  ... | sh -s -- --install   (or --uninstall)
 #
 #  This installer carries NO account token and NO private key. It only makes
-#  the router trust Lettuce Pi software; the Lettuce Pi package itself is
+#  the router trust LettucePi software; the LettucePi package itself is
 #  supplied separately.
 # ============================================================================
 set -u
 
 EXPECTED_BOARD=M01K43P
-DISPLAY_NAME=M10K43P          # product name; EXPECTED_BOARD is the board id the hardware reports
+DISPLAY_NAME="Chester K43P"   # what the customer sees; EXPECTED_BOARD is the id the hardware reports
 WTCHECK=/sbin/wtcheck
 ROM_WTCHECK=/rom/sbin/wtcheck
 KEYDIR=/etc/lettucepi
 PUBKEY=$KEYDIR/main-event-update.pub
 WEBDIR=/www/lettucepi
 CGI=/www/cgi-bin/lettucepi-ipk
-MARKER='Lettuce Pi MAIN EVENT wtcheck'
+MARKER='wtcheck compatibility validator'   # matches old and new wrapper headers
 TMP=/tmp/lp-install.$$
 
 ok(){   printf '  [ok]   %s\n' "$*"; }
@@ -55,9 +55,9 @@ RWS9jyHo4a7YStElHtjqoXqEDZx6Z3l4X7fy+Zqeh2ksXtXhC2HWQB3AkbQC/KlyQ7VBjh7+iAVdjvmD
 __LP_EOF__
 cat > "$TMP/wtcheck" <<'__LP_EOF__'
 #!/bin/sh
-# Lettuce Pi MAIN EVENT wtcheck compatibility validator for M01K43P.
+# LettucePi wtcheck compatibility validator for the Chester K43P (M10K43P).
 # Vendor images are always delegated to the immutable factory validator.
-# Lettuce Pi images use a 64 KiB tar header followed by a raw UBI payload.
+# LettucePi images use a 64 KiB tar header followed by a raw UBI payload.
 set -u
 
 ROM_WTCHECK=/rom/sbin/wtcheck
@@ -101,7 +101,7 @@ if [ "$magic" != LPMAIN1 ]; then
 fi
 
 [ "$board" = "$EXPECTED_BOARD" ] || { echo "wt: board name failed($board/$EXPECTED_BOARD)" >&2; exit 1; }
-[ -f "$PUBKEY" ] || { echo "wt: Lettuce Pi public key missing" >&2; exit 1; }
+[ -f "$PUBKEY" ] || { echo "wt: LettucePi public key missing" >&2; exit 1; }
 command -v usign >/dev/null 2>&1 || { echo "wt: usign missing" >&2; exit 1; }
 command -v sha256sum >/dev/null 2>&1 || { echo "wt: sha256sum missing" >&2; exit 1; }
 
@@ -111,12 +111,12 @@ mkdir -p "$tmp" || exit 1
 
 dd if="$image" of="$tmp/header.tar" bs=$HEADER_SIZE count=1 2>/dev/null || exit 1
 tar -xf "$tmp/header.tar" -C "$tmp" LPMAIN1 manifest manifest.sig 2>/dev/null || {
-    echo "wt: Lettuce Pi header format error" >&2
+    echo "wt: LettucePi header format error" >&2
     exit 1
 }
 
 usign -V -q -p "$PUBKEY" -m "$tmp/manifest" -x "$tmp/manifest.sig" || {
-    echo "wt: Lettuce Pi signature verification failed" >&2
+    echo "wt: LettucePi signature verification failed" >&2
     exit 1
 }
 
@@ -125,7 +125,7 @@ manifest_board=$(sed -n 's/^board=//p' "$tmp/manifest")
 payload_size=$(sed -n 's/^payload_size=//p' "$tmp/manifest")
 payload_sha256=$(sed -n 's/^payload_sha256=//p' "$tmp/manifest")
 
-[ "$format" = 1 ] || { echo "wt: unsupported Lettuce Pi format" >&2; exit 1; }
+[ "$format" = 1 ] || { echo "wt: unsupported LettucePi format" >&2; exit 1; }
 [ "$manifest_board" = "$EXPECTED_BOARD" ] || { echo "wt: manifest board mismatch" >&2; exit 1; }
 case "$payload_size" in ''|*[!0-9]*) echo "wt: invalid payload size" >&2; exit 1;; esac
 case "$payload_sha256" in
@@ -141,7 +141,7 @@ actual_payload=$((actual_total - HEADER_SIZE))
     exit 1
 }
 [ "$actual_payload" -gt 1048576 ] && [ "$actual_payload" -le 58720256 ] || {
-    echo "wt: payload is outside M01K43P slot limits" >&2
+    echo "wt: payload is outside M10K43P slot limits" >&2
     exit 1
 }
 
@@ -156,7 +156,7 @@ actual_sha256=$(sha256sum "$tmp/payload.ubi" | awk '{print $1}')
     exit 1
 }
 
-echo "wt: Lettuce Pi firmware verify ok"
+echo "wt: LettucePi firmware verify ok"
 exit 0
 __LP_EOF__
 chmod 0755 "$TMP/wtcheck"
@@ -166,7 +166,7 @@ cat > "$TMP/index.html" <<'__LP_EOF__'
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lettuce Pi</title>
+<title>LettucePi</title>
 <style>
 /* Everything inline: the router may have no WAN, so no external assets. */
 :root{
@@ -220,7 +220,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:rgba(0,0,0,.22);
 </head>
 <body>
 <div class="card">
-  <h1>Lettuce Pi</h1>
+  <h1>LettucePi</h1>
   <div class="sub">Install the package you were sent.</div>
   <div class="meta" id="meta">Checking router&hellip;</div>
 
@@ -289,7 +289,7 @@ function refreshStatus(){
     if (p.status !== "OK") { $("meta").textContent = "Router did not respond correctly."; return; }
     $("meta").textContent = "Router " + (p.kv.model || p.kv.board || "?") +
         (p.kv.installed && p.kv.installed !== "none"
-          ? " — Lettuce Pi " + p.kv.installed + " installed"
+          ? " — LettucePi " + p.kv.installed + " installed"
           : " — nothing installed yet");
   }).catch(function(){ $("meta").textContent = "Could not reach the router."; });
 }
@@ -402,7 +402,7 @@ __LP_EOF__
 chmod 0644 "$TMP/index.html"
 cat > "$TMP/lettucepi-ipk" <<'__LP_EOF__'
 #!/bin/sh
-# Lettuce Pi MAIN EVENT package receiver.
+# LettucePi package receiver.
 #
 # Three steps, so nothing is installed until the customer has seen what it is:
 #   GET                  -> router status
@@ -453,7 +453,7 @@ if [ "${REQUEST_METHOD:-GET}" = "GET" ]; then
     # M10K43P. Show the customer the name on the box, keep the board id for
     # support. Do not "fix" the id: wtcheck compares against it.
     case "$board" in
-        M01K43P) model=M10K43P ;;
+        M01K43P) model="Chester K43P" ;;
         *)       model="$board" ;;
     esac
     arch=$(opkg print-architecture 2>/dev/null | awk '$1=="arch" && $2!="all" && $2!="noarch" {print $2; exit}')
@@ -652,14 +652,14 @@ do_install() {
   ------------------------------------------------------------------
    Done.
 
-   Open this page in your browser to install the Lettuce Pi
+   Open this page in your browser to install the LettucePi
    package you were sent:
 
        http://$LANIP/lettucepi
 
    Browse to the .ipk, verify it, then install.
 
-   This router will also accept Lettuce Pi firmware now
+   This router will also accept LettucePi firmware now
    (Settings -> Version). Genuine vendor firmware still works and is
    still checked by the untouched factory validator.
 
@@ -709,7 +709,7 @@ lp_main() {
 [ "$(id -u)" = 0 ] || { printf '\n  This must be run as root.\n\n' >&2; exit 1; }
 
 if head -c 400 "$WTCHECK" 2>/dev/null | grep -q "$MARKER"; then
-    STATUS='INSTALLED - this router already accepts Lettuce Pi firmware'
+    STATUS='INSTALLED - this router already accepts LettucePi firmware'
 else
     STATUS='not installed - this router is on stock firmware validation'
 fi
@@ -725,13 +725,13 @@ esac
 cat <<BANNER
 
   ==================================================================
-   Lettuce Pi MAIN EVENT - firmware validator
+   LettucePi - firmware validator
   ==================================================================
 
    Router : $DISPLAY_NAME
    Status : $STATUS
 
-   1) Install    - let this router accept Lettuce Pi firmware
+   1) Install    - let this router accept LettucePi firmware
    2) Uninstall  - restore stock firmware validation
    3) Cancel     - change nothing
 

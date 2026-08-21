@@ -1,16 +1,16 @@
-# Lettuce Pi Encore/NextEpisode/MainEvent — firmware validator for K43P
+# LettucePi — firmware validator for the Chester K43P
 
-Lets a stock **M10K43P** router accept Lettuce Pi firmware from its own web UI
+Lets a stock **Chester K43P** (M10K43P) router accept LettucePi firmware from its own web UI
 (**Settings → Version**), instead of rejecting it.
 
 ## Where this fits
 
 This is **step 1 of 2**, and it is the only part that is public:
 
-1. **This installer** — makes the router trust Lettuce Pi software. Carries no
+1. **This installer** — makes the router trust LettucePi software. Carries no
    token and no private key, so it is safe to publish and safe for anyone to
    run.
-2. **The Lettuce Pi package (`.ipk`)** — sent to the customer directly. It
+2. **The LettucePi package (`.ipk`)** — sent to the customer directly. It
    carries their update token, so the router can pull future updates on its
    own.
 
@@ -25,20 +25,20 @@ curl -fsSL https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/
 You get a menu:
 
 ```
-   Router : M01K43P
+   Router : Chester K43P
    Status : not installed - this router is on stock firmware validation
 
-   1) Install    - let this router accept Lettuce Pi firmware
+   1) Install    - let this router accept LettucePi firmware
    2) Uninstall  - restore stock firmware validation
    3) Cancel     - change nothing
 
    Choose 1, 2 or 3:
 ```
 
-Pick **1**, then upload the Lettuce Pi `.bin` in the web UI as normal. To undo
+Pick **1**, then upload the LettucePi `.bin` in the web UI as normal. To undo
 it later, run the same line again and pick **2**.
 
-Pick **1**, then upload the Lettuce Pi `.bin` in the web UI as normal. To undo
+Pick **1**, then upload the LettucePi `.bin` in the web UI as normal. To undo
 it later, run the same line again and pick **2**.
 
 The menu works even through `curl | sh`, because the answer is read from
@@ -69,11 +69,11 @@ Two files, and nothing else:
 
 | path | what |
 |---|---|
-| `/sbin/wtcheck` | replaced with the Lettuce Pi wrapper |
-| `/etc/lettucepi/main-event-update.pub` | the Lettuce Pi public key |
+| `/sbin/wtcheck` | replaced with the LettucePi wrapper |
+| `/etc/lettucepi/main-event-update.pub` | the LettucePi public key |
 
 **Genuine vendor firmware is unaffected.** The wrapper looks at the first 7
-bytes of any image: anything that is not a Lettuce Pi image is handed straight
+bytes of any image: anything that is not a LettucePi image is handed straight
 to the untouched factory validator at `/rom/sbin/wtcheck`, which still does its
 full RSA check. Vendor updates keep working exactly as before.
 
@@ -85,13 +85,13 @@ factory binary is never actually destroyed — uninstall copies it back from
 
 The installer refuses to do anything it cannot verify first:
 
-- refuses if the board is not `M01K43P`
+- refuses if the board is not `M01K43P` (the id a Chester K43P reports)
 - refuses if `/rom/sbin/wtcheck` is missing (nothing to delegate to)
 - refuses if `usign` or `sha256sum` are missing
 - verifies an **embedded signed test vector** with `usign` first, proving the
   key works on that box before the wrapper is given the job of gating firmware
 - runs the wrapper from `/tmp` and confirms it **rejects** a random file and
-  **rejects** an unsigned Lettuce Pi image — before installing it
+  **rejects** an unsigned LettucePi image — before installing it
 - installs by atomic rename, then re-checks the live binary and **automatically
   restores the factory validator** if that check fails
 
@@ -139,7 +139,7 @@ Stream over ssh: `ssh root@host 'cat > /tmp/f' < localfile`.
 
 ## Verified
 
-Exercised against real M01K43P hardware (OpenWrt 21.02-SNAPSHOT r2.6.0), with
+Exercised against real Chester K43P hardware (OpenWrt 21.02-SNAPSHOT r2.6.0), with
 every write redirected into `/tmp`:
 
 | case | result |
@@ -147,7 +147,7 @@ every write redirected into `/tmp`:
 | board / tool / `/rom` preflight | all pass, correct board reported |
 | embedded key vector | verified by the router's own `usign` |
 | random file offered to the wrapper | rejected (delegated to factory validator) |
-| unsigned Lettuce Pi image | rejected |
+| unsigned LettucePi image | rejected |
 | install | wrapper + key installed, live re-check passes |
 | menu option 1 / 2 / 3 | install / uninstall / cancel all behave |
 | uninstall | restored binary byte-identical to `/rom` (`cd37bdcf…`) |

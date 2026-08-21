@@ -87,14 +87,14 @@ do_install() {
   ------------------------------------------------------------------
    Done.
 
-   Open this page in your browser to install the Lettuce Pi
+   Open this page in your browser to install the LettucePi
    package you were sent:
 
        http://$LANIP/lettucepi
 
    Browse to the .ipk, verify it, then install.
 
-   This router will also accept Lettuce Pi firmware now
+   This router will also accept LettucePi firmware now
    (Settings -> Version). Genuine vendor firmware still works and is
    still checked by the untouched factory validator.
 
@@ -144,7 +144,7 @@ lp_main() {
 [ "$(id -u)" = 0 ] || { printf '\n  This must be run as root.\n\n' >&2; exit 1; }
 
 if head -c 400 "$WTCHECK" 2>/dev/null | grep -q "$MARKER"; then
-    STATUS='INSTALLED - this router already accepts Lettuce Pi firmware'
+    STATUS='INSTALLED - this router already accepts LettucePi firmware'
 else
     STATUS='not installed - this router is on stock firmware validation'
 fi
@@ -160,13 +160,13 @@ esac
 cat <<BANNER
 
   ==================================================================
-   Lettuce Pi MAIN EVENT - firmware validator
+   LettucePi - firmware validator
   ==================================================================
 
    Router : $DISPLAY_NAME
    Status : $STATUS
 
-   1) Install    - let this router accept Lettuce Pi firmware
+   1) Install    - let this router accept LettucePi firmware
    2) Uninstall  - restore stock firmware validation
    3) Cancel     - change nothing
 

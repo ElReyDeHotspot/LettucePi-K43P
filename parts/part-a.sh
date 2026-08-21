@@ -1,10 +1,10 @@
 #!/bin/sh
 # ============================================================================
-#  Lettuce Pi MAIN EVENT - firmware validator wrapper
-#  Router: M10K43P (board id M01K43P)
+#  LettucePi - firmware validator wrapper
+#  Router: Chester K43P (M10K43P, board id M01K43P)
 #
 #  Installs a wrapper at /sbin/wtcheck so the stock web UI
-#  (Settings -> Version) accepts Lettuce Pi firmware images.
+#  (Settings -> Version) accepts LettucePi firmware images.
 #
 #  Genuine vendor images are NOT affected: they are handed straight to the
 #  untouched factory validator at /rom/sbin/wtcheck.
@@ -17,20 +17,20 @@
 #  Non-interactive:  ... | sh -s -- --install   (or --uninstall)
 #
 #  This installer carries NO account token and NO private key. It only makes
-#  the router trust Lettuce Pi software; the Lettuce Pi package itself is
+#  the router trust LettucePi software; the LettucePi package itself is
 #  supplied separately.
 # ============================================================================
 set -u
 
 EXPECTED_BOARD=M01K43P
-DISPLAY_NAME=M10K43P          # product name; EXPECTED_BOARD is the board id the hardware reports
+DISPLAY_NAME="Chester K43P"   # what the customer sees; EXPECTED_BOARD is the id the hardware reports
 WTCHECK=/sbin/wtcheck
 ROM_WTCHECK=/rom/sbin/wtcheck
 KEYDIR=/etc/lettucepi
 PUBKEY=$KEYDIR/main-event-update.pub
 WEBDIR=/www/lettucepi
 CGI=/www/cgi-bin/lettucepi-ipk
-MARKER='Lettuce Pi MAIN EVENT wtcheck'
+MARKER='wtcheck compatibility validator'   # matches old and new wrapper headers
 TMP=/tmp/lp-install.$$
 
 ok(){   printf '  [ok]   %s\n' "$*"; }

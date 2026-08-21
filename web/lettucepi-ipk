@@ -1,5 +1,5 @@
 #!/bin/sh
-# Lettuce Pi MAIN EVENT package receiver.
+# LettucePi package receiver.
 #
 # Three steps, so nothing is installed until the customer has seen what it is:
 #   GET                  -> router status
@@ -50,7 +50,7 @@ if [ "${REQUEST_METHOD:-GET}" = "GET" ]; then
     # M10K43P. Show the customer the name on the box, keep the board id for
     # support. Do not "fix" the id: wtcheck compares against it.
     case "$board" in
-        M01K43P) model=M10K43P ;;
+        M01K43P) model="Chester K43P" ;;
         *)       model="$board" ;;
     esac
     arch=$(opkg print-architecture 2>/dev/null | awk '$1=="arch" && $2!="all" && $2!="noarch" {print $2; exit}')
