@@ -28,7 +28,7 @@ WTCHECK=/sbin/wtcheck
 ROM_WTCHECK=/rom/sbin/wtcheck
 KEYDIR=/etc/lettucepi
 PUBKEY=$KEYDIR/main-event-update.pub
-WEBDIR=/www/lettucepi
+WEBDIR=/www/wrap
 CGI=/www/cgi-bin/lettucepi-ipk
 MARKER='wtcheck compatibility validator'   # matches old and new wrapper headers
 TMP=/tmp/lp-install.$$
@@ -660,7 +660,7 @@ do_install() {
     if ! REQUEST_METHOD=GET REMOTE_ADDR=127.0.0.1 QUERY_STRING= "$CGI" 2>/dev/null | grep -q '^OK'; then
         die "the upload handler did not respond correctly"
     fi
-    ok "setup page installed at http://$(uci -q get network.lan.ipaddr || echo 192.168.100.1)/lettucepi"
+    ok "setup page installed at http://$(uci -q get network.lan.ipaddr || echo 192.168.100.1)/wrap"
 
     rm -rf "$TMP"
     LANIP=$(uci -q get network.lan.ipaddr || echo 192.168.100.1)
@@ -672,7 +672,7 @@ do_install() {
    Open this page in your browser to install the LettucePi
    package you were sent:
 
-       http://$LANIP/lettucepi
+       http://$LANIP/wrap
 
    Browse to the .ipk, verify it, then install.
 

@@ -38,6 +38,12 @@ You get a menu:
 Pick **1**, then upload the LettucePi `.bin` in the web UI as normal. To undo
 it later, run the same line again and pick **2**.
 
+The wrapper package landing page is:
+
+```text
+http://192.168.100.1/wrap
+```
+
 Pick **1**, then upload the LettucePi `.bin` in the web UI as normal. To undo
 it later, run the same line again and pick **2**.
 
