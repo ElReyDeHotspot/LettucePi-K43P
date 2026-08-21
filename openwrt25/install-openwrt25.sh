@@ -19,10 +19,11 @@
 set -u
 
 EXPECTED_BOARD=M01K43P
+EXPECTED_BOARD_ALT=misectel,m01k43   # what the same box reports once on OpenWrt 25
 DISPLAY_NAME="Chester K43P"
-IMG_URL="https://github.com/ElReyDeHotspot/LettucePi-K43P/releases/download/immortalwrt-25.12/immortalwrt-M10K43P-ubi.bin"
-IMG_SHA=8223b357e9cd98b22a5824689f04fccd678f3d39170dae7f126009b3720cb5ed
-IMG_SIZE=24117248
+IMG_URL="https://github.com/ElReyDeHotspot/LettucePi-K43P/releases/download/chester-25.12/immortalwrt-25.12-ChesterK43P-ubi.bin"
+IMG_SHA=1c49913c314ad78ea0df2cef6c99d89e9cbf285bd70d67f38cabaf00330da884
+IMG_SIZE=23592960
 PEB=131072
 # The staged path the replacement platform.sh looks for. Do not change one
 # without the other.
@@ -49,7 +50,10 @@ printf '\n  Upgrade %s to OpenWrt 25\n\n' "$DISPLAY_NAME"
 [ "$(id -u)" = 0 ] || die "must run as root"
 
 board=$(cat /tmp/sysinfo/board_name 2>/dev/null || echo unknown)
-[ "$board" = "$EXPECTED_BOARD" ] || die "this router reports board '$board'; this upgrade is only for the $DISPLAY_NAME ($EXPECTED_BOARD)"
+case "$board" in
+    "$EXPECTED_BOARD"|"$EXPECTED_BOARD_ALT") ;;
+    *) die "this router reports board '$board'; this upgrade is only for the $DISPLAY_NAME" ;;
+esac
 ok "router is $DISPLAY_NAME"
 
 for t in curl sha256sum sysupgrade ubiformat ubidetach dd; do
@@ -137,7 +141,7 @@ WARN
 fi
 
 # ------------------------------------------------------------------- flash
-# The stock platform.sh writes only mtd9, but this router boots mtd8 -- so the
+# The stock platform.sh writes only ubi2, but this router boots ubi -- so the
 # stock path silently leaves the old firmware running. Swap in the version that
 # writes both banks.
 if [ -f "$PLATFORM" ] && [ ! -f "$PLATFORM.lp-orig" ]; then
@@ -181,11 +185,23 @@ snand_do_upgrade() {
 	[ "$(dd if="$IMG" bs=4 count=1 2>/dev/null)" = "UBI#" ] || {
 		echo "wt: not a raw UBI image - aborting before erase" >&2; exit 1; }
 
-	ubidetach -m 8
-	ubiformat /dev/mtd8 -y -f "$IMG"
-
-	ubidetach -m 9
-	ubiformat /dev/mtd9 -y -f "$IMG"
+	# Look the partitions up BY NAME. mtd numbering is not stable across
+	# firmwares -- on the vendor image ubi/ubi2 are mtd8/mtd9, on ImmortalWrt
+	# they are mtd7/mtd8 -- so hardcoded numbers write the wrong partition, and
+	# on some layouts could land on the bootloader. The vendor's own script
+	# looked them up by name; the community one hardcoded them.
+	for name in ubi ubi2; do
+		part=$(grep "\"$name\"" /proc/mtd | cut -d: -f1)
+		case "$part" in
+			mtd[0-9]*) ;;
+			*) echo "wt: partition \"$name\" not found - aborting" >&2; exit 1 ;;
+		esac
+		num=${part#mtd}
+		echo "wt: writing $name ($part)"
+		ubidetach -m "$num" 2>/dev/null
+		ubiformat "/dev/$part" -y -f "$IMG" || {
+			echo "wt: ubiformat failed on $part" >&2; exit 1; }
+	done
 }
 
 platform_do_upgrade() {

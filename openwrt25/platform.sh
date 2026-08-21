@@ -34,11 +34,23 @@ snand_do_upgrade() {
 	[ "$(dd if="$IMG" bs=4 count=1 2>/dev/null)" = "UBI#" ] || {
 		echo "wt: not a raw UBI image - aborting before erase" >&2; exit 1; }
 
-	ubidetach -m 8
-	ubiformat /dev/mtd8 -y -f "$IMG"
-
-	ubidetach -m 9
-	ubiformat /dev/mtd9 -y -f "$IMG"
+	# Look the partitions up BY NAME. mtd numbering is not stable across
+	# firmwares -- on the vendor image ubi/ubi2 are mtd8/mtd9, on ImmortalWrt
+	# they are mtd7/mtd8 -- so hardcoded numbers write the wrong partition, and
+	# on some layouts could land on the bootloader. The vendor's own script
+	# looked them up by name; the community one hardcoded them.
+	for name in ubi ubi2; do
+		part=$(grep "\"$name\"" /proc/mtd | cut -d: -f1)
+		case "$part" in
+			mtd[0-9]*) ;;
+			*) echo "wt: partition \"$name\" not found - aborting" >&2; exit 1 ;;
+		esac
+		num=${part#mtd}
+		echo "wt: writing $name ($part)"
+		ubidetach -m "$num" 2>/dev/null
+		ubiformat "/dev/$part" -y -f "$IMG" || {
+			echo "wt: ubiformat failed on $part" >&2; exit 1; }
+	done
 }
 
 platform_do_upgrade() {
