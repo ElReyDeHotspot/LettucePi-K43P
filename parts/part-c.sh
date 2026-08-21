@@ -66,18 +66,39 @@ do_install() {
     fi
     ok "installed wrapper responds correctly"
 
+    # ---------------------------------------------------------- setup page
+    mkdir -p "$WEBDIR" || die "cannot create $WEBDIR"
+    cp "$TMP/index.html" "$WEBDIR/index.html.new" && chmod 0644 "$WEBDIR/index.html.new" \
+        && mv "$WEBDIR/index.html.new" "$WEBDIR/index.html" || die "could not install the setup page"
+    cp "$TMP/lettucepi-ipk" "$CGI.new" && chmod 0755 "$CGI.new" && mv "$CGI.new" "$CGI" \
+        || die "could not install the upload handler"
+    sync
+
+    # The handler must actually answer, or the page is a dead end.
+    if ! REQUEST_METHOD=GET REMOTE_ADDR=127.0.0.1 QUERY_STRING= "$CGI" 2>/dev/null | grep -q '^OK'; then
+        die "the upload handler did not respond correctly"
+    fi
+    ok "setup page installed at http://$(uci -q get network.lan.ipaddr || echo 192.168.100.1)/lettucepi"
+
     rm -rf "$TMP"
-    cat <<'DONE'
+    LANIP=$(uci -q get network.lan.ipaddr || echo 192.168.100.1)
+    cat <<DONE
 
   ------------------------------------------------------------------
-   Done. Your router will now accept Lettuce Pi firmware:
+   Done.
 
-       Settings -> Version -> upload the Lettuce Pi .bin
+   Open this page in your browser to install the Lettuce Pi
+   package you were sent:
 
-   Genuine vendor firmware still works, and is still checked by the
-   untouched factory validator.
+       http://$LANIP/lettucepi
 
-   To undo this, run the same command again and choose 2.
+   Browse to the .ipk, verify it, then install.
+
+   This router will also accept Lettuce Pi firmware now
+   (Settings -> Version). Genuine vendor firmware still works and is
+   still checked by the untouched factory validator.
+
+   To undo all of this, run the same command again and choose 2.
   ------------------------------------------------------------------
 
 DONE
@@ -94,6 +115,14 @@ do_uninstall() {
     chmod 0755 "$WTCHECK"; sync
     cmp -s "$WTCHECK" "$ROM_WTCHECK" || die "restore did not verify"
     ok "factory validator restored at $WTCHECK"
+
+    # These live only in the overlay -- nothing of this name exists in the
+    # factory squashfs -- so removing them leaves no whiteout behind.
+    rm -f "$CGI" "$WEBDIR/index.html"
+    rmdir "$WEBDIR" 2>/dev/null
+    rm -f /tmp/lp-staged.ipk; rm -rf /tmp/lp-verify
+    sync
+    ok "setup page removed"
     info "the public key at $PUBKEY was left in place (harmless)"
     cat <<'DONE'
 

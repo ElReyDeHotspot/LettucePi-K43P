@@ -51,6 +51,8 @@ printf "    cat > \"\$TMP/tv.sig\" <<'__LP_EOF__'\n"
 cat "$TV/tv.sig"
 printf "__LP_EOF__\n"
 emit_file '"$TMP/wtcheck"' "$WRAPPER" 0755
+emit_file '"$TMP/index.html"' "$HERE/web/index.html" 0644
+emit_file '"$TMP/lettucepi-ipk"' "$HERE/web/lettucepi-ipk" 0755
 cat "$HERE/parts/part-c.sh"
 } > "$OUT"
 

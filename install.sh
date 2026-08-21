@@ -27,6 +27,8 @@ WTCHECK=/sbin/wtcheck
 ROM_WTCHECK=/rom/sbin/wtcheck
 KEYDIR=/etc/lettucepi
 PUBKEY=$KEYDIR/main-event-update.pub
+WEBDIR=/www/lettucepi
+CGI=/www/cgi-bin/lettucepi-ipk
 MARKER='Lettuce Pi MAIN EVENT wtcheck'
 TMP=/tmp/lp-install.$$
 
@@ -157,6 +159,389 @@ echo "wt: Lettuce Pi firmware verify ok"
 exit 0
 __LP_EOF__
 chmod 0755 "$TMP/wtcheck"
+cat > "$TMP/index.html" <<'__LP_EOF__'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lettuce Pi</title>
+<style>
+/* Everything inline: the router may have no WAN, so no external assets. */
+:root{
+  --bg:#0f1511; --card:#18211b; --line:#2a3a2e; --ink:#e8f0e9;
+  --dim:#9bb0a1; --accent:#6ec46a; --accent-ink:#0f1511;
+  --bad:#e2685f; --good:#6ec46a; --step:#22302a;
+}
+@media (prefers-color-scheme:light){
+  :root{ --bg:#f2f5f2; --card:#fff; --line:#d9e2db; --ink:#16211a;
+         --dim:#5c6f62; --accent:#2f8f43; --accent-ink:#fff; --step:#eef3ef; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+.card{width:100%;max-width:540px;background:var(--card);border:1px solid var(--line);
+  border-radius:14px;padding:28px}
+h1{margin:0 0 4px;font-size:22px;letter-spacing:.2px}
+.sub{color:var(--dim);font-size:14px;margin-bottom:18px}
+.meta{color:var(--dim);font-size:13px;margin-bottom:20px}
+.steps{display:flex;gap:8px;margin-bottom:20px}
+.steps div{flex:1;text-align:center;font-size:12px;padding:7px 4px;border-radius:8px;
+  background:var(--step);color:var(--dim)}
+.steps div.on{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.steps div.done{color:var(--accent)}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:26px 18px;text-align:center;
+  cursor:pointer;transition:border-color .15s,background .15s}
+.drop:hover,.drop.over{border-color:var(--accent);background:rgba(110,196,106,.07)}
+.drop input{display:none}
+.fname{margin-top:12px;font-size:14px;word-break:break-all}
+button{width:100%;margin-top:14px;padding:13px 18px;border:0;border-radius:10px;
+  background:var(--accent);color:var(--accent-ink);font-size:16px;font-weight:600;cursor:pointer}
+button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line);font-weight:500}
+button:disabled{opacity:.45;cursor:not-allowed}
+table{width:100%;border-collapse:collapse;margin-top:16px;font-size:14px}
+td{padding:7px 0;border-bottom:1px solid var(--line);vertical-align:top}
+td:first-child{color:var(--dim);width:38%}
+td.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;word-break:break-all}
+pre{white-space:pre-wrap;word-break:break-word;background:rgba(0,0,0,.22);
+  border:1px solid var(--line);border-radius:10px;padding:14px;font-size:13px;
+  margin-top:16px;max-height:240px;overflow:auto}
+.ok{color:var(--good);font-weight:600}
+.bad{color:var(--bad);font-weight:600}
+.hide{display:none}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Lettuce Pi</h1>
+  <div class="sub">Install the package you were sent.</div>
+  <div class="meta" id="meta">Checking router&hellip;</div>
+
+  <div class="steps">
+    <div id="s1" class="on">1 &middot; Browse</div>
+    <div id="s2">2 &middot; Verify</div>
+    <div id="s3">3 &middot; Install</div>
+  </div>
+
+  <div id="pane1">
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept=".ipk">
+      <div><strong>Choose the .ipk file</strong></div>
+      <div style="color:var(--dim);font-size:13px;margin-top:6px">or drag it here</div>
+      <div class="fname" id="fname"></div>
+    </label>
+    <button id="verify" disabled>Verify package</button>
+  </div>
+
+  <div id="pane2" class="hide">
+    <table id="details"></table>
+    <button id="install">Install this package</button>
+    <button id="back" class="ghost">Choose a different file</button>
+  </div>
+
+  <pre id="out" class="hide"></pre>
+</div>
+
+<script>
+var CGI = "/cgi-bin/lettucepi-ipk";
+var file = null;
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s).replace(/[&<>]/g, function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c]; }); }
+
+function step(n){
+  [1,2,3].forEach(function(i){
+    var el = $("s" + i);
+    el.className = i === n ? "on" : (i < n ? "done" : "");
+  });
+}
+function say(msg, cls){
+  var o = $("out");
+  o.className = "";
+  o.innerHTML = (cls ? '<span class="' + cls + '">' +
+      (cls === "ok" ? "Success" : "Problem") + '</span>\n\n' : "") + esc(msg);
+}
+function hideOut(){ $("out").className = "hide"; }
+
+// Parse the plain-text reply: first line OK/FAIL, rest key=value or free text.
+function parse(t){
+  var lines = t.replace(/\r/g, "").split("\n");
+  var status = (lines.shift() || "").trim();
+  var kv = {}, rest = [];
+  lines.forEach(function(l){
+    var i = l.indexOf("=");
+    if (i > 0 && /^[a-z0-9_]+$/.test(l.slice(0, i))) kv[l.slice(0, i)] = l.slice(i + 1);
+    else if (l.trim() !== "") rest.push(l);
+  });
+  return { status: status, kv: kv, text: rest.join("\n") };
+}
+
+fetch(CGI).then(function(r){ return r.text(); }).then(function(t){
+  var p = parse(t);
+  if (p.status !== "OK") { $("meta").textContent = "Router did not respond correctly."; return; }
+  $("meta").textContent = "Router " + (p.kv.board || "?") +
+      (p.kv.installed && p.kv.installed !== "none"
+        ? " — Lettuce Pi " + p.kv.installed + " installed"
+        : " — nothing installed yet");
+}).catch(function(){ $("meta").textContent = "Could not reach the router."; });
+
+function pick(f){
+  if (!f) return;
+  file = f;
+  $("fname").textContent = f.name + "  (" + Math.round(f.size / 1024) + " KB)";
+  $("verify").disabled = false;
+  hideOut();
+}
+$("file").addEventListener("change", function(e){ pick(e.target.files[0]); });
+
+var drop = $("drop");
+["dragenter","dragover"].forEach(function(ev){
+  drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add("over"); }); });
+["dragleave","drop"].forEach(function(ev){
+  drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove("over"); }); });
+drop.addEventListener("drop", function(e){ pick(e.dataTransfer.files[0]); });
+
+$("verify").addEventListener("click", function(){
+  if (!file) return;
+  $("verify").disabled = true;
+  $("verify").textContent = "Checking…";
+  say("Uploading " + file.name + "…");
+
+  // Raw bytes, not multipart: the router parses CONTENT_LENGTH bytes of stdin.
+  fetch(CGI + "?action=verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/octet-stream" },
+    body: file
+  }).then(function(r){ return r.text(); }).then(function(t){
+    var p = parse(t);
+    $("verify").textContent = "Verify package";
+    if (p.status !== "OK") {
+      $("verify").disabled = false;
+      say(p.text || "That package was rejected.", "bad");
+      return;
+    }
+    var rows = [
+      ["Package", p.kv.package],
+      ["Version", p.kv.version],
+      ["Built for", p.kv.arch],
+      ["Size", Math.round((p.kv.size || 0) / 1024) + " KB"]
+    ];
+    if (p.kv.description) rows.push(["Description", p.kv.description]);
+    var html = "";
+    rows.forEach(function(r){
+      if (r[1]) html += "<tr><td>" + esc(r[0]) + "</td><td>" + esc(r[1]) + "</td></tr>";
+    });
+    if (p.kv.sha256) html += '<tr><td>SHA-256</td><td class="mono">' + esc(p.kv.sha256) + "</td></tr>";
+    $("details").innerHTML = html;
+    $("pane1").className = "hide";
+    $("pane2").className = "";
+    hideOut();
+    step(3);
+  }).catch(function(err){
+    $("verify").textContent = "Verify package";
+    $("verify").disabled = false;
+    say(String(err), "bad");
+  });
+});
+
+$("back").addEventListener("click", function(){
+  $("pane2").className = "hide";
+  $("pane1").className = "";
+  $("verify").disabled = false;
+  hideOut();
+  step(1);
+});
+
+$("install").addEventListener("click", function(){
+  $("install").disabled = true;
+  $("back").disabled = true;
+  $("install").textContent = "Installing…";
+  say("Installing on the router…");
+
+  // No re-upload: this installs exactly the bytes that were verified.
+  fetch(CGI + "?action=install", { method: "POST" })
+    .then(function(r){ return r.text(); }).then(function(t){
+      var p = parse(t);
+      say(p.text || p.status, p.status === "OK" ? "ok" : "bad");
+      if (p.status === "OK") {
+        $("install").textContent = "Installed";
+        setTimeout(function(){ location.reload(); }, 3000);
+      } else {
+        $("install").textContent = "Install this package";
+        $("install").disabled = false;
+        $("back").disabled = false;
+      }
+    }).catch(function(err){
+      say(String(err), "bad");
+      $("install").textContent = "Install this package";
+      $("install").disabled = false;
+      $("back").disabled = false;
+    });
+});
+
+step(1);
+</script>
+</body>
+</html>
+__LP_EOF__
+chmod 0644 "$TMP/index.html"
+cat > "$TMP/lettucepi-ipk" <<'__LP_EOF__'
+#!/bin/sh
+# Lettuce Pi MAIN EVENT package receiver.
+#
+# Three steps, so nothing is installed until the customer has seen what it is:
+#   GET                  -> router status
+#   POST ?action=verify  -> receive + inspect the package, stage it, report
+#   POST ?action=install -> install the package staged by the verify step
+#
+# The browser sends the raw file bytes as the POST body. There is deliberately
+# no multipart form: parsing multipart in ash on the router would be far more
+# fragile than reading CONTENT_LENGTH bytes of stdin.
+#
+# Responses are plain text, never JSON: first line is OK or FAIL, the rest is
+# detail. Escaping opkg output into JSON in ash is a bug farm and buys nothing.
+
+MAX_BYTES=16777216          # 16 MiB
+STAGED=/tmp/lp-staged.ipk
+WORK=/tmp/lp-verify
+LOG=/tmp/lettucepi-ipk.log
+
+reply() {   # reply <http-status> <line>...
+    printf 'Status: %s\r\n' "$1"
+    printf 'Content-Type: text/plain; charset=utf-8\r\n'
+    printf 'Cache-Control: no-store\r\n\r\n'
+    shift
+    printf '%s\n' "$@"
+}
+
+log() { printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >> "$LOG" 2>/dev/null; }
+
+# ---------------------------------------------------------------- guards
+# LAN only. uhttpd listens on 0.0.0.0 and this endpoint installs packages as
+# root, so refuse anything that did not come from a private address.
+case "${REMOTE_ADDR:-}" in
+    10.*|192.168.*|127.*|::1) ;;
+    172.1[6-9].*|172.2[0-9].*|172.3[01].*) ;;
+    *) reply "403 Forbidden" "FAIL" "This page is only available from the local network."; exit 0 ;;
+esac
+
+action=""
+case "${QUERY_STRING:-}" in
+    *action=verify*)  action=verify ;;
+    *action=install*) action=install ;;
+esac
+
+# ---------------------------------------------------------------- status
+if [ "${REQUEST_METHOD:-GET}" = "GET" ]; then
+    board=$(cat /tmp/sysinfo/board_name 2>/dev/null || echo unknown)
+    arch=$(opkg print-architecture 2>/dev/null | awk '$1=="arch" && $2!="all" && $2!="noarch" {print $2; exit}')
+    ver=$(opkg list-installed 2>/dev/null | sed -n 's/^lettucepi - //p' | head -1)
+    reply "200 OK" "OK" "board=$board" "arch=${arch:-unknown}" "installed=${ver:-none}"
+    exit 0
+fi
+
+[ "$REQUEST_METHOD" = "POST" ] || { reply "405 Method Not Allowed" "FAIL" "Use POST."; exit 0; }
+
+# ---------------------------------------------------------------- install
+# Installs only what a previous verify staged, so the bytes being installed are
+# exactly the bytes that were inspected.
+if [ "$action" = install ]; then
+    [ -s "$STAGED" ] || { reply "409 Conflict" "FAIL" "Nothing staged. Verify a package first."; exit 0; }
+    log "install $(wc -c < "$STAGED" | tr -d ' ') bytes from $REMOTE_ADDR"
+    out=$(opkg install --force-reinstall --force-downgrade "$STAGED" 2>&1)
+    rc=$?
+    printf '%s\n' "$out" >> "$LOG" 2>/dev/null
+    rm -f "$STAGED"; rm -rf "$WORK"
+    if [ "$rc" -eq 0 ]; then
+        reply "200 OK" "OK" "$out"
+    else
+        reply "200 OK" "FAIL" "$out"
+    fi
+    exit 0
+fi
+
+[ "$action" = verify ] || { reply "400 Bad Request" "FAIL" "Unknown action."; exit 0; }
+
+# ---------------------------------------------------------------- verify
+len="${CONTENT_LENGTH:-}"
+case "$len" in
+    ''|*[!0-9]*) reply "411 Length Required" "FAIL" "Missing or invalid Content-Length."; exit 0 ;;
+esac
+[ "$len" -gt 0 ] || { reply "400 Bad Request" "FAIL" "That file is empty."; exit 0; }
+[ "$len" -le "$MAX_BYTES" ] || { reply "413 Payload Too Large" "FAIL" "That file is larger than 16 MB."; exit 0; }
+
+rm -f "$STAGED"; rm -rf "$WORK"
+head -c "$len" > "$STAGED" 2>/dev/null
+got=$(wc -c < "$STAGED" 2>/dev/null | tr -d ' ')
+[ "$got" = "$len" ] || { rm -f "$STAGED"; reply "400 Bad Request" "FAIL" "Upload was cut short ($got of $len bytes)."; exit 0; }
+
+# An .ipk is a gzip stream (tar.gz holding control.tar.gz + data.tar.gz).
+# Ask gzip rather than trusting the file name or a hexdump that may not exist.
+if ! gzip -t "$STAGED" 2>/dev/null; then
+    rm -f "$STAGED"
+    reply "415 Unsupported Media Type" "FAIL" "That is not a .ipk package (it is not a valid archive)."
+    exit 0
+fi
+
+mkdir -p "$WORK" || { rm -f "$STAGED"; reply "500 Internal Server Error" "FAIL" "Cannot use /tmp."; exit 0; }
+if ! tar -xzf "$STAGED" -C "$WORK" 2>/dev/null; then
+    rm -f "$STAGED"; rm -rf "$WORK"
+    reply "415 Unsupported Media Type" "FAIL" "That is not a .ipk package (cannot read it)."
+    exit 0
+fi
+
+ctl=""
+for c in "$WORK/control.tar.gz" "$WORK/./control.tar.gz"; do
+    [ -f "$c" ] && { ctl="$c"; break; }
+done
+[ -n "$ctl" ] || { rm -f "$STAGED"; rm -rf "$WORK"
+    reply "415 Unsupported Media Type" "FAIL" "That is not a .ipk package (no control section)."; exit 0; }
+
+tar -xzf "$ctl" -C "$WORK" 2>/dev/null
+cfile=""
+for c in "$WORK/control" "$WORK/./control"; do
+    [ -f "$c" ] && { cfile="$c"; break; }
+done
+[ -n "$cfile" ] || { rm -f "$STAGED"; rm -rf "$WORK"
+    reply "415 Unsupported Media Type" "FAIL" "That is not a .ipk package (control file missing)."; exit 0; }
+
+pkg=$(sed -n 's/^Package: *//p'      "$cfile" | head -1)
+pver=$(sed -n 's/^Version: *//p'     "$cfile" | head -1)
+parch=$(sed -n 's/^Architecture: *//p' "$cfile" | head -1)
+pdesc=$(sed -n 's/^Description: *//p'  "$cfile" | head -1)
+
+[ -n "$pkg" ] || { rm -f "$STAGED"; rm -rf "$WORK"
+    reply "415 Unsupported Media Type" "FAIL" "That package has no name and cannot be installed."; exit 0; }
+
+# Architecture sanity: a mismatch here otherwise surfaces as a confusing opkg
+# error after the customer has already committed to installing.
+boxarch=$(opkg print-architecture 2>/dev/null | awk '$1=="arch" {print $2}')
+archok=no
+for a in $boxarch; do
+    [ "$parch" = "$a" ] && archok=yes
+done
+[ "$parch" = "all" ] && archok=yes
+
+if [ "$archok" != yes ]; then
+    rm -f "$STAGED"; rm -rf "$WORK"
+    reply "200 OK" "FAIL" "This package is built for '$parch', which this router cannot run." \
+        "Supported here: $(echo $boxarch | tr '\n' ' ')"
+    exit 0
+fi
+
+sha=$(sha256sum "$STAGED" 2>/dev/null | awk '{print $1}')
+log "verify ok $pkg $pver ($parch, $len bytes) from $REMOTE_ADDR"
+
+reply "200 OK" "OK" \
+    "package=$pkg" \
+    "version=$pver" \
+    "arch=$parch" \
+    "size=$len" \
+    "sha256=$sha" \
+    "description=$pdesc"
+__LP_EOF__
+chmod 0755 "$TMP/lettucepi-ipk"
 }
 
 # ---------------------------------------------------------------- install
@@ -225,18 +610,39 @@ do_install() {
     fi
     ok "installed wrapper responds correctly"
 
+    # ---------------------------------------------------------- setup page
+    mkdir -p "$WEBDIR" || die "cannot create $WEBDIR"
+    cp "$TMP/index.html" "$WEBDIR/index.html.new" && chmod 0644 "$WEBDIR/index.html.new" \
+        && mv "$WEBDIR/index.html.new" "$WEBDIR/index.html" || die "could not install the setup page"
+    cp "$TMP/lettucepi-ipk" "$CGI.new" && chmod 0755 "$CGI.new" && mv "$CGI.new" "$CGI" \
+        || die "could not install the upload handler"
+    sync
+
+    # The handler must actually answer, or the page is a dead end.
+    if ! REQUEST_METHOD=GET REMOTE_ADDR=127.0.0.1 QUERY_STRING= "$CGI" 2>/dev/null | grep -q '^OK'; then
+        die "the upload handler did not respond correctly"
+    fi
+    ok "setup page installed at http://$(uci -q get network.lan.ipaddr || echo 192.168.100.1)/lettucepi"
+
     rm -rf "$TMP"
-    cat <<'DONE'
+    LANIP=$(uci -q get network.lan.ipaddr || echo 192.168.100.1)
+    cat <<DONE
 
   ------------------------------------------------------------------
-   Done. Your router will now accept Lettuce Pi firmware:
+   Done.
 
-       Settings -> Version -> upload the Lettuce Pi .bin
+   Open this page in your browser to install the Lettuce Pi
+   package you were sent:
 
-   Genuine vendor firmware still works, and is still checked by the
-   untouched factory validator.
+       http://$LANIP/lettucepi
 
-   To undo this, run the same command again and choose 2.
+   Browse to the .ipk, verify it, then install.
+
+   This router will also accept Lettuce Pi firmware now
+   (Settings -> Version). Genuine vendor firmware still works and is
+   still checked by the untouched factory validator.
+
+   To undo all of this, run the same command again and choose 2.
   ------------------------------------------------------------------
 
 DONE
@@ -253,6 +659,14 @@ do_uninstall() {
     chmod 0755 "$WTCHECK"; sync
     cmp -s "$WTCHECK" "$ROM_WTCHECK" || die "restore did not verify"
     ok "factory validator restored at $WTCHECK"
+
+    # These live only in the overlay -- nothing of this name exists in the
+    # factory squashfs -- so removing them leaves no whiteout behind.
+    rm -f "$CGI" "$WEBDIR/index.html"
+    rmdir "$WEBDIR" 2>/dev/null
+    rm -f /tmp/lp-staged.ipk; rm -rf /tmp/lp-verify
+    sync
+    ok "setup page removed"
     info "the public key at $PUBKEY was left in place (harmless)"
     cat <<'DONE'
 

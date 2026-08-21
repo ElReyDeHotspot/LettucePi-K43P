@@ -27,6 +27,8 @@ WTCHECK=/sbin/wtcheck
 ROM_WTCHECK=/rom/sbin/wtcheck
 KEYDIR=/etc/lettucepi
 PUBKEY=$KEYDIR/main-event-update.pub
+WEBDIR=/www/lettucepi
+CGI=/www/cgi-bin/lettucepi-ipk
 MARKER='Lettuce Pi MAIN EVENT wtcheck'
 TMP=/tmp/lp-install.$$
 
