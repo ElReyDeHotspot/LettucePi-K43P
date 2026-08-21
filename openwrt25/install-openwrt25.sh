@@ -113,13 +113,14 @@ if [ "$ASSUME_YES" != 1 ]; then
 
    This replaces the router's firmware with OpenWrt 25.
 
-   * BOTH flash banks are written. There is no fallback afterwards.
-   * Every setting, package and password on the router is erased.
-   * The router's address changes. After it reboots, reconnect on the
-     new firmware's default address.
-   * If this is interrupted, recovery needs TFTP or a serial cable.
+   * Everything on the router is erased - settings, Wi-Fi, packages.
+   * This cannot be undone.
+   * If it is interrupted, the router needs special recovery tools.
 
-   Do not power the router off while it is flashing.
+   Do not unplug the router while it is working.
+
+   When it finishes, the router is at the SAME address as now
+   (http://192.168.100.1, root/admin).
   ------------------------------------------------------------------
 
 WARN
