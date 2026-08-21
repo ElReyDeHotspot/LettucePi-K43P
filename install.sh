@@ -1,7 +1,7 @@
 #!/bin/sh
 # ============================================================================
 #  Lettuce Pi MAIN EVENT - firmware validator wrapper
-#  Board: M01K43P
+#  Router: M10K43P (board id M01K43P)
 #
 #  Installs a wrapper at /sbin/wtcheck so the stock web UI
 #  (Settings -> Version) accepts Lettuce Pi firmware images.
@@ -23,6 +23,7 @@
 set -u
 
 EXPECTED_BOARD=M01K43P
+DISPLAY_NAME=M10K43P          # product name; EXPECTED_BOARD is the board id the hardware reports
 WTCHECK=/sbin/wtcheck
 ROM_WTCHECK=/rom/sbin/wtcheck
 KEYDIR=/etc/lettucepi
@@ -191,7 +192,12 @@ h1{margin:0 0 4px;font-size:22px;letter-spacing:.2px}
   background:var(--step);color:var(--dim)}
 .steps div.on{background:var(--accent);color:var(--accent-ink);font-weight:600}
 .steps div.done{color:var(--accent)}
-.drop{border:2px dashed var(--line);border-radius:12px;padding:26px 18px;text-align:center;
+/* display:block is load-bearing. A <label> is inline by default, so the
+   padding and border do not lay out, the dashed box renders as fragments and
+   the label overlaps the Verify button underneath it -- clicking Verify then
+   opens the file dialog instead of verifying. */
+.drop{display:block;border:2px dashed var(--line);border-radius:12px;
+  padding:26px 18px;text-align:center;
   cursor:pointer;transition:border-color .15s,background .15s}
 .drop:hover,.drop.over{border-color:var(--accent);background:rgba(110,196,106,.07)}
 .drop input{display:none}
@@ -280,7 +286,7 @@ function parse(t){
 fetch(CGI).then(function(r){ return r.text(); }).then(function(t){
   var p = parse(t);
   if (p.status !== "OK") { $("meta").textContent = "Router did not respond correctly."; return; }
-  $("meta").textContent = "Router " + (p.kv.board || "?") +
+  $("meta").textContent = "Router " + (p.kv.model || p.kv.board || "?") +
       (p.kv.installed && p.kv.installed !== "none"
         ? " — Lettuce Pi " + p.kv.installed + " installed"
         : " — nothing installed yet");
@@ -435,9 +441,16 @@ esac
 # ---------------------------------------------------------------- status
 if [ "${REQUEST_METHOD:-GET}" = "GET" ]; then
     board=$(cat /tmp/sysinfo/board_name 2>/dev/null || echo unknown)
+    # The hardware reports the board id M01K43P; the product is sold as
+    # M10K43P. Show the customer the name on the box, keep the board id for
+    # support. Do not "fix" the id: wtcheck compares against it.
+    case "$board" in
+        M01K43P) model=M10K43P ;;
+        *)       model="$board" ;;
+    esac
     arch=$(opkg print-architecture 2>/dev/null | awk '$1=="arch" && $2!="all" && $2!="noarch" {print $2; exit}')
     ver=$(opkg list-installed 2>/dev/null | sed -n 's/^lettucepi - //p' | head -1)
-    reply "200 OK" "OK" "board=$board" "arch=${arch:-unknown}" "installed=${ver:-none}"
+    reply "200 OK" "OK" "model=$model" "board=$board" "arch=${arch:-unknown}" "installed=${ver:-none}"
     exit 0
 fi
 
@@ -549,8 +562,8 @@ do_install() {
     printf '\n  Installing...\n\n'
 
     board=$(cat /tmp/sysinfo/board_name 2>/dev/null || echo unknown)
-    [ "$board" = "$EXPECTED_BOARD" ] || die "wrong board: this is '$board', expected '$EXPECTED_BOARD'"
-    ok "board is $board"
+    [ "$board" = "$EXPECTED_BOARD" ] || die "this router reports board '$board'; this installer is for the $DISPLAY_NAME ($EXPECTED_BOARD)"
+    ok "router is $DISPLAY_NAME (board id $board)"
 
     [ -f "$ROM_WTCHECK" ] || die "$ROM_WTCHECK not found - this firmware is not supported"
     ok "factory validator present at $ROM_WTCHECK"
@@ -707,7 +720,7 @@ cat <<BANNER
    Lettuce Pi MAIN EVENT - firmware validator
   ==================================================================
 
-   Router : $EXPECTED_BOARD
+   Router : $DISPLAY_NAME
    Status : $STATUS
 
    1) Install    - let this router accept Lettuce Pi firmware

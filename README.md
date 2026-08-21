@@ -1,6 +1,6 @@
-# Lettuce Pi MAIN EVENT — firmware validator for M01K43P
+# Lettuce Pi MAIN EVENT — firmware validator for M10K43P
 
-Lets a stock **M01K43P** router accept Lettuce Pi firmware from its own web UI
+Lets a stock **M10K43P** router accept Lettuce Pi firmware from its own web UI
 (**Settings → Version**), instead of rejecting it.
 
 ## Where this fits

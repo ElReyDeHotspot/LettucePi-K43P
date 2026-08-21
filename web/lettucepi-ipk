@@ -46,9 +46,16 @@ esac
 # ---------------------------------------------------------------- status
 if [ "${REQUEST_METHOD:-GET}" = "GET" ]; then
     board=$(cat /tmp/sysinfo/board_name 2>/dev/null || echo unknown)
+    # The hardware reports the board id M01K43P; the product is sold as
+    # M10K43P. Show the customer the name on the box, keep the board id for
+    # support. Do not "fix" the id: wtcheck compares against it.
+    case "$board" in
+        M01K43P) model=M10K43P ;;
+        *)       model="$board" ;;
+    esac
     arch=$(opkg print-architecture 2>/dev/null | awk '$1=="arch" && $2!="all" && $2!="noarch" {print $2; exit}')
     ver=$(opkg list-installed 2>/dev/null | sed -n 's/^lettucepi - //p' | head -1)
-    reply "200 OK" "OK" "board=$board" "arch=${arch:-unknown}" "installed=${ver:-none}"
+    reply "200 OK" "OK" "model=$model" "board=$board" "arch=${arch:-unknown}" "installed=${ver:-none}"
     exit 0
 fi
 

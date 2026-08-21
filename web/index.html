@@ -29,7 +29,12 @@ h1{margin:0 0 4px;font-size:22px;letter-spacing:.2px}
   background:var(--step);color:var(--dim)}
 .steps div.on{background:var(--accent);color:var(--accent-ink);font-weight:600}
 .steps div.done{color:var(--accent)}
-.drop{border:2px dashed var(--line);border-radius:12px;padding:26px 18px;text-align:center;
+/* display:block is load-bearing. A <label> is inline by default, so the
+   padding and border do not lay out, the dashed box renders as fragments and
+   the label overlaps the Verify button underneath it -- clicking Verify then
+   opens the file dialog instead of verifying. */
+.drop{display:block;border:2px dashed var(--line);border-radius:12px;
+  padding:26px 18px;text-align:center;
   cursor:pointer;transition:border-color .15s,background .15s}
 .drop:hover,.drop.over{border-color:var(--accent);background:rgba(110,196,106,.07)}
 .drop input{display:none}
@@ -118,7 +123,7 @@ function parse(t){
 fetch(CGI).then(function(r){ return r.text(); }).then(function(t){
   var p = parse(t);
   if (p.status !== "OK") { $("meta").textContent = "Router did not respond correctly."; return; }
-  $("meta").textContent = "Router " + (p.kv.board || "?") +
+  $("meta").textContent = "Router " + (p.kv.model || p.kv.board || "?") +
       (p.kv.installed && p.kv.installed !== "none"
         ? " — Lettuce Pi " + p.kv.installed + " installed"
         : " — nothing installed yet");

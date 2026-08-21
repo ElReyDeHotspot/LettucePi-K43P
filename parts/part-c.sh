@@ -5,8 +5,8 @@ do_install() {
     printf '\n  Installing...\n\n'
 
     board=$(cat /tmp/sysinfo/board_name 2>/dev/null || echo unknown)
-    [ "$board" = "$EXPECTED_BOARD" ] || die "wrong board: this is '$board', expected '$EXPECTED_BOARD'"
-    ok "board is $board"
+    [ "$board" = "$EXPECTED_BOARD" ] || die "this router reports board '$board'; this installer is for the $DISPLAY_NAME ($EXPECTED_BOARD)"
+    ok "router is $DISPLAY_NAME (board id $board)"
 
     [ -f "$ROM_WTCHECK" ] || die "$ROM_WTCHECK not found - this firmware is not supported"
     ok "factory validator present at $ROM_WTCHECK"
@@ -163,7 +163,7 @@ cat <<BANNER
    Lettuce Pi MAIN EVENT - firmware validator
   ==================================================================
 
-   Router : $EXPECTED_BOARD
+   Router : $DISPLAY_NAME
    Status : $STATUS
 
    1) Install    - let this router accept Lettuce Pi firmware

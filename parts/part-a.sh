@@ -1,7 +1,7 @@
 #!/bin/sh
 # ============================================================================
 #  Lettuce Pi MAIN EVENT - firmware validator wrapper
-#  Board: M01K43P
+#  Router: M10K43P (board id M01K43P)
 #
 #  Installs a wrapper at /sbin/wtcheck so the stock web UI
 #  (Settings -> Version) accepts Lettuce Pi firmware images.
@@ -23,6 +23,7 @@
 set -u
 
 EXPECTED_BOARD=M01K43P
+DISPLAY_NAME=M10K43P          # product name; EXPECTED_BOARD is the board id the hardware reports
 WTCHECK=/sbin/wtcheck
 ROM_WTCHECK=/rom/sbin/wtcheck
 KEYDIR=/etc/lettucepi
