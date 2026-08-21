@@ -264,6 +264,13 @@ DONE
 }
 
 # ------------------------------------------------------------------- main
+# Everything executable lives in this function, and it is called on the very
+# last line. That matters for `curl ... | sh`: the shell reads its script from
+# the pipe as it goes, so if it exits early the rest of the download has
+# nowhere to land and curl dies with "(23) Failed writing body" in the
+# customer's face. Wrapping it forces the shell to read the whole script
+# before it runs any of it.
+lp_main() {
 [ "$(id -u)" = 0 ] || { printf '\n  This must be run as root.\n\n' >&2; exit 1; }
 
 if head -c 400 "$WTCHECK" 2>/dev/null | grep -q "$MARKER"; then
@@ -320,3 +327,6 @@ case "$choice" in
     3|"") printf '\n  Cancelled. Nothing was changed.\n\n' ;;
     *) printf '\n  "%s" is not one of the options. Nothing was changed.\n\n' "$choice"; exit 2 ;;
 esac
+}
+
+lp_main "$@"
