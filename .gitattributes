@@ -6,3 +6,4 @@ chesterAPK/** -text
 *.adb binary
 *.apk binary
 *.pem -text
+ChesterK43P-Bin/** -text
