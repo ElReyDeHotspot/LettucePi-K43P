@@ -9,11 +9,16 @@
 #  Genuine vendor images are NOT affected: they are handed straight to the
 #  untouched factory validator at /rom/sbin/wtcheck.
 #
-#  Run it:
+#  SSH into the router as root and paste one line:
+#
 #      curl -fsSL @RAW_URL@ | sh
 #
 #  You get a menu: 1) Install  2) Uninstall  3) Cancel
 #  Non-interactive:  ... | sh -s -- --install   (or --uninstall)
+#
+#  This installer carries NO account token and NO private key. It only makes
+#  the router trust Lettuce Pi software; the Lettuce Pi package itself is
+#  supplied separately.
 # ============================================================================
 set -u
 

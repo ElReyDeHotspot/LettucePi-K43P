@@ -3,6 +3,17 @@
 Lets a stock **M01K43P** router accept Lettuce Pi firmware from its own web UI
 (**Settings → Version**), instead of rejecting it.
 
+## Where this fits
+
+This is **step 1 of 2**, and it is the only part that is public:
+
+1. **This installer** — makes the router trust Lettuce Pi software. Carries no
+   token and no private key, so it is safe to publish and safe for anyone to
+   run.
+2. **The Lettuce Pi package (`.ipk`)** — sent to the customer directly. It
+   carries their update token, so the router can pull future updates on its
+   own.
+
 ## For customers
 
 SSH into the router as `root`, then paste **one line**:
@@ -27,20 +38,30 @@ You get a menu:
 Pick **1**, then upload the Lettuce Pi `.bin` in the web UI as normal. To undo
 it later, run the same line again and pick **2**.
 
+Pick **1**, then upload the Lettuce Pi `.bin` in the web UI as normal. To undo
+it later, run the same line again and pick **2**.
+
+The menu works even through `curl | sh`, because the answer is read from
+`/dev/tty` rather than stdin — stdin is the script itself.
+
+### One-shot, without the menu
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/install.sh | sh -s -- --install
+curl -fsSL https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/install.sh | sh -s -- --uninstall
+```
+
 ### If the router has no internet yet
 
-Run it from your own PC instead — the script is piped in over SSH:
+Pipe the script in from your PC instead. A pipe has no terminal, so the choice
+has to be explicit:
 
 ```sh
-ssh root@192.168.100.1 'sh -s' < install.sh
+ssh root@192.168.100.1 'sh -s -- --install' < install.sh
 ```
 
-That path has no terminal for the menu, so pass the choice explicitly:
-
-```sh
-ssh root@192.168.100.1 'sh -s -- --install'   < install.sh
-ssh root@192.168.100.1 'sh -s -- --uninstall' < install.sh
-```
+Run with no choice over a pipe and it prints instructions and exits without
+touching anything.
 
 ## What it actually changes
 
@@ -101,13 +122,20 @@ Set the URL baked into the help text with:
 REPO_RAW_URL=https://raw.githubusercontent.com/OWNER/REPO/main/install.sh ./make-installer.sh
 ```
 
-⚠️ The repo must be **public** for the `curl` one-liner to work —
-`raw.githubusercontent.com` needs a token for private repos, which defeats the
-copy-paste flow.
+⚠️ This repo is **public on purpose**, so the router can fetch `install.sh`
+anonymously over HTTPS. Keep it that way — a private repo returns 404 to an
+unauthenticated router, not a login prompt.
+
+⚠️ **Never commit an update token or the signing secret here.** The token
+belongs in the `.ipk` that is sent to the customer directly; the secret key
+never leaves the build machine. This repo ships the *public* key only.
 
 ⚠️ On the router, `wget` is a symlink to `uclient-fetch` and has **no SSL**.
-Only `curl` can fetch over HTTPS there. Do not "simplify" the one-liner to
+Only `curl` can fetch over HTTPS there. Do not "simplify" any one-liner to
 `wget`.
+
+⚠️ `scp` does not work against these routers — dropbear has no sftp-server.
+Stream over ssh: `ssh root@host 'cat > /tmp/f' < localfile`.
 
 ## Verified
 

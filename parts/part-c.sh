@@ -146,7 +146,7 @@ if ( : < /dev/tty ) 2>/dev/null; then
     :
 else
     printf '   No terminal available for the menu (input is not a terminal).\n'
-    printf '   Re-run with an explicit choice:\n\n'
+    printf '   Re-run with the choice made explicitly:\n\n'
     printf '       curl -fsSL @RAW_URL@ | sh -s -- --install\n'
     printf '       curl -fsSL @RAW_URL@ | sh -s -- --uninstall\n\n'
     exit 1

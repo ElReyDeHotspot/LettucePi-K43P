@@ -9,11 +9,16 @@
 #  Genuine vendor images are NOT affected: they are handed straight to the
 #  untouched factory validator at /rom/sbin/wtcheck.
 #
-#  Run it:
+#  SSH into the router as root and paste one line:
+#
 #      curl -fsSL https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/install.sh | sh
 #
 #  You get a menu: 1) Install  2) Uninstall  3) Cancel
 #  Non-interactive:  ... | sh -s -- --install   (or --uninstall)
+#
+#  This installer carries NO account token and NO private key. It only makes
+#  the router trust Lettuce Pi software; the Lettuce Pi package itself is
+#  supplied separately.
 # ============================================================================
 set -u
 
@@ -300,7 +305,7 @@ if ( : < /dev/tty ) 2>/dev/null; then
     :
 else
     printf '   No terminal available for the menu (input is not a terminal).\n'
-    printf '   Re-run with an explicit choice:\n\n'
+    printf '   Re-run with the choice made explicitly:\n\n'
     printf '       curl -fsSL https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/install.sh | sh -s -- --install\n'
     printf '       curl -fsSL https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/install.sh | sh -s -- --uninstall\n\n'
     exit 1
