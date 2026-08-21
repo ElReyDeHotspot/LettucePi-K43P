@@ -61,6 +61,8 @@ cat > "$TMP/wtcheck" <<'__LP_EOF__'
 set -u
 
 ROM_WTCHECK=/rom/sbin/wtcheck
+VENDOR_WTCHECK=/sbin/wtcheck.vendor
+SELF_MARKER='wtcheck compatibility validator'
 PUBKEY=/etc/lettucepi/main-event-update.pub
 HEADER_SIZE=65536
 EXPECTED_BOARD=M01K43P
@@ -92,12 +94,27 @@ done
 # The first tar member name occupies the first bytes of a POSIX tar header.
 magic=$(dd if="$image" bs=7 count=1 2>/dev/null || true)
 if [ "$magic" != LPMAIN1 ]; then
-    [ -x "$ROM_WTCHECK" ] || { echo "wt: immutable factory validator missing" >&2; exit 1; }
+    # Never delegate to ourselves. On a stock router /rom/sbin/wtcheck is the
+    # vendor ELF, but once this wrapper is baked into a LettucePi firmware
+    # image it OWNS /sbin/wtcheck in the read-only rootfs -- so /rom/sbin/wtcheck
+    # is THIS script, and exec'ing it recurses until the box is wedged (observed:
+    # load climbing, sysupgrade never returning, the router needing a reboot).
+    # Prefer the copy the image build sets aside, and skip any candidate that
+    # is us.
+    [ -z "${LP_WTCHECK_DELEGATED:-}" ] || { echo "wt: validator delegation loop" >&2; exit 1; }
+    vendor=
+    for cand in "$VENDOR_WTCHECK" "$ROM_WTCHECK"; do
+        [ -x "$cand" ] || continue
+        head -c 400 "$cand" 2>/dev/null | grep -q "$SELF_MARKER" && continue
+        vendor="$cand"; break
+    done
+    [ -n "$vendor" ] || { echo "wt: factory validator missing - cannot check vendor images" >&2; exit 1; }
     set -- -b "$board"
     [ -n "$bootloader_size" ] && set -- "$@" -o "$bootloader_size"
     [ "$rsa_only" -eq 1 ] && set -- "$@" -r
     set -- "$@" -f "$image"
-    exec "$ROM_WTCHECK" "$@"
+    LP_WTCHECK_DELEGATED=1; export LP_WTCHECK_DELEGATED
+    exec "$vendor" "$@"
 fi
 
 [ "$board" = "$EXPECTED_BOARD" ] || { echo "wt: board name failed($board/$EXPECTED_BOARD)" >&2; exit 1; }
