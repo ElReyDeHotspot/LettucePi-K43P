@@ -1,0 +1,3 @@
+# generated locally for testing; install.sh IS committed on purpose
+*.tmp
+*.bak
