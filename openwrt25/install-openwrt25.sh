@@ -71,8 +71,9 @@ ok "space available in /tmp (${FREE}K)"
 # ---------------------------------------------------------------- download
 info "downloading firmware (23 MB), please wait..."
 rm -f "$IMG"
-# -L because release assets redirect to a CDN host.
-curl -fL --retry 3 --retry-delay 2 --max-time 900 -o "$IMG" "$IMG_URL" \
+# -L because release assets redirect to a CDN host. -# is a single-line progress
+# bar; curl's default table redraws badly when the script is piped in.
+curl -fL -# --retry 3 --retry-delay 2 --max-time 900 -o "$IMG" "$IMG_URL" \
     || die "download failed - check the router's internet connection"
 
 GOT=$(wc -c < "$IMG" | tr -d ' ')
