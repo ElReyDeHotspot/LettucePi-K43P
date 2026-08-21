@@ -10,9 +10,8 @@ This is **step 1 of 2**, and it is the only part that is public:
 1. **This installer** — makes the router trust LettucePi software. Carries no
    token and no private key, so it is safe to publish and safe for anyone to
    run.
-2. **The LettucePi package (`.ipk`)** — sent to the customer directly. It
-   carries their update token, so the router can pull future updates on its
-   own.
+2. **The signed LettucePi firmware (`.bin`)** — sent to the customer directly
+   and uploaded through the router's stock firmware update page.
 
 ## For customers
 
@@ -38,14 +37,11 @@ You get a menu:
 Pick **1**, then upload the LettucePi `.bin` in the web UI as normal. To undo
 it later, run the same line again and pick **2**.
 
-The wrapper package landing page is:
+After installation, open the stock firmware update page:
 
 ```text
-http://192.168.100.1/wrap
+http://192.168.100.1/#/setting/version
 ```
-
-Pick **1**, then upload the LettucePi `.bin` in the web UI as normal. To undo
-it later, run the same line again and pick **2**.
 
 The menu works even through `curl | sh`, because the answer is read from
 `/dev/tty` rather than stdin — stdin is the script itself.
@@ -132,9 +128,9 @@ REPO_RAW_URL=https://raw.githubusercontent.com/OWNER/REPO/main/install.sh ./make
 anonymously over HTTPS. Keep it that way — a private repo returns 404 to an
 unauthenticated router, not a login prompt.
 
-⚠️ **Never commit an update token or the signing secret here.** The token
-belongs in the `.ipk` that is sent to the customer directly; the secret key
-never leaves the build machine. This repo ships the *public* key only.
+⚠️ **Never commit an update token, private firmware, or the signing secret
+here.** Those remain in the private firmware build; the secret key never
+leaves the build machine. This repo ships the *public* key only.
 
 ⚠️ On the router, `wget` is a symlink to `uclient-fetch` and has **no SSL**.
 Only `curl` can fetch over HTTPS there. Do not "simplify" any one-liner to
