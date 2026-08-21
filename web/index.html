@@ -120,14 +120,17 @@ function parse(t){
   return { status: status, kv: kv, text: rest.join("\n") };
 }
 
-fetch(CGI).then(function(r){ return r.text(); }).then(function(t){
-  var p = parse(t);
-  if (p.status !== "OK") { $("meta").textContent = "Router did not respond correctly."; return; }
-  $("meta").textContent = "Router " + (p.kv.model || p.kv.board || "?") +
-      (p.kv.installed && p.kv.installed !== "none"
-        ? " — Lettuce Pi " + p.kv.installed + " installed"
-        : " — nothing installed yet");
-}).catch(function(){ $("meta").textContent = "Could not reach the router."; });
+function refreshStatus(){
+  return fetch(CGI).then(function(r){ return r.text(); }).then(function(t){
+    var p = parse(t);
+    if (p.status !== "OK") { $("meta").textContent = "Router did not respond correctly."; return; }
+    $("meta").textContent = "Router " + (p.kv.model || p.kv.board || "?") +
+        (p.kv.installed && p.kv.installed !== "none"
+          ? " — Lettuce Pi " + p.kv.installed + " installed"
+          : " — nothing installed yet");
+  }).catch(function(){ $("meta").textContent = "Could not reach the router."; });
+}
+refreshStatus();
 
 function pick(f){
   if (!f) return;
@@ -209,7 +212,12 @@ $("install").addEventListener("click", function(){
       say(p.text || p.status, p.status === "OK" ? "ok" : "bad");
       if (p.status === "OK") {
         $("install").textContent = "Installed";
-        setTimeout(function(){ location.reload(); }, 3000);
+        // Deliberately NOT location.reload(): a reload throws away the
+        // confirmation the customer just earned and leaves them staring at a
+        // blank form wondering whether it worked. Refresh only the status line.
+        $("back").disabled = false;
+        $("back").textContent = "Install another package";
+        refreshStatus();
       } else {
         $("install").textContent = "Install this package";
         $("install").disabled = false;
