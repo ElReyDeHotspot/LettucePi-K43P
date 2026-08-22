@@ -1,0 +1,15 @@
+{
+	"luci-app-lettucepi-speedtest": {
+		"description": "Access the LettucePi Speedtest interface",
+		"read": {
+			"ubus": {
+				"luci.lettucepi.speedtest": [ "status" ]
+			}
+		},
+		"write": {
+			"ubus": {
+				"luci.lettucepi.speedtest": [ "start", "cancel" ]
+			}
+		}
+	}
+}

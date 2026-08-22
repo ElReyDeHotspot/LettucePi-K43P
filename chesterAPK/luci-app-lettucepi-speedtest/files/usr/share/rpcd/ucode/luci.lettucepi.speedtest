@@ -1,0 +1,22 @@
+#!/usr/bin/ucode
+'use strict';
+
+import { popen } from 'fs';
+
+function run(action) {
+	let fd = popen(`/usr/libexec/lettucepi-speedtest ${action}`, 'r');
+	if (!fd)
+		return { ok: false, error: 'backend_unavailable' };
+	let output = fd.read('all') || '';
+	fd.close();
+	try { return json(output); }
+	catch (e) { return { ok: false, error: 'invalid_backend_response' }; }
+}
+
+return {
+	'luci.lettucepi.speedtest': {
+		status: { call: function() { return run('status'); } },
+		start:  { call: function() { return run('start'); } },
+		cancel: { call: function() { return run('cancel'); } }
+	}
+};
