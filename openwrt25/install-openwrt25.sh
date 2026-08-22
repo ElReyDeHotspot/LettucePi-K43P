@@ -21,8 +21,8 @@ set -u
 EXPECTED_BOARD=M01K43P
 EXPECTED_BOARD_ALT=misectel,m01k43   # what the same box reports once on OpenWrt 25
 DISPLAY_NAME="Chester K43P"
-IMG_URL="https://github.com/ElReyDeHotspot/LettucePi-K43P/releases/download/chester-25.12/immortalwrt-25.12-ChesterK43P-20260822021602-ubi.bin"
-IMG_SHA=c0a3d9c376adfe28ac2be7ca50ae24f8c025eb6bdcf52168a8baf788a598d407
+IMG_URL="https://github.com/ElReyDeHotspot/LettucePi-K43P/releases/download/chester-25.12/immortalwrt-25.12-ChesterK43P-20260822022050-ubi.bin"
+IMG_SHA=3f0ce49969aac1919c2c94443848d01bba4c86fb65a34ba4ace034f7a3f8144d
 IMG_SIZE=23461888
 PEB=131072
 # The staged path the replacement platform.sh looks for. Do not change one
