@@ -1,0 +1,5 @@
+#!/bin/sh
+/usr/libexec/lettucepi-speedtest cancel >/dev/null 2>&1 || true
+rm -f /tmp/luci-indexcache
+rm -rf /tmp/luci-modulecache
+exit 0

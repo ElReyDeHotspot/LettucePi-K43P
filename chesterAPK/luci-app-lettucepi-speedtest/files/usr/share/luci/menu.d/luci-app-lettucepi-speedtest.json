@@ -1,0 +1,13 @@
+{
+	"admin/status/lettucepi-speedtest": {
+		"title": "Speedtest by Ookla",
+		"order": 35,
+		"action": {
+			"type": "view",
+			"path": "lettucepi/speedtest"
+		},
+		"depends": {
+			"acl": [ "luci-app-lettucepi-speedtest" ]
+		}
+	}
+}
