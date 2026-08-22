@@ -1,0 +1,80 @@
+#!/bin/sh
+# Backend for the Chester "System update" page.
+#
+#   chester-update status   -> JSON: installed build, latest build, whether newer
+#   chester-update install  -> download, verify, flash (settings kept)
+#
+# Kept as a shell script with a narrow command surface because the LuCI view
+# reaches it through an rpcd ACL that permits exactly these arguments.
+set -u
+
+MANIFEST_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/latest.json"
+VERSION_FILE=/etc/chester-version
+IMG=/tmp/snand-ubi.bin
+LOG=/tmp/chester-update.log
+
+jget() { sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\{0,1\}\([^\",}]*\)\"\{0,1\}.*/\1/p" | head -1; }
+log()  { printf '%s %s\n' "$(date '+%H:%M:%S')" "$*" >> "$LOG" 2>/dev/null; }
+
+# Compared by BUILD ID, not by the image's own sha256: the stamp lives inside
+# the image, so stamping it changes the very hash you would compare against.
+# The manifest's sha256 is still used to verify the download.
+installed_id()  { sed -n 's/^build=//p'   "$VERSION_FILE" 2>/dev/null | head -1; }
+installed_ver() { sed -n 's/^version=//p' "$VERSION_FILE" 2>/dev/null | head -1; }
+installed_date(){ sed -n 's/^built=//p'   "$VERSION_FILE" 2>/dev/null | head -1; }
+
+case "${1:-status}" in
+status)
+	m=$(curl -fsSL --max-time 25 "$MANIFEST_URL" 2>/dev/null)
+	if [ -z "$m" ]; then
+		printf '{"ok":false,"error":"offline","installed_version":"%s","installed_built":"%s"}\n' \
+			"$(installed_ver)" "$(installed_date)"
+		exit 0
+	fi
+	lv=$(printf '%s' "$m" | jget version)
+	lb=$(printf '%s' "$m" | jget built)
+	li=$(printf '%s' "$m" | jget build)
+	ls=$(printf '%s' "$m" | jget sha256)
+	lz=$(printf '%s' "$m" | jget size)
+	ln=$(printf '%s' "$m" | jget notes)
+	cur=$(installed_id)
+	upd=false
+	[ -n "$li" ] && [ "$li" != "$cur" ] && upd=true
+	printf '{"ok":true,"installed_version":"%s","installed_built":"%s","installed_build":"%s","latest_version":"%s","latest_built":"%s","latest_sha":"%s","size":"%s","notes":"%s","update_available":%s}\n' \
+		"$(installed_ver)" "$(installed_date)" "$cur" "$lv" "$lb" "$ls" "$lz" "$ln" "$upd"
+	;;
+install)
+	: > "$LOG"
+	m=$(curl -fsSL --max-time 25 "$MANIFEST_URL" 2>/dev/null)
+	[ -n "$m" ] || { echo "FAIL: cannot reach the update server"; exit 1; }
+	url=$(printf '%s' "$m" | jget url)
+	sha=$(printf '%s' "$m" | jget sha256)
+	siz=$(printf '%s' "$m" | jget size)
+	[ -n "$url" ] && [ -n "$sha" ] || { echo "FAIL: update manifest is incomplete"; exit 1; }
+
+	free=$(df -k /tmp | awk 'NR==2{print $4}')
+	[ "$free" -ge $(( (siz / 1024) + 4096 )) ] || { echo "FAIL: not enough free space"; exit 1; }
+
+	log "downloading $url"
+	rm -f "$IMG"
+	curl -fL --retry 2 --max-time 900 -o "$IMG" "$url" >>"$LOG" 2>&1 || { echo "FAIL: download failed"; exit 1; }
+
+	got=$(wc -c < "$IMG" | tr -d ' ')
+	[ "$got" = "$siz" ] || { echo "FAIL: download incomplete ($got of $siz bytes)"; rm -f "$IMG"; exit 1; }
+	act=$(sha256sum "$IMG" | awk '{print $1}')
+	[ "$act" = "$sha" ] || { echo "FAIL: checksum mismatch - refusing to install"; rm -f "$IMG"; exit 1; }
+	[ "$(dd if="$IMG" bs=4 count=1 2>/dev/null)" = "UBI#" ] || { echo "FAIL: not a firmware image"; rm -f "$IMG"; exit 1; }
+	log "verified"
+
+	# The flash method that writes both banks. Same file the installer uses.
+	[ -f /usr/share/chester/platform.sh ] || { echo "FAIL: flash method missing"; exit 1; }
+	cp /usr/share/chester/platform.sh /lib/upgrade/platform.sh || { echo "FAIL: cannot stage flash method"; exit 1; }
+	sync
+
+	echo "OK: installing, the router will restart"
+	# No -n: keep settings. Detached so the HTTP response is not cut off.
+	( sleep 2; sysupgrade "$IMG" >>"$LOG" 2>&1 ) >/dev/null 2>&1 &
+	;;
+*)
+	echo "usage: chester-update status|install" >&2; exit 2 ;;
+esac
