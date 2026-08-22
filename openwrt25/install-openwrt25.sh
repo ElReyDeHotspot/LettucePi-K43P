@@ -35,11 +35,13 @@ info(){ printf '         %s\n' "$*"; }
 die(){  printf '\n  [FAIL] %s\n\n' "$*" >&2; exit 1; }
 
 lp_main() {
-DRY=0; ASSUME_YES=0
+DRY=0; ASSUME_YES=0; KEEP=
 for a in "$@"; do
     case "$a" in
         --dry-run) DRY=1 ;;
         --yes|-y)  ASSUME_YES=1 ;;
+        --keep)    KEEP=1 ;;
+        --wipe)    KEEP=0 ;;
         *) die "unknown option: $a" ;;
     esac
 done
@@ -55,6 +57,18 @@ case "$board" in
     *) die "this router reports board '$board'; this upgrade is only for the $DISPLAY_NAME" ;;
 esac
 ok "router is $DISPLAY_NAME"
+
+# Coming from the vendor firmware, its settings are meaningless to OpenWrt and
+# keeping them would carry junk across; going OpenWrt 25 -> OpenWrt 25 is an
+# update and the customer expects to keep everything. Default accordingly,
+# --keep / --wipe override.
+if [ -z "$KEEP" ]; then
+    case "$board" in
+        "$EXPECTED_BOARD_ALT") KEEP=1 ;;
+        *)                     KEEP=0 ;;
+    esac
+fi
+[ "$KEEP" = 1 ] && ok "settings will be KEPT (update)" || ok "settings will be ERASED (clean install)"
 
 for t in curl sha256sum sysupgrade ubiformat ubidetach dd; do
     command -v "$t" >/dev/null 2>&1 || die "required tool missing: $t"
@@ -109,15 +123,20 @@ if [ "$DRY" = 1 ]; then
 fi
 
 # ------------------------------------------------------------- confirmation
+if [ "$KEEP" = 1 ]; then
+    DATA_LINE="Your settings are kept. Installed packages are NOT."
+else
+    DATA_LINE="Everything on the router is erased - settings, Wi-Fi, packages."
+fi
 if [ "$ASSUME_YES" != 1 ]; then
-    cat <<'WARN'
+    cat <<WARN
 
   ------------------------------------------------------------------
    READ THIS BEFORE CONTINUING
 
    This replaces the router's firmware with OpenWrt 25.
 
-   * Everything on the router is erased - settings, Wi-Fi, packages.
+   * $DATA_LINE
    * This cannot be undone.
    * If it is interrupted, the router needs special recovery tools.
 
@@ -202,6 +221,28 @@ snand_do_upgrade() {
 		ubiformat "/dev/$part" -y -f "$IMG" || {
 			echo "wt: ubiformat failed on $part" >&2; exit 1; }
 	done
+
+	# Keep settings unless sysupgrade was given -n.
+	#
+	# Formatting both banks wipes rootfs_data, so the overlay is gone and the
+	# config has to be put back deliberately -- the vendor platform.sh did this
+	# and the community one dropped it, which is why an upgrade always lost
+	# every setting. nand_restore_config (from /lib/upgrade/nand.sh, in scope
+	# because stage2 does `include /lib/upgrade`) mounts rootfs_data on the boot
+	# bank and leaves sysupgrade.tgz at its root; /lib/preinit/80_mount_root
+	# extracts it on the next boot.
+	if [ -n "$UPGRADE_BACKUP" ]; then
+		bootpart=$(grep '"ubi"' /proc/mtd | cut -d: -f1)
+		ubiattach -m "${bootpart#mtd}" >/dev/null 2>&1
+		sleep 1
+		if nand_restore_config "$UPGRADE_BACKUP"; then
+			echo "wt: settings preserved"
+		else
+			# Not fatal: the new firmware is already written and will boot,
+			# just with defaults. Say so loudly rather than failing the flash.
+			echo "wt: WARNING - could not preserve settings, router will come up with defaults" >&2
+		fi
+	fi
 }
 
 platform_do_upgrade() {
@@ -229,7 +270,11 @@ ok "flash method installed"
 printf '\n  Flashing now. This takes a few minutes.\n'
 printf '  DO NOT power off the router.\n\n'
 sync
-exec sysupgrade -n "$IMG"
+if [ "$KEEP" = 1 ]; then
+    exec sysupgrade "$IMG"        # keeps /etc/config via sysupgrade.tgz
+else
+    exec sysupgrade -n "$IMG"     # -n = do not save config
+fi
 }
 
 lp_main "$@"

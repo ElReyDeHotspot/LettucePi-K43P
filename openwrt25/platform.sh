@@ -51,6 +51,28 @@ snand_do_upgrade() {
 		ubiformat "/dev/$part" -y -f "$IMG" || {
 			echo "wt: ubiformat failed on $part" >&2; exit 1; }
 	done
+
+	# Keep settings unless sysupgrade was given -n.
+	#
+	# Formatting both banks wipes rootfs_data, so the overlay is gone and the
+	# config has to be put back deliberately -- the vendor platform.sh did this
+	# and the community one dropped it, which is why an upgrade always lost
+	# every setting. nand_restore_config (from /lib/upgrade/nand.sh, in scope
+	# because stage2 does `include /lib/upgrade`) mounts rootfs_data on the boot
+	# bank and leaves sysupgrade.tgz at its root; /lib/preinit/80_mount_root
+	# extracts it on the next boot.
+	if [ -n "$UPGRADE_BACKUP" ]; then
+		bootpart=$(grep '"ubi"' /proc/mtd | cut -d: -f1)
+		ubiattach -m "${bootpart#mtd}" >/dev/null 2>&1
+		sleep 1
+		if nand_restore_config "$UPGRADE_BACKUP"; then
+			echo "wt: settings preserved"
+		else
+			# Not fatal: the new firmware is already written and will boot,
+			# just with defaults. Say so loudly rather than failing the flash.
+			echo "wt: WARNING - could not preserve settings, router will come up with defaults" >&2
+		fi
+	fi
 }
 
 platform_do_upgrade() {
