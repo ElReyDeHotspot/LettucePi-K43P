@@ -9,6 +9,10 @@
 set -u
 
 MANIFEST_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/latest.json"
+# raw.githubusercontent caches at the edge for minutes, so a freshly published
+# release would otherwise show up late. A unique query string per check avoids
+# serving the customer a stale answer.
+cachebust() { printf '%s?cb=%s' "$1" "$(date +%s)"; }
 VERSION_FILE=/etc/chester-version
 IMG=/tmp/snand-ubi.bin
 LOG=/tmp/chester-update.log
@@ -25,7 +29,7 @@ installed_date(){ sed -n 's/^built=//p'   "$VERSION_FILE" 2>/dev/null | head -1;
 
 case "${1:-status}" in
 status)
-	m=$(curl -fsSL --max-time 25 "$MANIFEST_URL" 2>/dev/null)
+	m=$(curl -fsSL --max-time 25 "$(cachebust "$MANIFEST_URL")" 2>/dev/null)
 	if [ -z "$m" ]; then
 		printf '{"ok":false,"error":"offline","installed_version":"%s","installed_built":"%s"}\n' \
 			"$(installed_ver)" "$(installed_date)"
@@ -45,7 +49,7 @@ status)
 	;;
 install)
 	: > "$LOG"
-	m=$(curl -fsSL --max-time 25 "$MANIFEST_URL" 2>/dev/null)
+	m=$(curl -fsSL --max-time 25 "$(cachebust "$MANIFEST_URL")" 2>/dev/null)
 	[ -n "$m" ] || { echo "FAIL: cannot reach the update server"; exit 1; }
 	url=$(printf '%s' "$m" | jget url)
 	sha=$(printf '%s' "$m" | jget sha256)
