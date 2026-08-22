@@ -21,8 +21,8 @@ set -u
 EXPECTED_BOARD=M01K43P
 EXPECTED_BOARD_ALT=misectel,m01k43   # what the same box reports once on OpenWrt 25
 DISPLAY_NAME="Chester K43P"
-IMG_URL="https://github.com/ElReyDeHotspot/LettucePi-K43P/releases/download/chester-25.12/immortalwrt-25.12-ChesterK43P-20260822022050-ubi.bin"
-IMG_SHA=3f0ce49969aac1919c2c94443848d01bba4c86fb65a34ba4ace034f7a3f8144d
+IMG_URL="https://github.com/ElReyDeHotspot/LettucePi-K43P/releases/download/chester-25.12/immortalwrt-25.12-ChesterK43P-20260822023056-ubi.bin"
+IMG_SHA=44db1a0e41a34381bd746327114e53148770748e9015e9da4c2ae1abaa76d620
 IMG_SIZE=23461888
 PEB=131072
 # The staged path the replacement platform.sh looks for. Do not change one
@@ -271,7 +271,8 @@ printf '\n  Flashing now. This takes a few minutes.\n'
 printf '  DO NOT power off the router.\n\n'
 sync
 if [ "$KEEP" = 1 ]; then
-    exec sysupgrade "$IMG"        # keeps /etc/config via sysupgrade.tgz
+    # -k also records user-installed packages so they can be put back.
+    exec sysupgrade -k "$IMG"     # keeps /etc/config via sysupgrade.tgz
 else
     exec sysupgrade -n "$IMG"     # -n = do not save config
 fi

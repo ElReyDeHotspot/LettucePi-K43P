@@ -1,0 +1,64 @@
+#!/bin/sh /etc/rc.common
+# Reinstall the packages the customer had, after a firmware update.
+#
+# A sysupgrade replaces the whole rootfs, so anything installed with `apk add`
+# is gone even when settings are kept. `sysupgrade -k` leaves a list behind at
+# /etc/backup/installed_packages.txt, one "name<TAB>origin" per line:
+#
+#     luci-app-lettucepi-speedtest    overlay
+#     base-files                      rom
+#
+# Only 'overlay' entries were installed by the user; 'rom' ones ship in the
+# image and are already present. Reinstalling those would be pointless and
+# would fail for anything not in a feed.
+
+START=99
+
+LIST=/etc/backup/installed_packages.txt
+STAMP=/etc/backup/.packages_restored
+TAG=chester-restore
+
+restore_pkgs() {
+	# The WAN is not up the instant this runs, and the packages come from the
+	# internet. Retry for a few minutes rather than giving up on the first try.
+	i=0
+	while [ "$i" -lt 30 ]; do
+		apk update >/dev/null 2>&1 && break
+		sleep 10
+		i=$((i + 1))
+	done
+	if [ "$i" -ge 30 ]; then
+		logger -t "$TAG" "no package feed reachable; leaving the list in place to retry next boot"
+		return 0
+	fi
+
+	n=0; ok=0
+	# Field separator is a literal tab.
+	while IFS="$(printf '\t')" read -r pkg origin _rest; do
+		[ "$origin" = "overlay" ] || continue
+		case "$pkg" in ''|\#*) continue ;; esac
+		n=$((n + 1))
+		if apk add "$pkg" >/dev/null 2>&1; then
+			ok=$((ok + 1))
+		else
+			logger -t "$TAG" "could not reinstall $pkg"
+		fi
+	done < "$LIST"
+
+	logger -t "$TAG" "reinstalled $ok of $n user packages"
+	# Only stamp once we actually got through the list, so a failed boot
+	# retries instead of silently giving up forever.
+	touch "$STAMP"
+}
+
+start() {
+	[ -s "$LIST" ] || return 0
+	[ -f "$STAMP" ] && return 0
+	# Backgrounded: this waits on the network and must not hold up boot.
+	restore_pkgs &
+	return 0
+}
+
+stop() {
+	return 0
+}

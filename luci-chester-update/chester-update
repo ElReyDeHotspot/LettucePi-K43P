@@ -77,7 +77,9 @@ install)
 
 	echo "OK: installing, the router will restart"
 	# No -n: keep settings. Detached so the HTTP response is not cut off.
-	( sleep 2; sysupgrade "$IMG" >>"$LOG" 2>&1 ) >/dev/null 2>&1 &
+	# -k also saves the list of user-installed packages, which
+	# /etc/init.d/chester-restore-pkgs reinstalls on the new firmware.
+	( sleep 2; sysupgrade -k "$IMG" >>"$LOG" 2>&1 ) >/dev/null 2>&1 &
 	;;
 *)
 	echo "usage: chester-update status|install" >&2; exit 2 ;;

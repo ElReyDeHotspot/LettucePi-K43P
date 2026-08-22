@@ -1,9 +1,9 @@
 {
   "version": "25.12",
-  "built": "2026-08-22T02:21Z",
-  "build": "20260822022050",
-  "sha256": "3f0ce49969aac1919c2c94443848d01bba4c86fb65a34ba4ace034f7a3f8144d",
+  "built": "2026-08-22T02:31Z",
+  "build": "20260822023056",
+  "sha256": "44db1a0e41a34381bd746327114e53148770748e9015e9da4c2ae1abaa76d620",
   "size": "23461888",
-  "url": "https://github.com/ElReyDeHotspot/LettucePi-K43P/releases/download/chester-25.12/immortalwrt-25.12-ChesterK43P-20260822022050-ubi.bin",
-  "notes": "LettucePi theme 0.2.0-r1 default; Modem Boost removed."
+  "url": "https://github.com/ElReyDeHotspot/LettucePi-K43P/releases/download/chester-25.12/immortalwrt-25.12-ChesterK43P-20260822023056-ubi.bin",
+  "notes": "Keeps settings AND reinstalls your packages after updating. LettucePi theme 0.2.0-r1."
 }
