@@ -6,6 +6,8 @@ OUT="$STATE/output.jsonl"
 ERR="$STATE/error.log"
 DONE="$STATE/done"
 FAILED="$STATE/failed"
+OOKLA_URL=https://install.speedtest.net/app/cli/ookla-speedtest-1.2.0-linux-aarch64.tgz
+OOKLA_SHA256=3953d231da3783e2bf8904b6dd72767c5c6e533e163d3742fd0437affa431bd3
 
 speedtest_bin() {
 	for p in /usr/bin/speedtest /usr/sbin/speedtest /sbin/speedtest; do
@@ -51,6 +53,29 @@ status() {
 }
 
 case "${1:-status}" in
+	install)
+		mkdir -p "$STATE/install"
+		archive="$STATE/install/ookla-speedtest.tgz"
+		rm -f "$archive" "$STATE/install/speedtest"
+		if ! curl -fL --proto '=https' --tlsv1.2 --connect-timeout 15 --max-time 120 -o "$archive" "$OOKLA_URL" >"$STATE/install.log" 2>&1; then
+			printf '{"ok":false,"error":"download_failed"}\n'; exit 0
+		fi
+		actual="$(sha256sum "$archive" | awk '{print $1}')"
+		if [ "$actual" != "$OOKLA_SHA256" ]; then
+			rm -f "$archive"; printf '{"ok":false,"error":"checksum_failed"}\n'; exit 0
+		fi
+		if ! tar -xzf "$archive" -C "$STATE/install" speedtest >>"$STATE/install.log" 2>&1; then
+			printf '{"ok":false,"error":"extract_failed"}\n'; exit 0
+		fi
+		if ! cp "$STATE/install/speedtest" /usr/bin/speedtest.new || ! chmod 0755 /usr/bin/speedtest.new || ! mv /usr/bin/speedtest.new /usr/bin/speedtest; then
+			rm -f /usr/bin/speedtest.new
+			printf '{"ok":false,"error":"install_failed"}\n'; exit 0
+		fi
+		mkdir -p /etc/lettucepi
+		printf '%s\n' "$OOKLA_SHA256" > /etc/lettucepi/speedtest-engine-managed
+		rm -rf "$STATE/install"
+		printf '{"ok":true,"installed":true}\n'
+		;;
 	start)
 		bin="$(speedtest_bin 2>/dev/null || true)"
 		[ -n "$bin" ] || { printf '{"ok":false,"error":"official_cli_not_installed"}\n'; exit 0; }

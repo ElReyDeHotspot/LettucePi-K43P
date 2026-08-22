@@ -4,7 +4,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 APK="${APK_TOOLS:-/root/apk-tools/build/src/apk}"
 KEY="${1:-/mnt/c/Users/CTR/claude/k43p-factory/keys/chester-apk.key}"
-VERSION="${VERSION:-1.0.1-r1}"
+VERSION="${VERSION:-1.0.2-r1}"
 OUT="$HERE/../luci-app-lettucepi-speedtest-$VERSION.apk"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
@@ -28,7 +28,7 @@ chmod 0755 "$STAGE/files/usr/libexec/lettucepi-speedtest" "$STAGE/scripts/"*
   --info "origin:luci-app-lettucepi-speedtest" \
   --info "maintainer:ElReyDeHotspot" \
   --info "url:https://github.com/ElReyDeHotspot/LettucePi-K43P" \
-  --info "depends:luci-base rpcd ucode-mod-fs jsonfilter" \
+  --info "depends:luci-base rpcd ucode-mod-fs jsonfilter curl ca-bundle" \
   --files "$STAGE/files" \
   --script "post-install:$STAGE/scripts/post-install" \
   --script "pre-deinstall:$STAGE/scripts/pre-deinstall" \

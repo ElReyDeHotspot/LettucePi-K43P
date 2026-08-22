@@ -6,6 +6,7 @@
 'require poll';
 
 var callStatus = rpc.declare({ object: 'luci.lettucepi.speedtest', method: 'status' });
+var callInstall = rpc.declare({ object: 'luci.lettucepi.speedtest', method: 'install' });
 var callStart = rpc.declare({ object: 'luci.lettucepi.speedtest', method: 'start' });
 var callCancel = rpc.declare({ object: 'luci.lettucepi.speedtest', method: 'cancel' });
 
@@ -32,6 +33,7 @@ return view.extend({
 				]),
 				E('div', { id: 'lp-st-msg', class: 'lp-st-msg' }),
 				E('div', { class: 'lp-st-actions' }, [
+					E('button', { class: 'btn', id: 'lp-st-install', click: ui.createHandlerFn(self, self.install) }, 'Install Ookla Engine'),
 					E('button', { class: 'btn cbi-button-positive', id: 'lp-st-start', click: ui.createHandlerFn(self, self.start) }, 'Start Test'),
 					E('button', { class: 'btn', id: 'lp-st-cancel', click: ui.createHandlerFn(self, self.cancel) }, 'Cancel')
 				]),
@@ -61,11 +63,24 @@ return view.extend({
 		set('lp-st-location', r.location || '—'); set('lp-st-loss', r.packet_loss != null ? r.packet_loss + '%' : '—');
 		var msg = !r.installed ? 'Official Ookla CLI is not installed.' : r.running ? 'Testing your connection…' : r.phase === 'completed' ? 'Test complete.' : r.phase === 'failed' ? ('Test failed. ' + (r.error || '')) : 'Ready.';
 		set('lp-st-msg', msg);
-		var start = document.getElementById('lp-st-start'), cancel = document.getElementById('lp-st-cancel');
+		var install = document.getElementById('lp-st-install'), start = document.getElementById('lp-st-start'), cancel = document.getElementById('lp-st-cancel');
+		if (install) { install.disabled = !!r.running; install.style.display = r.installed ? 'none' : ''; }
 		if (start) start.disabled = !r.installed || !!r.running;
 		if (cancel) cancel.disabled = !r.running;
 	},
 
+	install: function() {
+		var self = this, button = document.getElementById('lp-st-install'), message = document.getElementById('lp-st-msg');
+		if (button) button.disabled = true;
+		if (message) message.textContent = 'Downloading and verifying the official Ookla engine…';
+		return callInstall().then(function(r) {
+			if (!r || !r.ok) ui.addNotification(null, E('p', {}, 'Engine installation failed: ' + ((r && r.error) || 'unknown error')));
+			return self.refresh();
+		}).catch(function(err) {
+			ui.addNotification(null, E('p', {}, 'Engine installation failed: ' + err));
+			return self.refresh();
+		});
+	},
 	start: function() { var self = this; return callStart().then(function(r) { if (r && r.error) ui.addNotification(null, E('p', {}, r.error)); return self.refresh(); }); },
 	cancel: function() { var self = this; return callCancel().then(function() { return self.refresh(); }); },
 

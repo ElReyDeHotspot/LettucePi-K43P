@@ -11,6 +11,11 @@ Ookla's proprietary CLI binary. The official executable must exist at one of:
 - `/usr/sbin/speedtest`
 - `/sbin/speedtest`
 
+When the engine is absent, the page provides **Install Ookla Engine**. It
+downloads the official Ookla 1.2.0 ARM64 archive over HTTPS and refuses to
+extract it unless its SHA-256 equals
+`3953d231da3783e2bf8904b6dd72767c5c6e533e163d3742fd0437affa431bd3`.
+
 Build with apk-tools 3 and the private Chester feed signing key:
 
 ```sh
