@@ -17,4 +17,6 @@ Build with apk-tools 3 and the private Chester feed signing key:
 ./build.sh /path/to/chester-apk.key
 ```
 
-After installation, open **Status → Speedtest** in LuCI.
+After installation, open **Apps → Speedtest by Ookla** in LuCI. The app uses
+an `admin/apps` route because the stock Chester theme force-hides the complete
+standard `admin/status` menu tree.
