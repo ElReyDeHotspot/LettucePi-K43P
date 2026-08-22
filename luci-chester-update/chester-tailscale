@@ -1,0 +1,75 @@
+#!/bin/sh
+# Tailscale install / uninstall for the Chester K43P.
+#
+# The binary ships inside the firmware image, so "install" does not download
+# anything - it only enables and starts the service. That matters here: the
+# writable overlay is ~25 MB and tailscaled is ~25 MB, so installing it the
+# normal way consumes most of the free space. Shipped read-only in the image it
+# costs nothing writable until it is actually turned on.
+#
+#   chester-tailscale status     -> JSON for the UI
+#   chester-tailscale install    -> enable + start
+#   chester-tailscale uninstall  -> stop, disable, discard the node identity
+set -u
+
+INIT=/etc/init.d/tailscale
+STATE_DIR=/etc/tailscale
+BIN=/usr/sbin/tailscaled
+CLI=/usr/sbin/tailscale
+
+is_present() { [ -x "$BIN" ] && [ -x "$INIT" ]; }
+is_enabled() { ls /etc/rc.d/S*tailscale >/dev/null 2>&1; }
+# -x matches the process name exactly, so this cannot match this script (whose
+# own name contains "tailscale" but not "tailscaled").
+is_running() { pgrep -x tailscaled >/dev/null 2>&1; }
+
+case "${1:-status}" in
+status)
+	is_present || { printf '{"ok":false,"error":"not_in_image"}\n'; exit 0; }
+	ver=$("$CLI" --version 2>/dev/null | head -1 | tr -d '\r')
+	state=none
+	[ -s "$STATE_DIR/tailscaled.state" ] && state=present
+	# Only ask the daemon when it is actually up, otherwise the CLI blocks.
+	backend=""
+	if is_running; then
+		backend=$("$CLI" status --json 2>/dev/null | sed -n 's/.*"BackendState"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+	fi
+	printf '{"ok":true,"present":true,"installed":%s,"running":%s,"version":"%s","state":"%s","backend":"%s"}\n' \
+		"$(is_enabled && echo true || echo false)" \
+		"$(is_running && echo true || echo false)" \
+		"$ver" "$state" "$backend"
+	;;
+install)
+	is_present || { echo "FAIL: tailscale is not present in this firmware"; exit 1; }
+	is_enabled && is_running && { echo "OK: already installed"; exit 0; }
+	"$INIT" enable  >/dev/null 2>&1
+	"$INIT" start   >/dev/null 2>&1
+	i=0
+	while [ "$i" -lt 10 ]; do is_running && break; sleep 1; i=$((i+1)); done
+	if is_running; then
+		echo "OK: installed and running"
+	else
+		# Leave it enabled so a reboot retries rather than silently reverting.
+		echo "FAIL: enabled but the service did not start - check logread"
+		exit 1
+	fi
+	;;
+uninstall)
+	is_present || { echo "OK: nothing to remove"; exit 0; }
+	"$INIT" stop    >/dev/null 2>&1
+	"$INIT" disable >/dev/null 2>&1
+	# Discard the node identity. Without this the router would rejoin the
+	# tailnet as the same node if it is ever switched back on, which is not
+	# what "uninstall" should mean.
+	rm -rf "$STATE_DIR" /var/lib/tailscale 2>/dev/null
+	i=0
+	while [ "$i" -lt 10 ]; do is_running || break; sleep 1; i=$((i+1)); done
+	if is_running; then
+		echo "FAIL: could not stop tailscaled"
+		exit 1
+	fi
+	echo "OK: uninstalled"
+	;;
+*)
+	echo "usage: chester-tailscale status|install|uninstall" >&2; exit 2 ;;
+esac

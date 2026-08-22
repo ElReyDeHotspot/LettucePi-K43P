@@ -1,0 +1,14 @@
+{
+	"luci-app-chester-tailscale": {
+		"description": "Install or remove Tailscale",
+		"read": {
+			"file": { "/usr/sbin/chester-tailscale status": [ "exec" ] }
+		},
+		"write": {
+			"file": {
+				"/usr/sbin/chester-tailscale install": [ "exec" ],
+				"/usr/sbin/chester-tailscale uninstall": [ "exec" ]
+			}
+		}
+	}
+}

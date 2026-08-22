@@ -1,9 +1,9 @@
 {
   "version": "25.12",
-  "built": "2026-08-22T02:31Z",
-  "build": "20260822023056",
-  "sha256": "44db1a0e41a34381bd746327114e53148770748e9015e9da4c2ae1abaa76d620",
-  "size": "23461888",
-  "url": "https://github.com/ElReyDeHotspot/LettucePi-K43P/releases/download/chester-25.12/immortalwrt-25.12-ChesterK43P-20260822023056-ubi.bin",
-  "notes": "Keeps settings AND reinstalls your packages after updating. LettucePi theme 0.2.0-r1."
+  "built": "2026-08-22T02:45Z",
+  "build": "20260822024441",
+  "sha256": "a7db3e661cf48f9debe828184c1e5f41a297aced378d79de31238649e23597e2",
+  "size": "31457280",
+  "url": "https://github.com/ElReyDeHotspot/LettucePi-K43P/releases/download/chester-25.12/immortalwrt-25.12-ChesterK43P-20260822024441-ubi.bin",
+  "notes": "Tailscale included but off by default (Apps > Tailscale). LettucePi theme 0.4.0-r1. Keeps settings and packages."
 }
