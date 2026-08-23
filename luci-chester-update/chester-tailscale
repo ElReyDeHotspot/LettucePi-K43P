@@ -1,21 +1,24 @@
 #!/bin/sh
 # Tailscale install / uninstall for the Chester K43P.
 #
-# The binary ships inside the firmware image, so "install" does not download
-# anything - it only enables and starts the service. That matters here: the
-# writable overlay is ~25 MB and tailscaled is ~25 MB, so installing it the
-# normal way consumes most of the free space. Shipped read-only in the image it
-# costs nothing writable until it is actually turned on.
+# Tailscale is NOT shipped in the firmware. It used to be baked in dormant so
+# that enabling it cost nothing writable, but that spent ~7.7 MB of squashfs on
+# something most units never turn on. It is now pulled from the package feed on
+# demand, so "install" really does download (~7 MB) and needs a working WAN.
+#
+# The menu entry under Apps is present either way - only the payload moved.
 #
 #   chester-tailscale status     -> JSON for the UI
-#   chester-tailscale install    -> enable + start
-#   chester-tailscale uninstall  -> stop, disable, discard the node identity
+#   chester-tailscale install    -> apk add + enable + start
+#   chester-tailscale uninstall  -> stop, disable, discard identity, apk del
 set -u
 
+PKG=tailscale
 INIT=/etc/init.d/tailscale
 STATE_DIR=/etc/tailscale
 BIN=/usr/sbin/tailscaled
 CLI=/usr/sbin/tailscale
+LOG=/tmp/chester-tailscale.log
 
 is_present() { [ -x "$BIN" ] && [ -x "$INIT" ]; }
 is_enabled() { ls /etc/rc.d/S*tailscale >/dev/null 2>&1; }
@@ -25,22 +28,41 @@ is_running() { pgrep -x tailscaled >/dev/null 2>&1; }
 
 case "${1:-status}" in
 status)
-	is_present || { printf '{"ok":false,"error":"not_in_image"}\n'; exit 0; }
-	ver=$("$CLI" --version 2>/dev/null | head -1 | tr -d '\r')
+	present=$(is_present && echo true || echo false)
+	ver=""
 	state=none
-	[ -s "$STATE_DIR/tailscaled.state" ] && state=present
-	# Only ask the daemon when it is actually up, otherwise the CLI blocks.
 	backend=""
-	if is_running; then
-		backend=$("$CLI" status --json 2>/dev/null | sed -n 's/.*"BackendState"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+	if is_present; then
+		ver=$("$CLI" --version 2>/dev/null | head -1 | tr -d '\r')
+		[ -s "$STATE_DIR/tailscaled.state" ] && state=present
+		# Only ask the daemon when it is actually up, otherwise the CLI blocks.
+		if is_running; then
+			backend=$("$CLI" status --json 2>/dev/null | sed -n 's/.*"BackendState"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+		fi
 	fi
-	printf '{"ok":true,"present":true,"installed":%s,"running":%s,"version":"%s","state":"%s","backend":"%s"}\n' \
+	# ok:true even when absent -- absence is the normal state here, and the UI
+	# needs to render the Install button rather than an error.
+	printf '{"ok":true,"present":%s,"installed":%s,"running":%s,"version":"%s","state":"%s","backend":"%s"}\n' \
+		"$present" \
 		"$(is_enabled && echo true || echo false)" \
 		"$(is_running && echo true || echo false)" \
 		"$ver" "$state" "$backend"
 	;;
 install)
-	is_present || { echo "FAIL: tailscale is not present in this firmware"; exit 1; }
+	if ! is_present; then
+		# Needs the network. apk update first: the index is not on the
+		# read-only rootfs, so a fresh unit has nothing to resolve against.
+		: > "$LOG"
+		if ! apk update >>"$LOG" 2>&1; then
+			echo "FAIL: no package feed reachable - check the internet connection"
+			exit 1
+		fi
+		if ! apk add "$PKG" >>"$LOG" 2>&1; then
+			echo "FAIL: could not download tailscale - see $LOG"
+			exit 1
+		fi
+		is_present || { echo "FAIL: tailscale installed but $BIN is missing"; exit 1; }
+	fi
 	is_enabled && is_running && { echo "OK: already installed"; exit 0; }
 	"$INIT" enable  >/dev/null 2>&1
 	"$INIT" start   >/dev/null 2>&1
@@ -50,7 +72,7 @@ install)
 		echo "OK: installed and running"
 	else
 		# Leave it enabled so a reboot retries rather than silently reverting.
-		echo "FAIL: enabled but the service did not start - check logread"
+		echo "FAIL: installed but the service did not start - check logread"
 		exit 1
 	fi
 	;;
@@ -58,16 +80,16 @@ uninstall)
 	is_present || { echo "OK: nothing to remove"; exit 0; }
 	"$INIT" stop    >/dev/null 2>&1
 	"$INIT" disable >/dev/null 2>&1
-	# Discard the node identity. Without this the router would rejoin the
-	# tailnet as the same node if it is ever switched back on, which is not
-	# what "uninstall" should mean.
-	rm -rf "$STATE_DIR" /var/lib/tailscale 2>/dev/null
 	i=0
 	while [ "$i" -lt 10 ]; do is_running || break; sleep 1; i=$((i+1)); done
 	if is_running; then
 		echo "FAIL: could not stop tailscaled"
 		exit 1
 	fi
+	# Discard the node identity BEFORE removing the package, so a reinstall
+	# does not silently rejoin the tailnet as the same node.
+	rm -rf "$STATE_DIR" /var/lib/tailscale 2>/dev/null
+	apk del "$PKG" >/dev/null 2>&1
 	echo "OK: uninstalled"
 	;;
 *)

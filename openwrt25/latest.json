@@ -1,9 +1,9 @@
 {
   "version": "25.12",
-  "built": "2026-08-23T00:34Z",
-  "build": "20260823003234",
-  "sha256": "659dc1760a03ceb8528eb0920c0c6e3becd0cfde4eb8aac1eebb7d76c09d01d7",
-  "size": "31457280",
-  "url": "https://github.com/ElReyDeHotspot/LettucePi-K43P/releases/download/chester-25.12/immortalwrt-25.12-ChesterK43P-20260823003234-ubi.bin",
-  "notes": "System page (theme picker) reachable again. Chester default, Footstrap selectable."
+  "built": "2026-08-23T02:14Z",
+  "build": "20260823021454",
+  "sha256": "81fef58b48d88a524a4edf96c89e243f67ad7b9b1af0991f8d389a2bda8ccfd8",
+  "size": "23592960",
+  "url": "https://github.com/ElReyDeHotspot/LettucePi-K43P/releases/download/chester-25.12/immortalwrt-25.12-ChesterK43P-20260823021454-ubi.bin",
+  "notes": "US APN presets in the QModem dial-config dropdowns. Tailscale is no longer in the image - install it on demand from Apps > Tailscale. 7.5 MB smaller."
 }

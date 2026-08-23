@@ -27,7 +27,7 @@ return view.extend({
 
 	run: function (action, ev) {
 		var self = this;
-		var busy = action === 'install' ? _('Installing…') : _('Removing…');
+		var busy = action === 'install' ? _('Downloading and installing…') : _('Removing…');
 		ui.showModal(_('Tailscale'), [ E('p', { 'class': 'spinning' }, busy) ]);
 		return fs.exec('/usr/sbin/chester-tailscale', [ action ]).then(function (r) {
 			var out = (r.stdout || '').trim();
@@ -54,20 +54,19 @@ return view.extend({
 
 		if (!info || info.ok !== true) {
 			body.push(E('div', { 'class': 'alert-message warning' }, [
-				(info && info.error === 'not_in_image')
-					? _('Tailscale is not included in this firmware.')
-					: _('Tailscale controls are not available.')
+				_('Tailscale controls are not available.')
 			]));
 			return E('div', {}, body);
 		}
 
-		var on = (info.installed === true || info.installed === 'true');
+		var present = (info.present === true || info.present === 'true');
+		var on = present && (info.installed === true || info.installed === 'true');
 		var running = (info.running === true || info.running === 'true');
 
 		body.push(E('div', { 'class': on ? 'alert-message success' : 'alert-message notice' }, [
 			on ? (running ? _('Tailscale is installed and running.')
 			              : _('Tailscale is installed but not running.'))
-			   : _('Tailscale is not installed. It is included in the firmware and can be turned on at any time.')
+			   : _('Tailscale is not installed. It will be downloaded from the package feed, so the router needs an internet connection.')
 		]));
 
 		body.push(E('table', { 'class': 'table' }, [
@@ -85,7 +84,7 @@ return view.extend({
 				}, _('Install Tailscale'))
 			]));
 			body.push(E('p', {}, [ E('small', {},
-				_('Nothing is downloaded — the software is already in the firmware.')) ]));
+				_('About 7 MB is downloaded and installed. This takes a minute.')) ]));
 		} else {
 			body.push(E('p', {}, [
 				E('button', {

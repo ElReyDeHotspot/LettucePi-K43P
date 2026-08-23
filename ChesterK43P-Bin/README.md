@@ -14,7 +14,8 @@ folder.** This is an archive for reference and rollback.
 | 04 | 2026-08-21 | `LettucePi-1.0.2-vendorfw` | 21.6 MB | Built outside the session that produced the others; contents not verified here. |
 | 05 | 2026-08-21 | `LettucePi-1.0.3-vendorfw` | 21.6 MB | As above. |
 | 06 | 2026-08-21 | `immortalwrt-25.12-LPMAIN1wrapped` | 24.2 MB | Upstream ImmortalWrt wrapped as a signed LPMAIN1 image. Validated by the wrapper on hardware, never booted. |
-| 07 | 2026-08-21 | `ChesterK43P-25.12-CURRENT` | 23.5 MB | ✅ **Current.** What the one-liner installs. |
+| 07 | 2026-08-21 | `ChesterK43P-25.12` | 30.0 MB | Superseded. Shipped Tailscale inside the image, which is why it is 7.5 MB larger. |
+| 08 | 2026-08-22 | `ChesterK43P-25.12-CURRENT` | 22.5 MB | ✅ **Current.** US APN dropdowns; Tailscale removed from the image and installed on demand. |
 
 ## SHA-256
 
@@ -25,12 +26,13 @@ c9e46eaadb0ccb1166aac96a15726c460c05fad4636731c5bbfc7066e36e78d2  02-2026-08-20-
 1bca77ffb71eee2d2cc616184218e121910e40c6a8094f5cdc09491c234563d3  04-2026-08-21-LettucePi-1.0.2-vendorfw.bin
 a634b5838cf63aa05d4a821620e668684db2f473949fa3a4ab596f203e9d5268  05-2026-08-21-LettucePi-1.0.3-vendorfw.bin
 ed780b13ed23b705f5418d3b4e927435bd12bdd1c494ac796948e09f92907e01  06-2026-08-21-immortalwrt-25.12-LPMAIN1wrapped.bin
-659dc1760a03ceb8528eb0920c0c6e3becd0cfde4eb8aac1eebb7d76c09d01d7  07-2026-08-21-ChesterK43P-25.12-CURRENT.bin
+659dc1760a03ceb8528eb0920c0c6e3becd0cfde4eb8aac1eebb7d76c09d01d7  07-2026-08-21-ChesterK43P-25.12.bin
+81fef58b48d88a524a4edf96c89e243f67ad7b9b1af0991f8d389a2bda8ccfd8  08-2026-08-22-ChesterK43P-25.12-CURRENT.bin
 ```
 
 ## Two different formats in here
 
-**01 and 07 are raw UBI** (`UBI#` at offset 0). These are what `sysupgrade`
+**01, 07 and 08 are raw UBI** (`UBI#` at offset 0). These are what `sysupgrade`
 flashes via the OpenWrt 25 method.
 
 **02–06 are LPMAIN1** — a 64 KiB signed header followed by a raw UBI payload.
