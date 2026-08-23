@@ -16,6 +16,7 @@ function run(action) {
 return {
 	'luci.lettucepi.speedtest': {
 		status: { call: function() { return run('status'); } },
+		history: { call: function() { return run('history'); } },
 		install: { call: function() { return run('install'); } },
 		start:  { call: function() { return run('start'); } },
 		cancel: { call: function() { return run('cancel'); } }

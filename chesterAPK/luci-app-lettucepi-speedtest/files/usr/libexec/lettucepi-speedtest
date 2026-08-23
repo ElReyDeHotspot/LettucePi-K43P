@@ -8,6 +8,7 @@ DONE="$STATE/done"
 FAILED="$STATE/failed"
 OOKLA_URL=https://install.speedtest.net/app/cli/ookla-speedtest-1.2.0-linux-aarch64.tgz
 OOKLA_SHA256=3953d231da3783e2bf8904b6dd72767c5c6e533e163d3742fd0437affa431bd3
+HISTORY=/etc/lettucepi/speedtest-history.jsonl
 
 speedtest_bin() {
 	for p in /usr/bin/speedtest /usr/sbin/speedtest /sbin/speedtest; do
@@ -24,6 +25,41 @@ json_string() {
 	printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g'
 }
 
+record_result() {
+	line=
+	while IFS= read -r candidate; do
+		[ "$(jsonfilter -s "$candidate" -e '@.type' 2>/dev/null)" = result ] && line="$candidate"
+	done < "$OUT" 2>/dev/null
+	[ -n "$line" ] || return 0
+	down="$(jsonfilter -s "$line" -e '@.download.bandwidth' 2>/dev/null)"
+	up="$(jsonfilter -s "$line" -e '@.upload.bandwidth' 2>/dev/null)"
+	latency="$(jsonfilter -s "$line" -e '@.ping.latency' 2>/dev/null)"
+	loss="$(jsonfilter -s "$line" -e '@.packetLoss' 2>/dev/null)"
+	isp="$(jsonfilter -s "$line" -e '@.isp' 2>/dev/null)"
+	server="$(jsonfilter -s "$line" -e '@.server.name' 2>/dev/null)"
+	location="$(jsonfilter -s "$line" -e '@.server.location' 2>/dev/null)"
+	url="$(jsonfilter -s "$line" -e '@.result.url' 2>/dev/null)"
+	down_mbps="$(awk -v n="${down:-0}" 'BEGIN { printf "%.2f", (n * 8) / 1000000 }')"
+	up_mbps="$(awk -v n="${up:-0}" 'BEGIN { printf "%.2f", (n * 8) / 1000000 }')"
+	mkdir -p "$(dirname "$HISTORY")"
+	printf '{"timestamp":%s,"download_mbps":%s,"upload_mbps":%s,"latency_ms":%s,"packet_loss":%s,"isp":"%s","server":"%s","location":"%s","result_url":"%s"}\n' \
+		"$(date +%s)" "$down_mbps" "$up_mbps" "${latency:-0}" "${loss:-0}" \
+		"$(json_string "$isp")" "$(json_string "$server")" "$(json_string "$location")" "$(json_string "$url")" >> "$HISTORY"
+	tail -n 10 "$HISTORY" > "$HISTORY.tmp" && mv "$HISTORY.tmp" "$HISTORY"
+}
+
+history() {
+	printf '{"results":['
+	first=1
+	tail -n 10 "$HISTORY" 2>/dev/null | while IFS= read -r line; do
+		[ -n "$line" ] || continue
+		[ "$first" = 1 ] || printf ','
+		printf '%s' "$line"
+		first=0
+	done
+	printf ']}\n'
+}
+
 status() {
 	bin="$(speedtest_bin 2>/dev/null || true)"
 	installed=false; [ -n "$bin" ] && installed=true
@@ -32,22 +68,24 @@ status() {
 	[ "$running" = true ] && phase=running
 	[ -e "$DONE" ] && phase=completed
 	[ -e "$FAILED" ] && phase=failed
-	last="$(tail -n 1 "$OUT" 2>/dev/null)"
-	type="$(jsonfilter -s "$last" -e '@.type' 2>/dev/null)"
+	type=; latency=; down=; up=; loss=; isp=; server=; location=; url=
+	while IFS= read -r line; do
+		value="$(jsonfilter -s "$line" -e '@.type' 2>/dev/null)"; [ -n "$value" ] && type="$value"
+		value="$(jsonfilter -s "$line" -e '@.ping.latency' 2>/dev/null)"; [ -n "$value" ] && latency="$value"
+		value="$(jsonfilter -s "$line" -e '@.download.bandwidth' 2>/dev/null)"; [ -n "$value" ] && down="$value"
+		value="$(jsonfilter -s "$line" -e '@.upload.bandwidth' 2>/dev/null)"; [ -n "$value" ] && up="$value"
+		value="$(jsonfilter -s "$line" -e '@.packetLoss' 2>/dev/null)"; [ -n "$value" ] && loss="$value"
+		value="$(jsonfilter -s "$line" -e '@.isp' 2>/dev/null)"; [ -n "$value" ] && isp="$value"
+		value="$(jsonfilter -s "$line" -e '@.server.name' 2>/dev/null)"; [ -n "$value" ] && server="$value"
+		value="$(jsonfilter -s "$line" -e '@.server.location' 2>/dev/null)"; [ -n "$value" ] && location="$value"
+		value="$(jsonfilter -s "$line" -e '@.result.url' 2>/dev/null)"; [ -n "$value" ] && url="$value"
+	done < "$OUT" 2>/dev/null
 	[ "$type" = result ] && phase=completed
-	latency="$(jsonfilter -s "$last" -e '@.ping.latency' 2>/dev/null)"
-	down="$(jsonfilter -s "$last" -e '@.download.bandwidth' 2>/dev/null)"
-	up="$(jsonfilter -s "$last" -e '@.upload.bandwidth' 2>/dev/null)"
-	loss="$(jsonfilter -s "$last" -e '@.packetLoss' 2>/dev/null)"
-	isp="$(jsonfilter -s "$last" -e '@.isp' 2>/dev/null)"
-	server="$(jsonfilter -s "$last" -e '@.server.name' 2>/dev/null)"
-	location="$(jsonfilter -s "$last" -e '@.server.location' 2>/dev/null)"
-	url="$(jsonfilter -s "$last" -e '@.result.url' 2>/dev/null)"
 	down_mbps="$(awk -v n="${down:-0}" 'BEGIN { printf "%.2f", (n * 8) / 1000000 }')"
 	up_mbps="$(awk -v n="${up:-0}" 'BEGIN { printf "%.2f", (n * 8) / 1000000 }')"
 	err="$(tail -n 3 "$ERR" 2>/dev/null)"
-	printf '{"installed":%s,"running":%s,"phase":"%s","download_mbps":%s,"upload_mbps":%s,"latency_ms":%s,"packet_loss":%s,"isp":"%s","server":"%s","location":"%s","result_url":"%s","error":"%s"}\n' \
-		"$installed" "$running" "$phase" "$down_mbps" "$up_mbps" "${latency:-0}" "${loss:-0}" \
+	printf '{"installed":%s,"running":%s,"phase":"%s","test_phase":"%s","download_mbps":%s,"upload_mbps":%s,"latency_ms":%s,"packet_loss":%s,"isp":"%s","server":"%s","location":"%s","result_url":"%s","error":"%s"}\n' \
+		"$installed" "$running" "$phase" "$(json_string "$type")" "$down_mbps" "$up_mbps" "${latency:-0}" "${loss:-0}" \
 		"$(json_string "$isp")" "$(json_string "$server")" "$(json_string "$location")" \
 		"$(json_string "$url")" "$(json_string "$err")"
 }
@@ -84,6 +122,7 @@ case "${1:-status}" in
 		rm -f "$OUT" "$ERR" "$DONE" "$FAILED" "$PID"
 		(
 			if HOME=/root LANG=C "$bin" --accept-license --accept-gdpr --format=jsonl >"$OUT" 2>"$ERR"; then
+				record_result
 				touch "$DONE"
 			else
 				touch "$FAILED"
@@ -97,6 +136,7 @@ case "${1:-status}" in
 		rm -f "$PID"
 		printf '{"ok":true}\n'
 		;;
+	history) history ;;
 	status) status ;;
 	*) printf '{"ok":false,"error":"invalid_action"}\n' ;;
 esac

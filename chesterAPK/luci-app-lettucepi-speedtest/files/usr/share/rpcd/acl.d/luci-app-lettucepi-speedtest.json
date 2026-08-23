@@ -3,7 +3,7 @@
 		"description": "Access the LettucePi Speedtest interface",
 		"read": {
 			"ubus": {
-				"luci.lettucepi.speedtest": [ "status" ]
+				"luci.lettucepi.speedtest": [ "status", "history" ]
 			}
 		},
 		"write": {
