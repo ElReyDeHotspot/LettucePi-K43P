@@ -84,7 +84,16 @@ pending_url() {
 # restart, not start: procd can also hold a stale instance record, and start is
 # a no-op when it believes the service is already up.
 svc_up() {
-	is_running || rm -f /var/run/tailscale/tailscaled.sock 2>/dev/null
+	if ! is_running; then
+		rm -f /var/run/tailscale/tailscaled.sock 2>/dev/null
+		# The socket is only half of it: the dead daemon also leaves the
+		# tailscale0 TUN device attached, and the next start then fails with
+		#     tstun.New("tailscale0"): device or resource busy
+		# even after the socket is gone. --cleanup is supposed to handle both
+		# and does not reliably, so remove the link explicitly first.
+		ip link del tailscale0 2>/dev/null
+		"$BIN" --cleanup >/dev/null 2>&1
+	fi
 	"$INIT" enable >/dev/null 2>&1
 	"$INIT" restart >/dev/null 2>&1
 	i=0
