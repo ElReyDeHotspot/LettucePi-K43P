@@ -24,7 +24,8 @@ folder.** This is an archive for reference and rollback.
 | 09 | 2026-08-23 | `09-...-ChesterK43P-25.12` | 22.5 MB | Superseded. Chester theme and branding, redesigned Wi-Fi page, cellular IPv6/NAT6 page, Speedtest 1.1.2 preinstalled |
 | 10 | 2026-08-23 | `10-...-ChesterK43P-25.12` | 22.5 MB | Superseded. Tailscale panel: connect, connect+SSH, update, log out, tailnet DNS off by default; fixed daemon detection and stale socket/TUN recovery |
 | 11 | 2026-08-23 | `11-...-ChesterK43P-25.12` | 22.5 MB | Superseded. Tailscale now reachable over the tailnet: tailscale0 is placed in a firewall zone automatically |
-| 12 | 2026-08-23 | `12-...-ChesterK43P-25.12` | 22.5 MB | ✅ **Current.** Fourth LAN port restored: device tree now declares switch ports 0-3 as lan1-lan4 |
+| 12 | 2026-08-23 | `12-...-ChesterK43P-25.12` | 22.5 MB | Superseded. Fourth LAN port restored: device tree now declares switch ports 0-3 as lan1-lan4 |
+| 13 | 2026-08-23 | `13-...-ChesterK43P-25.12` | 22.5 MB | ✅ **Current.** Fourth LAN port (lan4) restored; identity and package feeds moved to OpenWrt 25 |
 
 ## SHA-256
 
@@ -41,6 +42,7 @@ ed780b13ed23b705f5418d3b4e927435bd12bdd1c494ac796948e09f92907e01  06-2026-08-21-
 1d0a4d8a95450238537a6095e97c9533769a586247d89eee4ba88cbebe16d6ac  10-2026-08-23-ChesterK43P-25.12.bin
 042f5d901dbb151141f32db2bc854bdf609968663d33bd1904509725513a3321  11-2026-08-23-ChesterK43P-25.12.bin
 51a4187ba25729a574546a149abb3de9b7e9f57f2386ad6a05637236e16ba46b  12-2026-08-23-ChesterK43P-25.12.bin
+d1740c6f75ae7de00703d08b4acda859761fe6dac67d2a402c18588df83c1859  13-2026-08-23-ChesterK43P-25.12.bin
 ```
 
 ## Two different formats in here

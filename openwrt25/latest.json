@@ -1,9 +1,9 @@
 {
   "version": "25.12",
-  "built": "2026-08-23T19:29Z",
-  "build": "20260823192905",
-  "sha256": "51a4187ba25729a574546a149abb3de9b7e9f57f2386ad6a05637236e16ba46b",
+  "built": "2026-08-23T19:57Z",
+  "build": "20260823195703",
+  "sha256": "d1740c6f75ae7de00703d08b4acda859761fe6dac67d2a402c18588df83c1859",
   "size": "23592960",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/12-2026-08-23-ChesterK43P-25.12.bin",
-  "notes": "Fourth LAN port restored: device tree now declares switch ports 0-3 as lan1-lan4"
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/13-2026-08-23-ChesterK43P-25.12.bin",
+  "notes": "Fourth LAN port (lan4) restored; identity and package feeds moved to OpenWrt 25"
 }
