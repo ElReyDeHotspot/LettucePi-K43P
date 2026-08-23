@@ -104,6 +104,48 @@ svc_up() {
 	is_running
 }
 
+FW_ZONE=tsfw
+
+fw_zone_present() { [ "$(uci -q get firewall.$FW_ZONE.name)" = "tailscale" ]; }
+
+# OpenWrt leaves tailscale0 out of every firewall zone, so inbound traffic from
+# the tailnet falls through to the default policy (REJECT) and the router
+# answers nothing -- no ping, no LuCI, no SSH. The node still shows as "online"
+# in the Tailscale admin panel, because that is the daemon's own OUTBOUND
+# connection to the coordination server, which makes this look like a remote
+# fault rather than a local firewall one.
+#
+# The zone binds the DEVICE, not a netifd network. Declaring tailscale0 as an
+# OpenWrt interface hands it to netifd, which flushes the address tailscaled
+# assigned to it: the tunnel then reports its IP via `tailscale ip` while the
+# kernel has none, and nothing works.
+ensure_fw_zone() {
+	fw_zone_present && return 0
+	uci -q batch <<UCI
+set firewall.$FW_ZONE=zone
+set firewall.$FW_ZONE.name='tailscale'
+add_list firewall.$FW_ZONE.device='tailscale0'
+set firewall.$FW_ZONE.input='ACCEPT'
+set firewall.$FW_ZONE.output='ACCEPT'
+set firewall.$FW_ZONE.forward='ACCEPT'
+set firewall.$FW_ZONE.mtu_fix='1'
+set firewall.${FW_ZONE}_lan=forwarding
+set firewall.${FW_ZONE}_lan.src='tailscale'
+set firewall.${FW_ZONE}_lan.dest='lan'
+set firewall.lan_$FW_ZONE=forwarding
+set firewall.lan_$FW_ZONE.src='lan'
+set firewall.lan_$FW_ZONE.dest='tailscale'
+commit firewall
+UCI
+	/etc/init.d/firewall restart >/dev/null 2>&1
+	# Restarting the firewall flushes the nft chains tailscaled installed, so
+	# the daemon has to put them back or the tunnel stops passing traffic.
+	"$INIT" restart >/dev/null 2>&1
+	i=0
+	while [ "$i" -lt 15 ]; do is_running && break; sleep 1; i=$((i+1)); done
+	return 0
+}
+
 # `tailscale up` blocks until the browser login completes, so it is backgrounded
 # and the login URL is picked out of its output. Already-authenticated nodes
 # come straight back with no URL at all.
@@ -111,6 +153,9 @@ do_up() {
 	extra="$1"
 	is_present || { echo "FAIL: tailscale is not installed"; exit 1; }
 	is_running || svc_up || { echo "FAIL: tailscaled did not start - check logread"; exit 1; }
+	# Before `up`, never after: this can restart the daemon, which would kill
+	# an in-flight login.
+	ensure_fw_zone
 
 	: > "$UPLOG"
 	# shellcheck disable=SC2086
@@ -142,7 +187,7 @@ status)
 		"$CLI" status --json 2>/dev/null | grep -q '"RunSSH"[[:space:]]*:[[:space:]]*true' && ssh=true
 		url=$(pending_url)
 	fi
-	printf '{"ok":true,"present":%s,"enabled":%s,"running":%s,"version":"%s","state":"%s","backend":"%s","user":"%s","ip":"%s","ssh":%s,"dns":%s,"authurl":"%s"}\n' \
+	printf '{"ok":true,"present":%s,"enabled":%s,"running":%s,"version":"%s","state":"%s","backend":"%s","user":"%s","ip":"%s","ssh":%s,"dns":%s,"reachable":%s,"authurl":"%s"}\n' \
 		"$present" \
 		"$(is_enabled && echo true || echo false)" \
 		"$(is_running && echo true || echo false)" \
@@ -150,6 +195,7 @@ status)
 		"$state" "$backend" \
 		"$(printf '%s' "$who" | json_escape)" \
 		"$ip" "$ssh" "$(dns_pref)" \
+		"$(fw_zone_present && echo true || echo false)" \
 		"$(printf '%s' "$url" | json_escape)"
 	;;
 authurl)
@@ -171,6 +217,7 @@ install)
 	uci -q get tailscale.settings.accept_dns >/dev/null 2>&1 || {
 		uci -q set tailscale.settings.accept_dns='0'; uci -q commit tailscale; }
 	if svc_up; then
+		ensure_fw_zone
 		echo "OK: installed and running"
 	else
 		echo "FAIL: installed but the service did not start - check logread"; exit 1
