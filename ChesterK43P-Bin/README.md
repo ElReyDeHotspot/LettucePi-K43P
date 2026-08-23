@@ -3,6 +3,11 @@
 Every image built for the Chester K43P, oldest first. Filenames carry the
 sequence and build date so the folder lists chronologically.
 
+**Filenames never change once published.** The System Update page points
+`openwrt25/latest.json` straight at the current entry here, so renaming one
+would break the download for anyone mid-update. Which build is current is
+recorded in the table below, not in the filename.
+
 **To install firmware, use the [guide](../openwrt25/README.md), not this
 folder.** This is an archive for reference and rollback.
 
@@ -14,8 +19,8 @@ folder.** This is an archive for reference and rollback.
 | 04 | 2026-08-21 | `LettucePi-1.0.2-vendorfw` | 21.6 MB | Built outside the session that produced the others; contents not verified here. |
 | 05 | 2026-08-21 | `LettucePi-1.0.3-vendorfw` | 21.6 MB | As above. |
 | 06 | 2026-08-21 | `immortalwrt-25.12-LPMAIN1wrapped` | 24.2 MB | Upstream ImmortalWrt wrapped as a signed LPMAIN1 image. Validated by the wrapper on hardware, never booted. |
-| 07 | 2026-08-21 | `ChesterK43P-25.12` | 30.0 MB | Superseded. Shipped Tailscale inside the image, which is why it is 7.5 MB larger. |
-| 08 | 2026-08-22 | `ChesterK43P-25.12-CURRENT` | 22.5 MB | ✅ **Current.** US APN dropdowns; Tailscale removed from the image and installed on demand. |
+| 07 | 2026-08-21 | `07-...-ChesterK43P-25.12` | 30.0 MB | Superseded. Shipped Tailscale inside the image, which is why it is 7.5 MB larger. |
+| 08 | 2026-08-22 | `08-...-ChesterK43P-25.12` | 22.5 MB | ✅ **Current.** US APN dropdowns; Tailscale removed from the image and installed on demand. |
 
 ## SHA-256
 
@@ -27,7 +32,7 @@ c9e46eaadb0ccb1166aac96a15726c460c05fad4636731c5bbfc7066e36e78d2  02-2026-08-20-
 a634b5838cf63aa05d4a821620e668684db2f473949fa3a4ab596f203e9d5268  05-2026-08-21-LettucePi-1.0.3-vendorfw.bin
 ed780b13ed23b705f5418d3b4e927435bd12bdd1c494ac796948e09f92907e01  06-2026-08-21-immortalwrt-25.12-LPMAIN1wrapped.bin
 659dc1760a03ceb8528eb0920c0c6e3becd0cfde4eb8aac1eebb7d76c09d01d7  07-2026-08-21-ChesterK43P-25.12.bin
-81fef58b48d88a524a4edf96c89e243f67ad7b9b1af0991f8d389a2bda8ccfd8  08-2026-08-22-ChesterK43P-25.12-CURRENT.bin
+81fef58b48d88a524a4edf96c89e243f67ad7b9b1af0991f8d389a2bda8ccfd8  08-2026-08-22-ChesterK43P-25.12.bin
 ```
 
 ## Two different formats in here
