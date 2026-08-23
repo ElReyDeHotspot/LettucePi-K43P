@@ -1,9 +1,9 @@
 {
   "version": "25.12",
-  "built": "2026-08-23T00:21Z",
-  "build": "20260823001915",
-  "sha256": "1ee5af175aa2e76547ccaa63f8ffa30b3b686cd3a4ad851ae163a4202418f36e",
+  "built": "2026-08-23T00:30Z",
+  "build": "20260823002756",
+  "sha256": "20a2ee1628c6998dd40754415c6c6d2cf4933de8ff56a85b65d940791891afc1",
   "size": "31457280",
-  "url": "https://github.com/ElReyDeHotspot/LettucePi-K43P/releases/download/chester-25.12/immortalwrt-25.12-ChesterK43P-20260823001915-ubi.bin",
-  "notes": "Chester dashboard no longer replaced by the LettucePi launcher. Footstrap theme available."
+  "url": "https://github.com/ElReyDeHotspot/LettucePi-K43P/releases/download/chester-25.12/immortalwrt-25.12-ChesterK43P-20260823002756-ubi.bin",
+  "notes": "LettucePi theme removed; Chester is the default. Footstrap available."
 }
