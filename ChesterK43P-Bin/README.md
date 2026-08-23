@@ -22,7 +22,8 @@ folder.** This is an archive for reference and rollback.
 | 07 | 2026-08-21 | `07-...-ChesterK43P-25.12` | 30.0 MB | Superseded. Shipped Tailscale inside the image, which is why it is 7.5 MB larger. |
 | 08 | 2026-08-22 | `08-...-ChesterK43P-25.12` | 22.5 MB | Superseded. US APN dropdowns; Tailscale removed from the image and installed on demand. |
 | 09 | 2026-08-23 | `09-...-ChesterK43P-25.12` | 22.5 MB | Superseded. Chester theme and branding, redesigned Wi-Fi page, cellular IPv6/NAT6 page, Speedtest 1.1.2 preinstalled |
-| 10 | 2026-08-23 | `10-...-ChesterK43P-25.12` | 22.5 MB | ✅ **Current.** Tailscale panel: connect, connect+SSH, update, log out, tailnet DNS off by default; fixed daemon detection and stale socket/TUN recovery |
+| 10 | 2026-08-23 | `10-...-ChesterK43P-25.12` | 22.5 MB | Superseded. Tailscale panel: connect, connect+SSH, update, log out, tailnet DNS off by default; fixed daemon detection and stale socket/TUN recovery |
+| 11 | 2026-08-23 | `11-...-ChesterK43P-25.12` | 22.5 MB | ✅ **Current.** Tailscale now reachable over the tailnet: tailscale0 is placed in a firewall zone automatically |
 
 ## SHA-256
 
@@ -37,6 +38,7 @@ ed780b13ed23b705f5418d3b4e927435bd12bdd1c494ac796948e09f92907e01  06-2026-08-21-
 81fef58b48d88a524a4edf96c89e243f67ad7b9b1af0991f8d389a2bda8ccfd8  08-2026-08-22-ChesterK43P-25.12.bin
 6529c41ae18bff974728b67436e4b81eeef7188f1e6312e74e111c749f04862f  09-2026-08-23-ChesterK43P-25.12.bin
 1d0a4d8a95450238537a6095e97c9533769a586247d89eee4ba88cbebe16d6ac  10-2026-08-23-ChesterK43P-25.12.bin
+042f5d901dbb151141f32db2bc854bdf609968663d33bd1904509725513a3321  11-2026-08-23-ChesterK43P-25.12.bin
 ```
 
 ## Two different formats in here
