@@ -1,9 +1,9 @@
 {
   "version": "25.12",
-  "built": "2026-08-23T18:12Z",
-  "build": "20260823181222",
-  "sha256": "042f5d901dbb151141f32db2bc854bdf609968663d33bd1904509725513a3321",
+  "built": "2026-08-23T19:29Z",
+  "build": "20260823192905",
+  "sha256": "51a4187ba25729a574546a149abb3de9b7e9f57f2386ad6a05637236e16ba46b",
   "size": "23592960",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/11-2026-08-23-ChesterK43P-25.12.bin",
-  "notes": "Tailscale now reachable over the tailnet: tailscale0 is placed in a firewall zone automatically"
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/12-2026-08-23-ChesterK43P-25.12.bin",
+  "notes": "Fourth LAN port restored: device tree now declares switch ports 0-3 as lan1-lan4"
 }
