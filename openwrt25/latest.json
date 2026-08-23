@@ -1,9 +1,9 @@
 {
   "version": "25.12",
-  "built": "2026-08-22T02:58Z",
-  "build": "20260822025742",
-  "sha256": "5ec7a3925b94db873fb22cabf91091a94011ccab02046d1613edec1c69d15284",
+  "built": "2026-08-23T00:12Z",
+  "build": "20260823001129",
+  "sha256": "0f8812bc6c4f2c3e08b4460dfd1f76a57154adcacaac47034520d9a2288be199",
   "size": "31457280",
-  "url": "https://github.com/ElReyDeHotspot/LettucePi-K43P/releases/download/chester-25.12/immortalwrt-25.12-ChesterK43P-20260822025742-ubi.bin",
-  "notes": "Chinese language packages removed. Tailscale included but off by default. LettucePi theme 0.5.1-r1."
+  "url": "https://github.com/ElReyDeHotspot/LettucePi-K43P/releases/download/chester-25.12/immortalwrt-25.12-ChesterK43P-20260823001129-ubi.bin",
+  "notes": "Adds the Footstrap theme. LettucePi 1.0.2-r1 stays default. Chinese removed; Tailscale off by default."
 }
