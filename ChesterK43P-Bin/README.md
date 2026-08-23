@@ -20,7 +20,8 @@ folder.** This is an archive for reference and rollback.
 | 05 | 2026-08-21 | `LettucePi-1.0.3-vendorfw` | 21.6 MB | As above. |
 | 06 | 2026-08-21 | `immortalwrt-25.12-LPMAIN1wrapped` | 24.2 MB | Upstream ImmortalWrt wrapped as a signed LPMAIN1 image. Validated by the wrapper on hardware, never booted. |
 | 07 | 2026-08-21 | `07-...-ChesterK43P-25.12` | 30.0 MB | Superseded. Shipped Tailscale inside the image, which is why it is 7.5 MB larger. |
-| 08 | 2026-08-22 | `08-...-ChesterK43P-25.12` | 22.5 MB | ✅ **Current.** US APN dropdowns; Tailscale removed from the image and installed on demand. |
+| 08 | 2026-08-22 | `08-...-ChesterK43P-25.12` | 22.5 MB | Superseded. US APN dropdowns; Tailscale removed from the image and installed on demand. |
+| 09 | 2026-08-23 | `09-...-ChesterK43P-25.12` | 22.5 MB | ✅ **Current.** Chester theme and branding, redesigned Wi-Fi page, cellular IPv6/NAT6 page, Speedtest 1.1.2 preinstalled |
 
 ## SHA-256
 
@@ -33,6 +34,7 @@ a634b5838cf63aa05d4a821620e668684db2f473949fa3a4ab596f203e9d5268  05-2026-08-21-
 ed780b13ed23b705f5418d3b4e927435bd12bdd1c494ac796948e09f92907e01  06-2026-08-21-immortalwrt-25.12-LPMAIN1wrapped.bin
 659dc1760a03ceb8528eb0920c0c6e3becd0cfde4eb8aac1eebb7d76c09d01d7  07-2026-08-21-ChesterK43P-25.12.bin
 81fef58b48d88a524a4edf96c89e243f67ad7b9b1af0991f8d389a2bda8ccfd8  08-2026-08-22-ChesterK43P-25.12.bin
+6529c41ae18bff974728b67436e4b81eeef7188f1e6312e74e111c749f04862f  09-2026-08-23-ChesterK43P-25.12.bin
 ```
 
 ## Two different formats in here

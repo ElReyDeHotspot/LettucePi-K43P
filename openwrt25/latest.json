@@ -1,9 +1,9 @@
 {
   "version": "25.12",
-  "built": "2026-08-23T02:14Z",
-  "build": "20260823021454",
-  "sha256": "81fef58b48d88a524a4edf96c89e243f67ad7b9b1af0991f8d389a2bda8ccfd8",
+  "built": "2026-08-23T05:28Z",
+  "build": "20260823052845",
+  "sha256": "6529c41ae18bff974728b67436e4b81eeef7188f1e6312e74e111c749f04862f",
   "size": "23592960",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/08-2026-08-22-ChesterK43P-25.12.bin",
-  "notes": "US APN presets in the QModem dial-config dropdowns. Tailscale is no longer in the image - install it on demand from Apps > Tailscale. 7.5 MB smaller."
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/09-2026-08-23-ChesterK43P-25.12.bin",
+  "notes": "Chester theme and branding, redesigned Wi-Fi page, cellular IPv6/NAT6 page, Speedtest 1.1.2 preinstalled"
 }
