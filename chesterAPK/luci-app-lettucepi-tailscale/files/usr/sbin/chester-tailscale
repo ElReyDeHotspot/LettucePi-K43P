@@ -1,0 +1,228 @@
+#!/bin/sh
+# Tailscale control for the Chester K43P.
+#
+# Tailscale is not shipped in the firmware (it is ~25 MB against a ~25 MB
+# writable overlay), so "install" really downloads it from the package feed and
+# needs a working WAN. The menu entry under Apps is present either way.
+#
+#   chester-tailscale status       -> JSON for the UI
+#   chester-tailscale install      -> apk add + enable + start
+#   chester-tailscale update       -> apk upgrade + restart
+#   chester-tailscale uninstall    -> logout, stop, disable, discard, apk del
+#   chester-tailscale connect      -> tailscale up      (returns the login URL)
+#   chester-tailscale connect-ssh  -> tailscale up --ssh
+#   chester-tailscale logout       -> drop the node identity, stay installed
+#   chester-tailscale dns-on       -> accept the tailnet's DNS
+#   chester-tailscale dns-off      -> ignore it (the default)
+#   chester-tailscale authurl      -> re-read the pending login URL
+#
+# NOTE: busybox here has no `timeout`, so every wait is an explicit poll loop.
+set -u
+
+PKG=tailscale
+INIT=/etc/init.d/tailscale
+STATE_DIR=/etc/tailscale
+BIN=/usr/sbin/tailscaled
+CLI=/usr/sbin/tailscale
+UPLOG=/tmp/chester-tailscale-up.log
+LOG=/tmp/chester-tailscale.log
+
+is_present() { [ -x "$BIN" ] && [ -x "$INIT" ]; }
+is_enabled() { ls /etc/rc.d/S*tailscale >/dev/null 2>&1; }
+
+# Match on the absolute binary path, NOT `pgrep -x tailscaled`.
+#
+# busybox pgrep -x anchors against the whole COMMAND LINE, not the process
+# name, so it never matches "/usr/sbin/tailscaled --port 41641 --state ..." and
+# silently reports the daemon as stopped while it is running. That made install
+# report failure, status show "not running", and every wait loop below run to
+# its full timeout. procps pgrep behaves the other way, which is what the old
+# comment here assumed.
+#
+# The path also cannot match this script: its own command line is
+# /usr/sbin/chester-tailscale, which does not contain /usr/sbin/tailscaled.
+is_running() { pgrep -f '/usr/sbin/tailscaled' >/dev/null 2>&1; }
+
+# Tailscale's DNS takeover rewrites the router's resolver, which is the wrong
+# default on a device that is itself the LAN's DNS server. Off unless asked.
+dns_pref() {
+	v=$(uci -q get tailscale.settings.accept_dns 2>/dev/null)
+	case "$v" in 1|true|yes|on) echo true ;; *) echo false ;; esac
+}
+
+json_escape() { sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\r//g' | tr -d '\n'; }
+
+backend_state() {
+	is_running || return 0
+	"$CLI" status --json 2>/dev/null \
+		| sed -n 's/.*"BackendState"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1
+}
+
+logged_user() {
+	is_running || return 0
+	"$CLI" status 2>/dev/null | sed -n 's/^Logged in as[[:space:]]*//p' | head -1
+}
+
+node_ip() {
+	is_running || return 0
+	"$CLI" ip -4 2>/dev/null | head -1
+}
+
+pending_url() {
+	[ -f "$UPLOG" ] || return 0
+	grep -oE 'https://login\.tailscale\.com/[A-Za-z0-9/_.-]+' "$UPLOG" | tail -1
+}
+
+# A tailscaled that dies without shutting down cleanly leaves its control
+# socket behind, and then EVERY later start fails with
+#     safesocket.Listen: /var/run/tailscale/tailscaled.sock: address already in use
+# The init script's `tailscaled --cleanup` does not reliably remove it, so the
+# service sits at "installed but not running" forever and neither start nor
+# restart produces so much as a log line. Clear it first -- but only when no
+# daemon is actually alive, or we would pull the socket out from under it.
+#
+# restart, not start: procd can also hold a stale instance record, and start is
+# a no-op when it believes the service is already up.
+svc_up() {
+	is_running || rm -f /var/run/tailscale/tailscaled.sock 2>/dev/null
+	"$INIT" enable >/dev/null 2>&1
+	"$INIT" restart >/dev/null 2>&1
+	i=0
+	while [ "$i" -lt 15 ]; do
+		is_running && return 0
+		sleep 1; i=$((i+1))
+	done
+	is_running
+}
+
+# `tailscale up` blocks until the browser login completes, so it is backgrounded
+# and the login URL is picked out of its output. Already-authenticated nodes
+# come straight back with no URL at all.
+do_up() {
+	extra="$1"
+	is_present || { echo "FAIL: tailscale is not installed"; exit 1; }
+	is_running || svc_up || { echo "FAIL: tailscaled did not start - check logread"; exit 1; }
+
+	: > "$UPLOG"
+	# shellcheck disable=SC2086
+	( "$CLI" up --accept-dns="$(dns_pref)" $extra >>"$UPLOG" 2>&1 & ) >/dev/null 2>&1
+
+	i=0
+	while [ "$i" -lt 25 ]; do
+		u=$(pending_url)
+		[ -n "$u" ] && { echo "OK: $u"; exit 0; }
+		[ "$(backend_state)" = "Running" ] && { echo "OK: connected"; exit 0; }
+		sleep 1; i=$((i+1))
+	done
+	u=$(pending_url)
+	[ -n "$u" ] && { echo "OK: $u"; exit 0; }
+	echo "FAIL: no login URL yet - see $UPLOG"
+	exit 1
+}
+
+case "${1:-status}" in
+status)
+	present=$(is_present && echo true || echo false)
+	ver=""; state=none; backend=""; who=""; ip=""; ssh=false; url=""
+	if is_present; then
+		ver=$("$CLI" --version 2>/dev/null | head -1 | tr -d '\r')
+		[ -s "$STATE_DIR/tailscaled.state" ] && state=present
+		backend=$(backend_state)
+		who=$(logged_user)
+		ip=$(node_ip)
+		"$CLI" status --json 2>/dev/null | grep -q '"RunSSH"[[:space:]]*:[[:space:]]*true' && ssh=true
+		url=$(pending_url)
+	fi
+	printf '{"ok":true,"present":%s,"enabled":%s,"running":%s,"version":"%s","state":"%s","backend":"%s","user":"%s","ip":"%s","ssh":%s,"dns":%s,"authurl":"%s"}\n' \
+		"$present" \
+		"$(is_enabled && echo true || echo false)" \
+		"$(is_running && echo true || echo false)" \
+		"$(printf '%s' "$ver" | json_escape)" \
+		"$state" "$backend" \
+		"$(printf '%s' "$who" | json_escape)" \
+		"$ip" "$ssh" "$(dns_pref)" \
+		"$(printf '%s' "$url" | json_escape)"
+	;;
+authurl)
+	printf '{"ok":true,"authurl":"%s","backend":"%s"}\n' \
+		"$(pending_url | json_escape)" "$(backend_state)"
+	;;
+install)
+	if ! is_present; then
+		: > "$LOG"
+		if ! apk update >>"$LOG" 2>&1; then
+			echo "FAIL: no package feed reachable - check the internet connection"; exit 1
+		fi
+		if ! apk add "$PKG" >>"$LOG" 2>&1; then
+			echo "FAIL: could not download tailscale - see $LOG"; exit 1
+		fi
+		is_present || { echo "FAIL: installed but $BIN is missing"; exit 1; }
+	fi
+	# DNS takeover off unless the user turns it on.
+	uci -q get tailscale.settings.accept_dns >/dev/null 2>&1 || {
+		uci -q set tailscale.settings.accept_dns='0'; uci -q commit tailscale; }
+	if svc_up; then
+		echo "OK: installed and running"
+	else
+		echo "FAIL: installed but the service did not start - check logread"; exit 1
+	fi
+	;;
+update)
+	is_present || { echo "FAIL: tailscale is not installed"; exit 1; }
+	: > "$LOG"
+	if ! apk update >>"$LOG" 2>&1; then
+		echo "FAIL: no package feed reachable"; exit 1
+	fi
+	before=$("$CLI" --version 2>/dev/null | head -1)
+	if ! apk add -u "$PKG" >>"$LOG" 2>&1; then
+		echo "FAIL: update failed - see $LOG"; exit 1
+	fi
+	svc_up >/dev/null 2>&1
+	after=$("$CLI" --version 2>/dev/null | head -1)
+	if [ "$before" = "$after" ]; then
+		echo "OK: already on the latest version ($after)"
+	else
+		echo "OK: updated $before -> $after"
+	fi
+	;;
+connect)      do_up "" ;;
+connect-ssh)  do_up "--ssh" ;;
+logout)
+	is_present || { echo "OK: nothing to do"; exit 0; }
+	is_running || { echo "FAIL: tailscaled is not running"; exit 1; }
+	"$CLI" logout >/dev/null 2>&1
+	"$CLI" down   >/dev/null 2>&1
+	rm -f "$UPLOG"
+	echo "OK: logged out - this router is no longer on the tailnet"
+	;;
+dns-on|dns-off)
+	want=0; [ "$1" = "dns-on" ] && want=1
+	uci -q set tailscale.settings.accept_dns="$want"
+	uci -q commit tailscale
+	# Apply live when connected, so the change does not wait for a reconnect.
+	if is_running && [ "$(backend_state)" = "Running" ]; then
+		"$CLI" set --accept-dns="$(dns_pref)" >/dev/null 2>&1
+	fi
+	[ "$want" = 1 ] && echo "OK: using the tailnet's DNS" || echo "OK: tailnet DNS ignored"
+	;;
+uninstall)
+	is_present || { echo "OK: nothing to remove"; exit 0; }
+	if is_running; then
+		"$CLI" logout >/dev/null 2>&1
+		"$CLI" down   >/dev/null 2>&1
+	fi
+	"$INIT" stop    >/dev/null 2>&1
+	"$INIT" disable >/dev/null 2>&1
+	i=0
+	while [ "$i" -lt 10 ]; do is_running || break; sleep 1; i=$((i+1)); done
+	if is_running; then echo "FAIL: could not stop tailscaled"; exit 1; fi
+	# Discard the node identity BEFORE removing the package, so a reinstall
+	# does not silently rejoin the tailnet as the same node.
+	rm -rf "$STATE_DIR" /var/lib/tailscale "$UPLOG" 2>/dev/null
+	apk del "$PKG" >/dev/null 2>&1
+	echo "OK: uninstalled"
+	;;
+*)
+	echo "usage: chester-tailscale status|install|update|uninstall|connect|connect-ssh|logout|dns-on|dns-off|authurl" >&2
+	exit 2 ;;
+esac

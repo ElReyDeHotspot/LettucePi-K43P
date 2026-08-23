@@ -1,0 +1,7 @@
+#!/bin/sh
+# Deliberately does NOT touch Tailscale itself: removing this LuCI app should
+# not tear down a working tailnet connection or discard the node identity.
+# Use the page's Uninstall action for that.
+rm -f /tmp/luci-indexcache
+rm -rf /tmp/luci-modulecache
+exit 0

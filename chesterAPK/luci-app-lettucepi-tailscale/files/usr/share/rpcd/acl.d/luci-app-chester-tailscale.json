@@ -1,0 +1,23 @@
+{
+	"luci-app-chester-tailscale": {
+		"description": "Install, connect and remove Tailscale",
+		"read": {
+			"file": {
+				"/usr/sbin/chester-tailscale status": [ "exec" ],
+				"/usr/sbin/chester-tailscale authurl": [ "exec" ]
+			}
+		},
+		"write": {
+			"file": {
+				"/usr/sbin/chester-tailscale install": [ "exec" ],
+				"/usr/sbin/chester-tailscale update": [ "exec" ],
+				"/usr/sbin/chester-tailscale uninstall": [ "exec" ],
+				"/usr/sbin/chester-tailscale connect": [ "exec" ],
+				"/usr/sbin/chester-tailscale connect-ssh": [ "exec" ],
+				"/usr/sbin/chester-tailscale logout": [ "exec" ],
+				"/usr/sbin/chester-tailscale dns-on": [ "exec" ],
+				"/usr/sbin/chester-tailscale dns-off": [ "exec" ]
+			}
+		}
+	}
+}
