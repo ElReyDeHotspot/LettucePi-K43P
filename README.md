@@ -6,16 +6,25 @@ Firmware for the **Chester K43P** 5G router (MediaTek MT7981, board
 The router downloads, verifies and installs everything itself. Nothing to copy
 by hand.
 
-## Upgrading
+## Updating
 
-SSH into the router and paste one line:
+**Already on OpenWrt 25?** Nothing to type. Go to **System → Settings → System
+Update** and click once. Settings are kept.
+
+### Stale router
+
+If the router has **no System Update page** — every build before
+`20260824232739` shipped without one — it cannot update itself. SSH in and paste
+one line:
 
 ```sh
 wget -qO- https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh
 ```
 
 It installs OpenWrt 25: checks the download, tells you what the install erases,
-and asks you to type `YES` before writing anything.
+and asks you to type `YES` before writing anything. This **erases settings** —
+it is the recovery path, not the routine one. Once a router is on a build with
+the System Update page, it never needs this again.
 
 **[Read the upgrade guide first](UPGRADING.md)** — it covers which routers can
 upgrade in place, which need the one-liner, and what a firmware change erases.

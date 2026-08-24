@@ -23,8 +23,8 @@ set -u
 # because this board boots the bank the stock writer ignores.
 FW_FAMILY="OpenWrt"
 FW_NAME="OpenWrt 25 (official)"
-FW_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/firmware/chester-openwrt25-20260824232739-factory.bin"
-FW_SHA="adb136383d91d533968540c9cb1d8bf731502ebdf8aca5d40013af6f2dfe2140"
+FW_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/firmware/chester-openwrt25-20260824233515-factory.bin"
+FW_SHA="4ba48ad762198bb7461190cc3787d6738e368edcc30925e7a381c42eeb2cc1ef"
 FW_SIZE=17170432
 
 PLATFORM_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/platform.sh"

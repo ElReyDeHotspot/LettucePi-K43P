@@ -4,13 +4,34 @@ Two ways to move a router forward. Pick by what it is running now.
 
 | Router is on | Do this | Settings |
 |---|---|---|
+| **OpenWrt 25** | **Nothing.** System Update updates it over the air | Kept |
 | ImmortalWrt, any older build | **Nothing.** System Update offers the stepping stone | Kept |
 | ImmortalWrt, final build (`20260824041540`) | System Update, once `next.json` points at OpenWrt 25 | **Erased** |
 | Anything, want OpenWrt 25 now | The one-liner below | **Erased** |
+| A stale build with no System Update page | The one-liner below | **Erased** |
 
 ---
 
-## The one-liner
+## Already on OpenWrt 25? It updates itself
+
+Go to **System → Settings → System Update**. The router checks
+`openwrt25/ota.json`, tells you what it is running and what is published, and
+installs with one click. **Settings are kept** — this is a same-family update.
+
+Nothing needs to be typed and nobody needs to SSH in. That page is the normal
+way a router moves forward from here.
+
+The updater refuses an image whose manifest is not marked `"family":
+"OpenWrt"`, so a router can never be walked backwards onto ImmortalWrt by a
+mistake in a published manifest.
+
+---
+
+## The one-liner — for a stale router
+
+Use this when the router **has no System Update page**, or is too old to reach
+the current build on its own. Builds before `20260824232739` shipped no updater
+at all, so they cannot update themselves and this is the only way forward.
 
 Run it on the router over SSH:
 
