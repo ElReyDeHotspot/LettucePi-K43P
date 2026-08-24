@@ -1,9 +1,9 @@
 {
   "version": "25.12",
-  "built": "2026-08-24T04:02Z",
-  "build": "20260824040227",
-  "sha256": "fac91847ff475d1beeec0cc3fd69c787b88d339f00446be09a437b8bcd2683cd",
+  "built": "2026-08-24T13:24Z",
+  "build": "20260824132408",
+  "sha256": "c8cfc8cba7d05b359593d8f9673fa425eb763216f8382b7d61031c4efe9535d5",
   "size": "14811136",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/firmware/chester-openwrt25-20260824040227-factory.bin",
-  "notes": "OpenWrt 25 snapshot. Settings are NOT kept - Wi-Fi, LAN address, admin password and APN return to defaults."
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/firmware/chester-openwrt25-20260824132408-factory.bin",
+  "notes": "OpenWrt 25 snapshot with cellular TTL rewriting. Settings are NOT kept."
 }
