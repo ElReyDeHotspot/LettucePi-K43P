@@ -32,8 +32,8 @@ A_SIZE=23592960
 B_NAME="OpenWrt 25 (official)"
 B_DESC="Stock OpenWrt with LuCI and QModem. Newer kernel (6.18), package feeds
              that match the build, upstream support. Fewer vendor pages."
-B_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/firmware/chester-openwrt25-20260823235959-factory.bin"
-B_SHA="cacd0a9371406a73c6b159dc29a4adaeb0d9371ab5f037c306ad2a480ccd8b40"
+B_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/firmware/chester-openwrt25-20260824001720-factory.bin"
+B_SHA="4a0b4dad060a8d535af72a770a56cdb08b671fedadf7046428bac9d56be7c33a"
 B_SIZE=14680064
 
 PLATFORM_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/platform.sh"

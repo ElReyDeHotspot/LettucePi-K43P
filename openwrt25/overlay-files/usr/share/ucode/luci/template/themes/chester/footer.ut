@@ -51,50 +51,6 @@
 
 		const loginBody = container ? container.querySelector('.login-shell-body') : null;
 
-		if (form && !form.querySelector('.login-remember')) {
-			const KEY = 'chester-login';
-			const user = form.querySelector('input[name="luci_username"]');
-			const pass = form.querySelector('input[name="luci_password"]');
-
-			const wrap = document.createElement('label');
-			wrap.className = 'login-remember';
-			const box = document.createElement('input');
-			box.type = 'checkbox';
-			const text = document.createElement('span');
-			text.textContent = 'Remember password';
-			wrap.appendChild(box);
-			wrap.appendChild(text);
-
-			const target = form.querySelector('.cbi-page-actions') || form;
-			target.parentNode.insertBefore(wrap, target);
-
-			try {
-				const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
-				if (saved) {
-					box.checked = true;
-					if (user && saved.u) user.value = saved.u;
-					if (pass && saved.p) pass.value = saved.p;
-				}
-			} catch (e) {}
-
-			// Unticking must forget immediately, not at the next sign-in.
-			box.addEventListener('change', function () {
-				if (!box.checked) try { localStorage.removeItem(KEY); } catch (e) {}
-			});
-
-			form.addEventListener('submit', function () {
-				try {
-					if (box.checked)
-						localStorage.setItem(KEY, JSON.stringify({
-							u: user ? user.value : '', p: pass ? pass.value : ''
-						}));
-					else
-						localStorage.removeItem(KEY);
-				} catch (e) {}
-			});
-		}
-
-
 		document.querySelectorAll('.node-main-login .cbi-section-descr, .node-main-login .cbi-value-title, .node-main-login .cbi-map-descr').forEach((el) => el.remove());
 		document.querySelectorAll('.node-main-login p, .node-main-login .cbi-map-descr').forEach((el) => {
 			const text = (el.textContent || '').trim();
@@ -138,7 +94,7 @@
 			form.setAttribute('autocomplete', 'on');
 
 		if (setupRequired)
-			window.location.replace('{{ entityencode(dispatcher.build_url("setup"), true) }}');
+			window.location.replace('/cgi-bin/luci/admin/dashboard/setup-wizard');
 	})();
 	</script>
 	<script src="/luci-static/resources/wifi-polish-plain.js?v=7"></script>

@@ -1,0 +1,21 @@
+{
+	"luci-app-chester-dashboard": {
+		"description": "Grant access to the Chester dashboard",
+		"read": {
+			"ubus": {
+				"system": [ "board", "info" ],
+				"luci": [ "getCPUInfo", "getCPUUsage", "getTempInfo", "getBuiltinEthernetPorts" ],
+				"network.device": [ "status" ],
+				"network.interface": [ "dump" ],
+				"network.wireless": [ "status" ],
+				"qmodem": [ "base_info", "network_info", "cell_info", "sim_info", "get_connect_status" ],
+				"chester": [ "internet_status", "neighbors", "tcp_connections", "temp_status", "system_time", "oem_model_name" ],
+				"iwinfo": [ "info", "countrylist", "freqlist", "phyname", "assoclist" ],
+				"luci-rpc": [ "getHostHints", "getWirelessDevices" ],
+				"uci": [ "get" ]
+			},
+			"uci": [ "qmodem", "chester", "firewall", "network", "wireless", "dhcp" ]
+		},
+		"write": {}
+	}
+}

@@ -59,9 +59,11 @@
 {% if (!wizard_completed && !is_setup_wizard): %}
 <script>window.location.replace('{{ entityencode(wizard_url, true) }}');</script>
 {% endif %}
-{% if (wizard_completed && is_setup_wizard): %}
-<script>window.location.replace('{{ entityencode(dashboard_url, true) }}');</script>
-{% endif %}
+{# Deliberately no redirect away from the wizard when it is already
+   complete. That is what made the Setup Wizard button look dead: it
+   opened the page and was bounced straight back to the dashboard, so
+   the wizard could never be run a second time. First-run is still
+   forced by the check above. #}
 <header>
 	<div class="fill">
 		<div class="container">
