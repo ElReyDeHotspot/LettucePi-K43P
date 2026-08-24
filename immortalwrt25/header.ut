@@ -1,0 +1,141 @@
+{#
+	Misectel theme for LuCI.
+	Restyled to match the legacy Misectel WebUI while keeping LuCI native layouts.
+-#}
+
+{%
+	import { getuid, getspnam } from 'luci.core';
+
+	const boardinfo = ubus.call('system', 'board');
+	const hostname = striptags(`${boardinfo.hostname ?? '?'}`);
+	const appname = 'Chester K43P';
+	const authuser = ctx.authuser ?? 'admin';
+	const wizard_url = dispatcher.lookup('setup')
+		? dispatcher.build_url('setup')
+		: dispatcher.build_url('admin');
+	const wizard_state = ubus.call('uci', 'get', {
+		config: 'misectel',
+		section: 'setup'
+	});
+	const wizard_completed = `${wizard_state?.values?.completed ?? '0'}` == '1';
+	const current_path = join('-', ctx.path || []);
+	const is_setup_wizard = current_path == 'setup' || current_path == 'admin-dashboard-setup-wizard';
+	const dashboard_url = dispatcher.build_url('admin');
+	const home_url = !wizard_completed ? wizard_url : dashboard_url;
+	const password_url = dispatcher.lookup('admin/system/settings/admin')
+		? dispatcher.build_url('admin/system/settings/admin')
+		: dispatcher.build_url('admin/system/admin');
+
+	http.prepare_content('text/html; charset=UTF-8');
+-%}
+
+<!DOCTYPE html>
+<html lang="{{ dispatcher.lang }}">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"/>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#b81425">
+<meta name="msapplication-tap-highlight" content="no">
+<meta name="msapplication-TileColor" content="#b81425">
+<meta name="application-name" content="{{ appname }}">
+<meta name="apple-mobile-web-app-title" content="{{ appname }}">
+<link rel="stylesheet" href="{{ media }}/cascade.css?v=26.235.ipv6d">
+<link rel="icon" href="{{ media }}/favicon.ico" sizes="48x48">
+{% if (node?.css): %}
+<link rel="stylesheet" href="{{ resource }}/{{ node.css }}">
+{% endif %}
+<script src="{{ dispatcher.build_url('admin/translations', dispatcher.lang) }}"></script>
+<script src="{{ resource }}/cbi.js?v=26.168.05429~eaf692c"></script>
+<title>{{ appname }}</title>
+{% if (css): %}
+<style title="text/css">{{ css }}</style>
+{% endif %}
+</head>
+<body class="theme-misectel lang_{{ dispatcher.lang }} {{ ctx.authsession ? 'logged-in' : '' }} {{ length(ctx.path) ? `node-${join('-', ctx.path)}` : 'node-main-login' }}" data-page="{{ entityencode(join('-', ctx.path), true) }}" data-login-title="{{ entityencode(appname, true) }}" data-setup-required="{{ wizard_completed ? '0' : '1' }}">
+{% if (!wizard_completed && !is_setup_wizard): %}
+<script>window.location.replace('{{ entityencode(wizard_url, true) }}');</script>
+{% endif %}
+{# Deliberately no redirect away from the wizard when it is already
+   complete. That is what made the Setup Wizard button look dead: it
+   opened the page and was bounced straight back to the dashboard, so
+   the wizard could never be run a second time. First-run is still
+   forced by the check above. #}
+<header>
+	<div class="fill">
+		<div class="container">
+			<span class="showSide"></span>
+			<div class="page-title">
+				<a class="brand" href="{{ home_url }}">{{ appname }}</a>
+			</div>
+			<div class="topbar-right">
+				<span class="status" id="indicators"></span>
+				{% if (ctx.authsession): %}
+				<div class="account-meta">
+					<a class="account-avatar-link" href="{{ password_url }}" aria-label="{{ _('Password settings') }}">
+						<span class="account-avatar"></span>
+					</a>
+					<span class="account-name">{{ authuser }}</span>
+					{% if (dispatcher.lookup("admin/logout")): %}
+					<a class="account-logout" href="{{ dispatcher.build_url("admin/logout") }}">{{ _('Logout') }}</a>
+					{% endif %}
+				</div>
+				{% endif %}
+			</div>
+		</div>
+	</div>
+</header>
+<div class="main">
+	<div class="loading"><span><div class="loading-img"></div>{{ _('Collecting data...') }}</span></div>
+	<div class="main-left" id="mainmenu">
+		<div class="sidebar-brand">
+			<a class="sidebar-logo" href="{{ home_url }}">
+				<span class="sidebar-logo-mark" aria-hidden="true">
+					<svg viewBox="0 0 32 32" focusable="false">
+						<path d="M27 4C13 4 6 11 6 21c0 2.4.6 4.6 1.7 6.4l-2.4 2.4 1.4 1.4 2.4-2.4A12 12 0 0 0 15 31c10 0 12-9 12-27z"></path>
+						<path d="M26 5C18 12 12 19 9 28"></path>
+					</svg>
+				</span>
+				<span class="sidebar-logo-wordmark">LettucePi</span>
+			</a>
+		</div>
+		<div class="sidebar-footer">
+			<button class="sidebar-footer-button" type="button" aria-label="{{ _('Menu') }}"></button>
+		</div>
+	</div>
+	<div class="main-right">
+		<div class="modemenu-buttons" style="display:none">
+			<ul id="modemenu"></ul>
+		</div>
+		<div class="darkMask"></div>
+		<div id="maincontent">
+			<div class="container">
+				{% if (getuid() == 0 && getspnam('root')?.pwdp === '' && ctx.authsession): %}
+					<div class="alert-message warning">
+						<h4>{{ _('No password set!') }}</h4>
+						<p>{{ _('There is no password set on this router. Please configure a root password to protect the web interface.') }}</p>
+						{% if (dispatcher.lookup("admin/system/settings/admin") || dispatcher.lookup("admin/system/admin")): %}
+						  <div class="right"><a class="btn" href="{{ password_url }}">{{ _('Go to password configuration...') }}</a></div>
+						{% endif %}
+					</div>
+				{% endif %}
+
+				{% if (boardinfo?.rootfs_type == "initramfs"): %}
+					<div class="alert-message warning">
+						<h4>{{ _('System running in recovery (initramfs) mode.') }}</h4>
+						<p>{{ _('No changes to settings will be stored and are lost after rebooting. This mode should only be used to install a firmware upgrade') }}</p>
+						{% if (dispatcher.lookup("admin/system/settings/upgrade")): %}
+						  <div class="right"><a class="btn" href="{{ dispatcher.build_url("admin/system/settings/upgrade") }}">{{ _('Go to firmware upgrade...') }}</a></div>
+						{% endif %}
+					</div>
+				{% endif %}
+
+				<noscript>
+					<div class="alert-message warning">
+						<h4>{{ _('JavaScript required!') }}</h4>
+						<p>{{ _('You must enable JavaScript in your browser or LuCI will not work properly.') }}</p>
+					</div>
+				</noscript>
+
+				<div id="tabmenu" style="display:none"></div>

@@ -1,0 +1,1141 @@
+#!/bin/bash
+# Rebrand the ImmortalWrt image for the Chester K43P.
+#
+#   ./rebrand.sh "Chester K43P" [version]
+#
+# Does, inside the rootfs:
+#   1. model name shown in the UI            -> "Chester K43P"
+#   2. "misectel" removed from every menu URL
+#   3. visible "Misectel" text               -> "Chester"
+#   4. Chinese language removed
+#   5. Wi-Fi country code                    -> US on both radios
+#
+# Run under WSL, on ext4 (see wsl-rebrand.sh) -- DrvFs cannot create the
+# device nodes in the rootfs.
+set -euo pipefail
+
+BRAND="${1:-Chester K43P}"
+SHORT="${BRAND%% *}"            # "Chester"
+VERSION="${2:-25.12}"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+WORK="$HERE/.work"; OUT="$HERE/out"
+PEB=131072; MINIO=2048; SLOT_MAX=58720256
+CHESTER_FEED="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/chesterAPK/packages.adb"
+R="$WORK/rootfs"
+
+# apk-tools 3 (v3 indexes/packages; Ubuntu's apk-tools is v2 and cannot read them)
+APKBIN="${APKBIN:-/root/apk-tools/build/src/apk}"
+FEED="${FEED:-https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/chesterAPK}"
+# Where our packages are built. They land here before being published, so this
+# is the only place the newest build is guaranteed to exist.
+APKSRC="${APKSRC:-/mnt/c/Users/CTR/Documents/Codex/2026-08-14/usi/LettucePi-K43P/chesterAPK}"
+
+step(){ printf '\n\033[1m==> %s\033[0m\n' "$*"; }
+die(){ printf '\033[31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
+
+for t in unsquashfs mksquashfs ubinize; do command -v $t >/dev/null || die "$t missing"; done
+[ -f "$HERE/kernel.bin" ] || die "missing kernel.bin"
+[ -f "$HERE/rootfs.raw" ] || die "missing rootfs.raw"
+[ "$(head -c4 "$HERE/rootfs.raw")" = "hsqs" ] || die "rootfs.raw is not squashfs"
+
+rm -rf "$WORK"; mkdir -p "$WORK" "$OUT"
+
+step "Unpacking rootfs"
+unsquashfs -no-progress -dest "$R" "$HERE/rootfs.raw" >/dev/null
+echo "  $(find "$R" | wc -l) entries"
+
+# ---------------------------------------------------------------- 1. model
+step "Model name -> $BRAND"
+cat > "$R/lib/preinit/01_lettucepi_model" <<HOOK
+# Runs before 02_sysinfo, which only writes /tmp/sysinfo/model when that file
+# is absent -- so setting it here wins without patching any stock file.
+# board_name is deliberately NOT touched: board.d keys network and LED setup
+# off it, and changing it would break the device profile.
+do_lettucepi_model() {
+	mkdir -p /tmp/sysinfo
+	echo "$BRAND" > /tmp/sysinfo/model
+}
+
+boot_hook_add preinit_main do_lettucepi_model
+HOOK
+chmod 0644 "$R/lib/preinit/01_lettucepi_model"
+echo "  /lib/preinit/01_lettucepi_model"
+
+# ------------------------------------------------------------- 2. menu URLs
+# Only the menu KEYS are rewritten -- they are the address bar. "action.path"
+# (the view file on disk) and the acl names are left alone, so nothing has to
+# be moved or renamed.
+#
+# Three stripped names collide with stock LuCI pages that already exist, so
+# those get a different name instead of the bare one:
+#     admin/network/wireless  (luci-mod-network)  -> admin/network/wifi
+#     admin/network/network   (luci-mod-network)  -> admin/network/settings
+#     admin/system/system     (luci-mod-system)   -> admin/system/settings
+step "Removing \"misectel\" from menu URLs"
+M="$R/usr/share/luci/menu.d"
+sed -i \
+	-e 's|"admin/misectel-dashboard|"admin/dashboard|g' \
+	-e 's|"admin/network/misectel-network"|"admin/network/settings"|g' \
+	-e 's|"admin/network/misectel-portmap"|"admin/network/portmap"|g' \
+	-e 's|"admin/network/misectel-wireless"|"admin/network/wifi"|g' \
+	-e 's|"admin/system/misectel-system|"admin/system/settings|g' \
+	-e 's|"admin/vpn/misectel-|"admin/vpn/|g' \
+	"$M"/*.json
+# the sub-tab literally named "misectel"
+sed -i 's|"admin/system/settings/misectel"|"admin/system/settings/general"|g' "$M"/*.json
+
+# Renaming the menu keys is only half the job: the theme template, the theme
+# CSS and some views BUILD these URLs too, and a stale one there is not a
+# cosmetic problem -- the post-login redirect lands on a dead URL and the whole
+# UI 404s ("No page is registered at /admin/misectel-dashboard").
+#
+# The dashed forms (admin-misectel-dashboard-setup-wizard) are body-class
+# selectors derived from the URL, so they have to track the rename or the page
+# loses its styling.
+for f in "$R"/usr/share/ucode/luci/template/themes/*/header.ut \
+         "$R"/www/luci-static/*/cascade.css \
+         "$R"/www/luci-static/resources/menu-misectel.js \
+         "$R"/www/luci-static/resources/view/*/*.js; do
+	[ -f "$f" ] || continue
+	sed -i -e "s|admin/system/misectel-system|admin/system/settings|g" \
+	       -e "s|admin-misectel-dashboard|admin-dashboard|g" \
+	       -e "s|admin-misectel-system|admin-settings|g" \
+	       -e "s|admin/misectel-dashboard|admin/dashboard|g" "$f"
+done
+# Land on /cgi-bin/luci/admin/ after login. The 'admin' node is
+# firstchild+recurse, so it falls through to the dashboard on its own.
+sed -i "s|build_url('admin/dashboard')|build_url('admin')|g" \
+	"$R"/usr/share/ucode/luci/template/themes/*/header.ut
+
+# L.url() takes the path as SEPARATE arguments --
+#     L.url('admin','misectel-dashboard','overview')
+# -- so the URL never appears as one 'admin/misectel-...' string and a
+# whole-string search walks straight past it. That is how the setup wizard's
+# skip button kept landing on a dead URL after the rename.
+#
+# Rewriting the bare quoted token is safe: view paths carry a slash
+# ('misectel-dashboard/overview') and CSS classes carry a dash
+# ('misectel-dashboard-badge'), so neither matches the exact quoted form.
+for f in "$R"/www/luci-static/resources/view/*/*.js \
+         "$R"/www/luci-static/resources/*.js; do
+	[ -f "$f" ] || continue
+	sed -i -e "s|'misectel-dashboard'|'dashboard'|g" \
+	       -e "s|'misectel-system'|'settings'|g" \
+	       -e "s|'misectel-network'|'settings'|g" \
+	       -e "s|'misectel-wireless'|'wifi'|g" \
+	       -e "s|'misectel-portmap'|'portmap'|g" "$f"
+done
+
+# Guard: nothing anywhere may still reference a misectel URL. Scans the WHOLE
+# rootfs, because the file that broke this the first time (header.ut) was not
+# in any of the directories being checked.
+left=$(grep -rhoE "(admin/(network/|system/|vpn/)?misectel[a-z0-9_-]*|admin-misectel[a-z0-9_-]*)" \
+	"$R/usr" "$R/www" "$R/etc" 2>/dev/null | sort -u || true)
+[ -z "$left" ] || die "URLs still referencing misectel: $(echo $left)"
+
+# Second guard, for the segment-style form the whole-string search cannot see.
+seg=$(grep -rhoE "(L\.url|build_url)\([^)]*misectel[^)]*\)" \
+	"$R/usr" "$R/www" 2>/dev/null | sort -u || true)
+[ -z "$seg" ] || die "URL built from misectel segments: $(echo $seg)"
+echo "  all URLs clean (menus, theme template, css, views); view paths and acl untouched"
+
+# /etc/config/misectel lists the dashboard's app whitelist / always-show /
+# blacklist as MENU ROUTES with the "admin/" prefix stripped -- not as view
+# paths. The giveaway is entries like 'modem/cellular-info', which is a route;
+# the view for it would be 'misectel-modem/cellular-info'. So these went stale
+# with the URL rename and have to track it, or the dashboard filters against
+# routes that no longer exist.
+step "Updating dashboard route lists in /etc/config/misectel"
+C="$R/etc/config/misectel"
+[ -f "$C" ] || die "/etc/config/misectel missing - image layout changed"
+sed -i \
+	-e "s|system/misectel-system/misectel|system/settings/general|g" \
+	-e "s|system/misectel-system/|system/settings/|g" \
+	-e "s|misectel-dashboard/|dashboard/|g" \
+	-e "s|network/misectel-wireless|network/wifi|g" \
+	-e "s|network/misectel-portmap|network/portmap|g" \
+	-e "s|network/misectel-network|network/settings|g" \
+	-e "s|vpn/misectel-|vpn/|g" \
+	"$C"
+stale=$(grep -E "^[[:space:]]*list[[:space:]]+(app_whitelist|app_blacklist|always_show)" "$C" | grep misectel || true)
+[ -z "$stale" ] || die "stale misectel routes remain in /etc/config/misectel: $stale"
+echo "  $(grep -cE "^[[:space:]]*list[[:space:]]+(app_whitelist|app_blacklist|always_show)" "$C") route entries, none stale"
+
+# --------------------------------------------------------- 3. visible text
+step "Visible \"Misectel\" text -> $SHORT"
+# Replace the CAPITALISED name everywhere; leave lowercase "misectel" alone.
+#
+# That split is the whole trick. Capital "Misectel" is display text - the theme
+# footer brand, the ACL descriptions LuCI lists, comments - plus one JS helper
+# (readMisectelOption). Lowercase "misectel" is structural: view directories
+# under /www, the ubus object name, /etc/config/misectel, menu.d and acl.d
+# filenames, CSS classes. Renaming those would mean rewriting every reference
+# in lockstep across menus, ACLs, rpcd and the views, which is how the URL
+# rename broke the whole UI once already.
+#
+# Replacing an identifier is safe here only because it is done in EVERY file at
+# once, so a definition and its call sites move together.
+n=0
+while IFS= read -r f; do
+	case "$(file -b --mime-type "$f" 2>/dev/null)" in
+		text/*|application/json|application/javascript|inode/x-empty) ;;
+		*) continue ;;
+	esac
+	sed -i "s/Misectel/$SHORT/g" "$f"
+	n=$((n+1))
+done <<< "$(grep -rl "Misectel" "$R/www" "$R/usr" "$R/etc" 2>/dev/null || true)"
+echo "  $n files rebranded"
+
+# Check only what the replacement could touch. Compiled .lmo catalogs are
+# binary and must not be sed'ed -- the zh-cn ones carry the old name and are
+# deleted outright by the Chinese-removal step below.
+left=""
+while IFS= read -r f; do
+	[ -n "$f" ] || continue
+	case "$(file -b --mime-type "$f" 2>/dev/null)" in
+		text/*|application/json|application/javascript) left="$left $f" ;;
+	esac
+done <<< "$(grep -rl "Misectel" "$R/www" "$R/usr" "$R/etc" 2>/dev/null || true)"
+[ -z "$left" ] || die "capitalised Misectel survived in text files:$left"
+# The structural name must NOT have been touched, or menus and ACLs break.
+[ -d "$R/www/luci-static/resources/view/misectel-dashboard" ] \
+	|| die "view directories were renamed - menus and ACLs will not resolve"
+[ -f "$R/usr/share/rpcd/ucode/misectel" ] || die "the misectel ubus object was renamed"
+# Theme name in the theme picker. This is NOT in /etc/config/luci in the image
+# -- it is registered on first boot by a uci-defaults script, so that is what
+# has to be patched. The path value stays /luci-static/misectel (it is a
+# directory name, not a label).
+T="$R/etc/uci-defaults/30_luci-theme-misectel"
+[ -f "$T" ] || die "theme uci-default missing - image layout changed"
+sed -i "s|luci\.themes\.Misectel|luci.themes.$SHORT|g" "$T"
+grep -q "luci.themes.$SHORT" "$T" || die "theme rename did not apply"
+# and the copy in /etc/config/luci, if this image ships one already populated
+sed -i -E "s|^([[:space:]]*option )'?Misectel'?([[:space:]].*)|\1$SHORT\2|" "$R/etc/config/luci" 2>/dev/null || true
+echo "  theme registered as \"$SHORT\""
+
+# ------------------------------------------------------------- 4. Chinese
+step "Removing Chinese language"
+# Remove the PACKAGES, not just their files. Deleting the .lmo files alone
+# leaves /lib/apk/db/installed still claiming 18 packages are installed whose
+# files are gone -- `apk info` then lies, and anything reasoning about the
+# installed set gets it wrong. apk del updates the database properly.
+if [ -x "$APKBIN" ]; then
+	ZH=$("$APKBIN" --root "$R" info 2>/dev/null | grep -E '^luci-i18n-.*-zh-cn$' | tr '\n' ' ')
+	if [ -n "$ZH" ]; then
+		"$APKBIN" --root "$R" del --no-network --no-scripts $ZH >/dev/null 2>&1 || true
+		LEFT=$("$APKBIN" --root "$R" info 2>/dev/null | grep -cE '^luci-i18n-.*-zh-cn$' || true)
+		[ "${LEFT:-0}" = 0 ] || die "$LEFT Chinese i18n packages survived removal"
+		echo "  removed $(echo $ZH | wc -w) Chinese i18n packages (files + apk database)"
+	fi
+	# Nothing non-Chinese should be caught by this.
+	KEPT=$("$APKBIN" --root "$R" info 2>/dev/null | grep -E '^luci-i18n-' | grep -v zh-cn || true)
+	[ -z "$KEPT" ] || echo "  kept non-Chinese i18n: $(echo $KEPT | tr '\n' ' ')"
+fi
+# Belt and braces: any stray translation file the package db did not own.
+n=$(find "$R" \( -name '*.zh-cn.lmo' -o -name '*.zh_cn.lmo' \) | wc -l)
+find "$R" \( -name '*.zh-cn.lmo' -o -name '*.zh_cn.lmo' \) -delete
+[ "$n" = 0 ] || echo "  deleted $n orphaned translation files"
+
+# Each luci-i18n-*-zh-cn uci-default does
+#     uci set luci.languages.zh_cn='...'
+# on first boot, which puts Chinese back into the picker no matter what the
+# shipped config says. Delete them.
+d=$(find "$R/etc/uci-defaults" -name '*zh-cn*' -o -name '*zh_cn*' | wc -l)
+find "$R/etc/uci-defaults" \( -name '*zh-cn*' -o -name '*zh_cn*' \) -delete
+echo "  deleted $d Chinese first-boot scripts"
+
+# 99-default-settings sets luci.main.lang=auto on first boot, which would
+# override the shipped config -- so it has to be changed too, not just the
+# config file.
+sed -i 's|set luci\.main\.lang="auto"|set luci.main.lang="en"|' "$R/etc/uci-defaults/99-default-settings"
+grep -q 'set luci\.main\.lang="en"' "$R/etc/uci-defaults/99-default-settings" || die "first-boot lang not forced to en"
+
+# The shipped config, quote-tolerant: it is UNQUOTED in the image
+# ("option lang auto") but quoted on a running box, so patterns must take both.
+#
+# Delete ONLY the zh_cn option line. Do NOT range-delete the whole
+# 'languages' section: in the image these blocks are not separated by blank
+# lines, so a /^$/ range runs on and takes 'sauth', 'ccache' and 'themes' with
+# it. An empty languages section is harmless.
+sed -i -E "/^[[:space:]]*option[[:space:]]+'?zh[_-]cn'?[[:space:]]/d" "$R/etc/config/luci"
+sed -i -E "s|^([[:space:]]*option lang ).*|\1en|" "$R/etc/config/luci"
+grep -qE "^[[:space:]]*option lang en$" "$R/etc/config/luci" || die "lang was not forced to en"
+if grep -qiE "zh[_-]cn" "$R/etc/config/luci"; then die "Chinese still referenced in /etc/config/luci"; fi
+# the blocks that a careless range delete would have eaten
+for blk in themes sauth ccache; do
+	grep -qE "^config internal '?$blk'?" "$R/etc/config/luci" || die "clobbered the '$blk' block in /etc/config/luci"
+done
+echo "  language list cleared, lang forced to en (config + first boot)"
+
+# --------------------------------------------------------- 5. package feeds
+# Three of the shipped feeds do not exist on the download server (they are
+# build-time feeds), so every `apk update` ends in
+#   ERROR: wget: exited with error 8 ... unexpected end of file
+# Confirmed by fetching each: misectel/qmodem/video are 404, the rest are 200.
+step "Package feeds -> openwrt.org"
+F="$R/etc/apk/repositories.d/distfeeds.list"
+[ -f "$F" ] || die "distfeeds.list missing - image layout changed"
+before=$(grep -c . "$F")
+
+# Point package installs at OpenWrt's own servers rather than ImmortalWrt's.
+# The image already trusts openwrt-25.12.pem, so signatures verify without
+# shipping any new key.
+#
+# The TARGET feed (mediatek/filogic) is deliberately NOT included. It carries
+# the kernel modules, and those pin an exact kernel build:
+#
+#     this image   kernel 6.12.85~065c30ba...
+#     OpenWrt 25.12.5     6.12.94~5a6c1f71...
+#     ImmortalWrt feed    6.12.87~24374d30...
+#
+# No feed anywhere matches a snapshot build once it has aged, so kmods were
+# already uninstallable. Listing a kmod feed that cannot match only invites
+# `apk upgrade` to pull a mismatched kernel over a working one, which breaks
+# wifi and the modem. Userspace packages have no such dependency and install
+# normally.
+OWBASE="https://downloads.openwrt.org/releases/25.12.5/packages/aarch64_cortex-a53"
+cat > "$F" <<FEEDS
+$OWBASE/base/packages.adb
+$OWBASE/luci/packages.adb
+$OWBASE/packages/packages.adb
+$OWBASE/routing/packages.adb
+$OWBASE/telephony/packages.adb
+FEEDS
+after=$(grep -c . "$F")
+grep -q immortalwrt "$F" && die "immortalwrt feed still listed"
+grep -qc 'downloads\.openwrt\.org' "$F" >/dev/null || die "openwrt feeds not written"
+[ -f "$R/etc/apk/keys/openwrt-25.12.pem" ] || die "openwrt signing key missing from the image"
+echo "  $before -> $after feeds, all on downloads.openwrt.org (25.12.5)"
+echo "  kmod/target feed omitted on purpose - see the comment above"
+
+# Our own feed, served from the GitHub repo. Its public key goes into
+# /etc/apk/keys so signed packages from it are trusted; the private key never
+# leaves the build machine. apk fetches <name>-<version>.apk from the same
+# directory as the index, which is why the packages sit beside packages.adb.
+if [ -f "$HERE/chester-apk.pem" ]; then
+	install -d "$R/etc/apk/keys"
+	install -m 0644 "$HERE/chester-apk.pem" "$R/etc/apk/keys/chester-apk.pem"
+	echo "$CHESTER_FEED" > "$R/etc/apk/repositories.d/chester.list"
+	echo "  added chesterAPK feed + signing key"
+else
+	echo "  (no chester-apk.pem beside the script - feed not added)"
+fi
+
+# ------------------------------------------------------ 6. root password
+# A sysupgrade -n leaves /etc/shadow with an EMPTY root password, which the
+# login banner warns about and which contradicts the guide (root/admin).
+# Hash generated with busybox passwd on the target, so the format ($5$,
+# SHA-256 crypt) is exactly what this firmware produces.
+step "Setting the default root password"
+[ -n "${ROOT_HASH:-}" ] || ROOT_HASH='$5$MvnJarVIBlXg2KtV$jXgqH2st5Bs.hA8rY3m3p8l0VQ15xSWS95CiHqPjsYB'
+awk -v h="$ROOT_HASH" -F: 'BEGIN{OFS=":"} $1=="root"{$2=h} {print}' "$R/etc/shadow" > "$R/etc/shadow.new"
+mv "$R/etc/shadow.new" "$R/etc/shadow"; chmod 0600 "$R/etc/shadow"
+grep -q '^root:\$5\$' "$R/etc/shadow" || die "root password hash not applied"
+echo "  root password set (default: admin - tell customers to change it)"
+
+# ------------------------------------------------ 7. first-boot fixups
+step "First-boot settings (country code, board.json)"
+mkdir -p "$R/etc/uci-defaults"
+cat > "$R/etc/uci-defaults/99-lettucepi-brand" <<UCID
+#!/bin/sh
+# board.json is written on first boot from the device tree, which still says
+# the stock name. Bring it in line with /tmp/sysinfo/model.
+[ -f /etc/board.json ] && sed -i 's/"name": "[^"]*"/"name": "$BRAND"/' /etc/board.json
+
+# Wi-Fi regulatory domain. The stock image ships CN on both radios, which is
+# the wrong channel/power set for the US. /etc/config/wireless is generated on
+# first boot, so generate it here if it does not exist yet, then force US.
+[ -f /etc/config/wireless ] || wifi config
+for r in \$(uci show wireless 2>/dev/null | sed -n 's/^wireless\.\([a-z0-9]*\)=wifi-device\$/\1/p'); do
+	uci set wireless.\$r.country='US'
+done
+uci commit wireless
+
+# APN preset country. Written here rather than spliced in later by a sed with a
+# multi-line replacement -- that is fragile (a raw newline in the replacement is
+# an "unterminated \`s' command") and it broke the build once already.
+uci -q set misectel.main.apn_country='US'
+uci -q commit misectel
+exit 0
+UCID
+chmod 0755 "$R/etc/uci-defaults/99-lettucepi-brand"
+echo "  /etc/uci-defaults/99-lettucepi-brand (board.json + country US + apn_country US)"
+
+# ------------------------------------------- 8. LuCI system-update page
+# A page inside LuCI that pulls the image from GitHub and installs it keeping
+# settings. The build id stamped here is what the page compares against the
+# published manifest -- not the image's own sha256, which cannot be known
+# before the stamp is written.
+step "Installing the System Update page"
+LU="$HERE/luci-chester-update"
+if [ -d "$LU" ]; then
+	BUILD_ID="${BUILD_ID:-$(date -u +%Y%m%d%H%M%S)}"
+	printf 'version=%s\nbuilt=%s\nbuild=%s\n' \
+		"$VERSION" "$(date -u +%Y-%m-%dT%H:%MZ)" "$BUILD_ID" > "$R/etc/chester-version"
+	chmod 0644 "$R/etc/chester-version"
+
+	install -m 0755 "$LU/chester-update" "$R/usr/sbin/chester-update"
+	install -d "$R/www/luci-static/resources/view/chester-update"
+	install -m 0644 "$LU/index.js" "$R/www/luci-static/resources/view/chester-update/index.js"
+	install -m 0644 "$LU/menu.json" "$R/usr/share/luci/menu.d/luci-app-chester-update.json"
+	install -m 0644 "$LU/acl.json"  "$R/usr/share/rpcd/acl.d/luci-app-chester-update.json"
+
+	# The page reflashes with the same both-banks method the installer uses;
+	# keep a copy where it can reach it.
+	install -d "$R/usr/share/chester"
+	install -m 0644 "$HERE/../../k43p-wrapper/openwrt25/platform.sh" "$R/usr/share/chester/platform.sh" 2>/dev/null \
+		|| install -m 0644 "$LU/platform.sh" "$R/usr/share/chester/platform.sh"
+	[ -s "$R/usr/share/chester/platform.sh" ] || die "flash method not staged for the update page"
+
+	# Put back packages the customer installed themselves. A sysupgrade
+	# replaces the rootfs, so `apk add`ed packages vanish even when settings
+	# are kept; sysupgrade -k leaves the list and this reinstalls from it.
+	if [ -f "$LU/chester-restore-pkgs" ]; then
+		install -m 0755 "$LU/chester-restore-pkgs" "$R/etc/init.d/chester-restore-pkgs"
+		install -d "$R/etc/rc.d"
+		ln -sf ../init.d/chester-restore-pkgs "$R/etc/rc.d/S99chester-restore-pkgs"
+		echo "  package restore service (S99chester-restore-pkgs)"
+	fi
+
+	# Tailscale is deliberately NOT in the image.
+	#
+	# It used to ship dormant (binary present, no rc.d symlink) so that turning
+	# it on cost nothing writable. That was ~7.7 MB of squashfs for something
+	# most units never switch on, so the payload is gone and the page installs
+	# it from the package feed on demand instead -- these units are online.
+	#
+	# The MENU ENTRY STAYS (Apps > Tailscale). Only the payload is removed.
+	rm -rf "$R/usr/sbin/tailscaled" "$R/usr/sbin/tailscale" \
+	       "$R/etc/init.d/tailscale" "$R/etc/config/tailscale" \
+	       "$R/etc/tailscale" "$R/usr/share/tailscale"
+	rm -f "$R/etc/rc.d/"*tailscale 2>/dev/null || true
+	for p in "$R/usr/sbin/tailscaled" "$R/usr/sbin/tailscale" "$R/etc/init.d/tailscale"; do
+		[ -e "$p" ] && die "tailscale payload still in the image: ${p#$R}"
+	done
+	echo "  tailscale payload NOT shipped (installed on demand from the feed)"
+
+	# its install/uninstall control
+	if [ -f "$LU/chester-tailscale" ]; then
+		install -m 0755 "$LU/chester-tailscale" "$R/usr/sbin/chester-tailscale"
+		install -d "$R/www/luci-static/resources/view/chester-tailscale"
+		install -m 0644 "$LU/tailscale-index.js" "$R/www/luci-static/resources/view/chester-tailscale/index.js"
+		install -m 0644 "$LU/tailscale-menu.json" "$R/usr/share/luci/menu.d/luci-app-chester-tailscale.json"
+		install -m 0644 "$LU/tailscale-acl.json"  "$R/usr/share/rpcd/acl.d/luci-app-chester-tailscale.json"
+		echo "  Apps > Tailscale install/uninstall page"
+	fi
+
+	echo "  build id $BUILD_ID"
+	echo "  /usr/sbin/chester-update, LuCI view, menu + acl, /usr/share/chester/platform.sh"
+	printf '%s\n' "$BUILD_ID" > "$OUT/.build-id"
+else
+	echo "  (luci-chester-update/ not found beside the script - page not added)"
+fi
+
+# --------------------------------------------------------- 9. remove boost
+# Not used. Removing the page alone would leave the service running and the
+# first-boot script re-adding it, so take the whole thing out.
+step "Removing Modem Boost"
+BOOST_MENU="$M/luci-app-misectel-modem.json"
+python3 - "$BOOST_MENU" <<'PY'
+import json,sys
+p=sys.argv[1]; d=json.load(open(p))
+gone=[k for k in list(d) if k.endswith("/boost")]
+for k in gone: del d[k]
+open(p,"w",newline="\n").write(json.dumps(d,indent="\t")+"\n")
+print("  menu nodes removed:", gone or "none")
+PY
+rm -f "$R/etc/init.d/misectel_modem_boost" \
+      "$R/etc/rc.d/"*misectel_modem_boost \
+      "$R/www/luci-static/resources/view/misectel-modem/boost.js"
+# the first-boot script sets boost_* and re-adds modem/boost to the whitelist
+# on EVERY boot (its duplicate check can never match, which is why the live box
+# had the entry five times)
+UD="$R/etc/uci-defaults/90_luci-app-misectel-modem"
+if [ -f "$UD" ]; then
+	sed -i -e "/boost_gpio/d" -e "/boost_cap/d" -e "/boost_mode/d" -e "/boost_manual_value/d" \
+	       -e "/app_whitelist='modem\/boost'/d" -e "/misectel_modem_boost/d" "$UD"
+	grep -q "boost" "$UD" && echo "  note: boost still referenced in $UD" || echo "  first-boot boost setup removed"
+fi
+sed -i "/list app_whitelist 'modem\/boost'/d" "$R/etc/config/misectel"
+grep -rq "misectel_modem_boost" "$R/etc" 2>/dev/null && die "boost service still referenced" || true
+echo "  service, view, menu entry and first-boot setup all removed"
+
+# ------------------------------------------------- 10. LettucePi theme
+# Shipped IN the image, not left as a package: a flash replaces the rootfs and
+# does not keep self-installed packages, so a default pointing at a
+# package-only theme would come up with no theme at all.
+# Set WITH_LETTUCEPI=1 to ship the LettucePi theme again. Off by default: its
+# package overrode admin/dashboard/overview globally (see install_theme_apk),
+# and it is still moving fast enough that pinning it into a customer image is
+# not useful yet. With it absent the 99- script registers Footstrap, finds no
+# lettucepi directory and exits, so 30_luci-theme-misectel's setting stands and
+# Chester is the default.
+step "Footstrap theme"
+# Footstrap: an extra theme the customer can select. Not the default.
+# Tracks the newest upstream release rather than pinning a version. It is
+# ucode-based (11 .ut templates, no legacy Lua), which is what LuCI on
+# OpenWrt 25 needs -- a Lua-template theme would simply not render.
+if [ -x "$APKBIN" ]; then
+	FSVER=$(curl -fsSL --max-time 60 "https://api.github.com/repos/VizzleTF/luci-theme-footstrap/releases/latest" 2>/dev/null \
+		| sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"v\{0,1\}\([^"]*\)".*/\1/p' | head -1)
+	if [ -n "$FSVER" ] && curl -fsSL --max-time 180 \
+		"https://github.com/VizzleTF/luci-theme-footstrap/releases/download/v$FSVER/luci-theme-footstrap-$FSVER-r1.apk" \
+		-o "$WORK/fs.apk" 2>/dev/null; then
+		rm -rf "$WORK/fs"; mkdir -p "$WORK/fs"
+		if "$APKBIN" extract --allow-untrusted --destination "$WORK/fs" "$WORK/fs.apk" >/dev/null 2>&1 \
+			&& [ -f "$WORK/fs/www/luci-static/footstrap/cascade.css" ]; then
+			cp -a "$WORK/fs/www/." "$R/www/" 2>/dev/null || true
+			cp -a "$WORK/fs/usr/." "$R/usr/" 2>/dev/null || true
+			echo "  footstrap $FSVER added (selectable, not default)"
+		else
+			echo "  NOTE: footstrap package did not extract cleanly - skipped"
+		fi
+	else
+		echo "  NOTE: could not fetch footstrap - skipped"
+	fi
+fi
+
+WITH_LETTUCEPI="${WITH_LETTUCEPI:-0}"
+step "LettucePi theme (WITH_LETTUCEPI=$WITH_LETTUCEPI)"
+if [ "$WITH_LETTUCEPI" != 1 ]; then
+	echo "  skipped - Chester remains the default theme"
+else
+LT="$HERE/lettucepi-theme"
+
+# Prefer the newest build published to chesterAPK, so every image carries the
+# current theme instead of whatever snapshot happens to sit in this directory.
+# Falls back to the bundled snapshot, loudly, if the package is not in the feed.
+THEME_PKG=luci-theme-lettucepi
+FETCHED=0
+
+install_theme_apk() {   # install_theme_apk <apk-file> <label>
+	rm -rf "$WORK/theme"; mkdir -p "$WORK/theme"
+	"$APKBIN" extract --allow-untrusted --destination "$WORK/theme" "$1" >/dev/null 2>&1 || return 1
+	[ -d "$WORK/theme/www/luci-static/lettucepi" ] || return 1
+	cp -a "$WORK/theme/www/." "$R/www/" 2>/dev/null || true
+	cp -a "$WORK/theme/usr/." "$R/usr/" 2>/dev/null || true
+
+	# The theme package ships zzzz-lettucepi-home.json, which REDEFINES
+	# admin/dashboard/overview to point at the LettucePi launcher. Menu files
+	# merge in filename order and "zzzz" sorts last, so it wins -- globally,
+	# for EVERY theme. The Chester dashboard then stops showing the Chester
+	# dashboard.
+	#
+	# LuCI menus have no "only for this theme" concept, so the only way to keep
+	# Chester intact is not to ship the override. Consequence, stated plainly:
+	# the LettucePi theme lands on the stock dashboard too. The proper fix
+	# belongs in the theme package -- register the launcher at its own path
+	# (e.g. admin/lettucepi/home) and point the theme's home link there, rather
+	# than overriding a page another theme owns.
+	if [ -f "$R/usr/share/luci/menu.d/zzzz-lettucepi-home.json" ]; then
+		rm -f "$R/usr/share/luci/menu.d/zzzz-lettucepi-home.json"
+		echo "  dropped zzzz-lettucepi-home.json (it overrode Chester's dashboard)"
+	fi
+	echo "  using $(basename "$1")  ($2)"
+	return 0
+}
+
+# 1. newest build in the package source directory (version-sorted, so
+#    0.2.0-r1 wins over 0.1.0-r2)
+if [ "$FETCHED" = 0 ] && [ -x "$APKBIN" ] && [ -d "$APKSRC" ]; then
+	CAND=$(ls "$APKSRC"/$THEME_PKG-*.apk 2>/dev/null | sort -V | tail -1)
+	if [ -n "$CAND" ] && install_theme_apk "$CAND" "newest local build"; then FETCHED=1; fi
+fi
+
+# 2. otherwise whatever is published to the feed
+if [ "$FETCHED" = 0 ] && [ -x "$APKBIN" ] && curl -fsSL --max-time 40 "$FEED/packages.adb?cb=$(date +%s)" -o "$WORK/feed.adb" 2>/dev/null; then
+	# adbdump prints "  - name: X" then "    version: Y"
+	VER=$("$APKBIN" adbdump "$WORK/feed.adb" 2>/dev/null \
+		| awk -v p="$THEME_PKG" '/name:/{n=$NF} /version:/{if(n==p) v=$NF} END{print v}')
+	if [ -n "$VER" ]; then
+		if curl -fsSL --max-time 120 "$FEED/$THEME_PKG-$VER.apk" -o "$WORK/theme.apk" 2>/dev/null; then
+			install_theme_apk "$WORK/theme.apk" "latest published to chesterAPK" && FETCHED=1
+		fi
+	else
+		echo "  NOTE: $THEME_PKG is not published to chesterAPK"
+	fi
+fi
+
+if [ "$FETCHED" = 0 ] && [ -d "$LT/www" ] && [ -d "$LT/tpl" ]; then
+	printf '\033[33m  WARNING: falling back to the bundled theme snapshot -- this image may not\n'
+	printf '           carry the newest theme. Publish %s to chesterAPK.\033[0m\n' "$THEME_PKG"
+	install -d "$R/www/luci-static/lettucepi" "$R/usr/share/ucode/luci/template/themes/lettucepi"
+	cp -a "$LT/www/." "$R/www/luci-static/lettucepi/"
+	cp -a "$LT/tpl/." "$R/usr/share/ucode/luci/template/themes/lettucepi/"
+fi
+
+
+if [ -d "$R/www/luci-static/lettucepi" ]; then
+	find "$R/www/luci-static/lettucepi" "$R/usr/share/ucode/luci/template/themes/lettucepi" -type f -exec chmod 0644 {} + 2>/dev/null
+	[ -f "$R/usr/share/ucode/luci/template/themes/lettucepi/header.ut" ] || die "theme installed without its header template"
+
+	# Registered and made default on first boot, AFTER 30_luci-theme-misectel
+	# has set Chester. Guarded on the files actually being present so a bad
+	# build cannot leave the UI themeless.
+	echo "  theme files + 99-lettucepi-theme (default, Chester still selectable)"
+else
+	die "lettucepi-theme/ not found beside the script"
+fi
+
+fi
+
+
+# Register whichever themes actually shipped, and pick the default. Written
+# unconditionally: Footstrap ships even when LettucePi does not, and it still
+# has to appear in the theme list.
+step "Registering themes"
+cat > "$R/etc/uci-defaults/99-chester-themes" <<'UCID'
+#!/bin/sh
+# Each guard matters: pointing mediaurlbase at a directory that is not there
+# leaves LuCI with no styling at all.
+[ -d /www/luci-static/footstrap ] && uci -q set luci.themes.Footstrap='/luci-static/footstrap'
+
+if [ -d /www/luci-static/lettucepi ] &&    [ -f /usr/share/ucode/luci/template/themes/lettucepi/header.ut ]; then
+	uci -q set luci.themes.LettucePi='/luci-static/lettucepi'
+	uci -q set luci.main.mediaurlbase='/luci-static/lettucepi'
+fi
+# No LettucePi -> 30_luci-theme-misectel's setting stands and Chester is default.
+uci commit luci
+exit 0
+UCID
+chmod 0755 "$R/etc/uci-defaults/99-chester-themes"
+echo "  99-chester-themes (Footstrap always; LettucePi default only if shipped)"
+
+# Chester force-hides the stock System page, which is where LuCI keeps the
+# hostname/timezone settings AND the Language & Style theme picker -- so with
+# it hidden there is no way to switch themes from the UI at all. Unhide it.
+# system/flash (Backup / Flash Firmware) stays hidden deliberately: it flashes
+# images without the checks the System Update page performs.
+step "Unhiding the stock System page in the Chester theme"
+MM="$R/www/luci-static/resources/menu-misectel.js"
+if [ -f "$MM" ]; then
+	sed -i "s|'system/system',||; s|,'system/system'||" "$MM"
+	if grep -q "'system/system'" "$MM"; then
+		die "system/system is still force-hidden"
+	fi
+	grep -q "'system/flash'" "$MM" || echo "  note: system/flash is no longer hidden either"
+	echo "  system/system now reachable (theme picker); system/flash still hidden"
+fi
+
+# admin/system/settings and the stock admin/system/system were BOTH titled
+# "System", so the menu showed two identical entries under System Settings --
+# only visible once the stock page was unhidden. Rename ours to "Settings".
+step "Disambiguating the System menu"
+# NB: TAB and NL are built with chr() on purpose. Writing them as backslash
+# escapes here is how this block got corrupted once already: the escape is
+# consumed before it reaches the file, leaving a literal newline inside a
+# string literal and a SyntaxError that aborts the whole build.
+python3 - "$M/luci-app-misectel-system.json" <<'PYEOF'
+import json,sys
+TAB=chr(9); NL=chr(10)
+p=sys.argv[1]; d=json.load(open(p,encoding="utf-8"))
+k="admin/system/settings"
+if k in d and d[k].get("title")=="System":
+    d[k]["title"]="Settings"
+    open(p,"w",encoding="utf-8",newline=NL).write(json.dumps(d,indent=TAB)+NL)
+    print("  admin/system/settings retitled 'System' -> 'Settings'")
+else:
+    print("  admin/system/settings title is %r (unchanged)" % d.get(k,{}).get("title"))
+PYEOF
+
+# APN presets. The US list already shipped but was never reachable: the picker
+# resolves misectel.main.apn_country, that option was unset, so it fell back to
+# unknown.json ("Generic Internet") and the US carriers stayed hidden. Set the
+# country AND extend the list with the APNs this hardware is actually used on.
+step "APN presets"
+# Hard failure, not a skip. This file lives beside the script on the Windows
+# side and has to be copied into the build dir by wsl-rebrand.sh; when that
+# copy was missing the whole step silently did nothing and the image shipped
+# the stock preset list while the build still reported success.
+[ -f "$HERE/apn-us.json" ] || die "apn-us.json missing from $HERE (wsl-rebrand.sh must copy it)"
+PD="$R/usr/share/misectel/apn-presets/defaults"
+[ -d "$PD" ] || die "$PD missing - preset layout changed"
+install -m 0644 "$HERE/apn-us.json" "$PD/us.json"
+n=$(grep -c '"apn"' "$PD/us.json")
+[ "$n" -ge 1 ] || die "us.json contains no presets"
+echo "  us.json installed ($n presets)"
+# The picker only reads the list once misectel.main.apn_country is set; that is
+# written by the first-boot script built in step 7. Verified here because this
+# is the step that would be wrong if it ever went missing.
+grep -q "apn_country='US'" "$R/etc/uci-defaults/99-lettucepi-brand" || die "apn_country not set for first boot"
+echo "  apn_country=US set at first boot (was unset -> fell back to Generic Internet)"
+
+# The QModem "Dial Configuration" dialog (Cellular -> QModem -> Network Config
+# -> Edit) has its own APN and APN 2 dropdowns, and those are NOT fed by
+# apn-presets or by /usr/share/qmodem/apns.json -- the entries are hardcoded
+# literals inside the view. So the preset work above does not touch them and
+# they kept offering 33 China/Russia/Malaysia/Philippines APNs each.
+#
+# Driven from apn-us.json so the picker and these dropdowns cannot drift apart:
+# edit that one file and both follow.
+step "US APN dropdowns in QModem dial config"
+NC="$R/www/luci-static/resources/view/qmodem/network_config.js"
+[ -f "$NC" ] || die "qmodem network_config.js missing - image layout changed"
+python3 - "$HERE/apn-us.json" "$NC" <<'PYEOF'
+import json,re,sys
+presets=json.load(open(sys.argv[1],encoding="utf-8"))["presets"]
+p=sys.argv[2]
+s=open(p,encoding="utf-8").read()
+BS=chr(92)
+def esc(x): return x.replace(BS,BS+BS).replace("'",BS+"'")
+# "Auto Choose" stays first: it is the empty value, i.e. let the modem decide.
+opts="o.value('',_('Auto Choose'));"+"".join(
+    "o.value('%s','%s');"%(esc(e["apn"]),esc(e["operator"])) for e in presets)
+# Matches both o.value('x',_('y')); and o.value('x','y'); -- the vendor list
+# uses both forms, and a pattern that only handles _() silently leaves the
+# plain-string entries behind.
+VAL=re.compile(r"o\.value\('[^']*',(?:_\()?'[^']*'\)?\);")
+total=0
+for name in ("apn","apn2"):
+    m=re.search(r"o=s\.option\(form\.Value,'"+name+r"',",s)
+    if not m: sys.exit("no '%s' option block found" % name)
+    start=m.start()
+    nxt=s.find("o=s.option(",start+5)
+    end=nxt if nxt>0 else len(s)
+    blk=s[start:end]
+    first=VAL.search(blk)
+    if not first: sys.exit("no o.value entries in the '%s' block" % name)
+    total+=len(VAL.findall(blk))
+    # Rebuild in place at the position of the first entry, so the new list sits
+    # exactly where the old one did and the rest of the block is untouched.
+    blk=blk[:first.start()]+opts+VAL.sub("",blk[first.start():])
+    s=s[:start]+blk+s[end:]
+open(p,"w",encoding="utf-8",newline="").write(s)
+print("  replaced %d hardcoded options with %d US entries across apn + apn2"
+      % (total,len(presets)+1))
+PYEOF
+for bad in "(CN)" "(RU)" "(MY)" "(PH)" cmnet 3gnet ctnet celcom3g; do
+	grep -qF "$bad" "$NC" && die "foreign APN entry '$bad' survived in network_config.js"
+done
+grep -qF "fast.t-mobile.com" "$NC" || die "US APN list not present in network_config.js"
+echo "  no foreign APN entries remain in the dial-config dropdowns"
+
+# Two country defaults that both fall back to the wrong region.
+#
+# 1. 99_misectel-oem-defaults runs AFTER our 99-lettucepi-brand ("-" sorts
+#    before "_"), reads owrt_country from the u-boot env -- which is NOT set on
+#    this hardware, the env has a bad CRC -- and falls back to 'unknown'. It
+#    then resets misectel.main.apn_country AND copies unknown.json over the
+#    user preset list. So setting apn_country ourselves is undone on every
+#    fresh boot. Fix it at the source instead.
+# 2. /lib/wifi/mac80211.uc hardcodes "CN" as the country when the board
+#    provides none, which is where the CN regulatory domain came from. Our
+#    uci-defaults corrects the radios after generation, but anything that
+#    regenerates wireless config later would produce CN again.
+step "Fixing country fallbacks"
+OEM="$R/etc/uci-defaults/99_misectel-oem-defaults"
+if [ -f "$OEM" ]; then
+	sed -i "s|DEFAULT_APN_COUNTRY='unknown'|DEFAULT_APN_COUNTRY='us'|" "$OEM"
+	grep -q "DEFAULT_APN_COUNTRY='us'" "$OEM" || die "APN country fallback not patched"
+	echo "  APN country fallback: unknown -> us (was overwriting our setting)"
+fi
+# 3. The self-signed HTTPS certificate is issued with country "ZZ".
+U="$R/etc/config/uhttpd"
+if [ -f "$U" ]; then
+	sed -i -E "s#^([[:space:]]*option[[:space:]]+country[[:space:]]+)ZZ#\1US#" "$U"
+	grep -qE "^[[:space:]]*option[[:space:]]+country[[:space:]]+US" "$U" || die "uhttpd cert country not patched"
+	echo "  https certificate country: ZZ -> US"
+fi
+
+W="$R/lib/wifi/mac80211.uc"
+if [ -f "$W" ]; then
+	# NB: the pattern contains "||", so "|" cannot be the sed delimiter.
+	sed -i 's#country || "CN"#country || "US"#' "$W"
+	grep -q 'country || "US"' "$W" || die "wifi country fallback not patched"
+	grep -q 'country || "CN"' "$W" && die "CN wifi fallback still present"
+	echo "  wifi country fallback: CN -> US"
+fi
+
+# The modem connectivity check defaults to http://www.baidu.com -- in the SIM
+# and QModem monitor pages, and in two LED scripts that probe it with wget.
+# A US product should not be reaching a Chinese site to decide whether its data
+# link is up. Swap in the standard 204 endpoint (same family as the NTP servers
+# this image already uses).
+step "Replacing the Baidu connectivity check"
+CHECK_HOST="connectivitycheck.gstatic.com"
+CHECK_URL="http://$CHECK_HOST/generate_204"
+n=0
+for f in "$R"/www/luci-static/resources/view/misectel-modem/sim.js          "$R"/www/luci-static/resources/view/qmodem/monitor.js          "$R"/usr/share/qmodem/led_scripts/connectivity.sh          "$R"/usr/share/qmodem/led_scripts/c2000_max.sh; do
+	[ -f "$f" ] || continue
+	sed -i -e "s#http://www\.baidu\.com/#$CHECK_URL#g" 	       -e "s#http://www\.baidu\.com#$CHECK_URL#g" 	       -e "s#\bwww\.baidu\.com\b#$CHECK_HOST#g" "$f"
+	n=$((n+1))
+done
+# The dashboard's own connectivity probe lives in the misectel rpcd backend
+# and pings Baidu first, Alibaba second. It is a ucode target LIST rather
+# than a URL, so the substitutions above never touched it - and the guard
+# below used to be case-sensitive, so 'Baidu' with a capital B slipped past
+# it for several builds. Replace the list outright.
+BE="$R/usr/share/rpcd/ucode/misectel"
+if [ -f "$BE" ]; then
+	python3 - "$BE" <<'PYBAIDU'
+import sys
+NL = chr(10); T = chr(9)
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+old = (3*T + 'let targets = [' + NL +
+       4*T + "{ name: 'Baidu', ip: '180.76.76.76' }," + NL +
+       4*T + "{ name: 'Alibaba', ip: '223.5.5.5' }," + NL +
+       4*T + "{ name: 'Google', ip: '8.8.8.8' }" + NL +
+       3*T + '];')
+new = (3*T + 'let targets = [' + NL +
+       4*T + "{ name: 'Cloudflare', ip: '1.1.1.1' }," + NL +
+       4*T + "{ name: 'Google', ip: '8.8.8.8' }," + NL +
+       4*T + "{ name: 'Quad9', ip: '9.9.9.9' }" + NL +
+       3*T + '];')
+if new in s:
+    print('  dashboard probe already on non-Chinese targets')
+elif old in s:
+    open(p, 'w', encoding='utf-8', newline=NL).write(s.replace(old, new, 1))
+    print('  dashboard probe: Baidu/Alibaba/Google -> Cloudflare/Google/Quad9')
+else:
+    sys.exit('dashboard connectivity target list not found - backend changed')
+PYBAIDU
+fi
+
+# Case-INSENSITIVE now. pci.ids is a hardware vendor database that lists
+# Baidu as a PCI vendor; it is data and is never contacted.
+left=$(grep -ril baidu "$R/www" "$R/usr" "$R/etc" "$R/lib" 2>/dev/null | grep -v "/usr/share/hwdata/pci.ids" || true)
+[ -z "$left" ] || die "baidu still referenced in: $(echo $left)"
+echo "  $n files updated; zero baidu references remain"
+
+# QModem pages were hidden in the Chester theme; show them.
+step "Unhiding QModem in Cellular"
+MM="$R/www/luci-static/resources/menu-misectel.js"
+if [ -f "$MM" ]; then
+	sed -i -e "s#'modem/qmodem/settings',##" -e "s#,'modem/qmodem/settings'##" 	       -e "s#'modem/qmodem',##"          -e "s#,'modem/qmodem'##" "$MM"
+	grep -q "'modem/qmodem'" "$MM" && die "modem/qmodem still hidden"
+	echo "  QModem menu now visible in the Chester theme"
+fi
+
+# The stock client list can only name a device through "Add Static IP", which
+# refuses to save without an IPv4 address -- so naming a phone also meant
+# reserving an address for it. Ours writes a dhcp 'host' section carrying just
+# mac + name, which dnsmasq turns into --dhcp-host=<mac>,<name>: a name, no
+# reservation. Also drops a duplicated status column and adds a filter.
+step "Client list with custom device names"
+CV="$R/www/luci-static/resources/view/misectel-device/index.js"
+[ -f "$CV" ] || die "client list view missing - image layout changed"
+[ -f "$LU/clients-index.js" ] || die "clients-index.js missing from $LU"
+install -m 0644 "$LU/clients-index.js" "$CV"
+grep -q "saveClientName" "$CV" || die "client list view did not take"
+# The page writes uci dhcp; without that ACL every save fails with a
+# permission error that surfaces only when the user clicks Save.
+A="$R/usr/share/rpcd/acl.d/luci-app-misectel-device.json"
+python3 - "$A" <<'PYEOF'
+import json,sys
+p=sys.argv[1]; d=json.load(open(p,encoding="utf-8"))
+node=d.setdefault("luci-app-misectel-device",{}).setdefault("write",{}).setdefault("uci",[])
+if "dhcp" not in node:
+    node.append("dhcp")
+    open(p,"w",encoding="utf-8",newline=chr(10)).write(json.dumps(d,indent="\t")+chr(10))
+    print("  added uci:dhcp write permission")
+else:
+    print("  uci:dhcp write permission already present")
+PYEOF
+echo "  devices can be named without reserving an IP"
+
+# The Wi-Fi page had the same control labelled two different ways ("Enable
+# Wireless" / "WiFi Enable"), a stray lowercase "band width", and card
+# subtitles built from the INTERNAL radio name, so customers read
+# "radio0 Separate Configuration". Layout is fixed in CSS; see wifi-tidy.css
+# for why the rows were ragged.
+step "Tidying the Wi-Fi page"
+WV="$R/www/luci-static/resources/view/misectel-wifi/index.js"
+BC="$R/www/luci-static/resources/misectel/base.css"
+[ -f "$WV" ] || die "wifi view missing - image layout changed"
+[ -f "$BC" ] || die "misectel base.css missing - image layout changed"
+[ -f "$LU/wifi-tidy.css" ] || die "wifi-tidy.css missing from $LU"
+
+python3 - "$WV" <<'PYEOF'
+import sys
+p=sys.argv[1]
+s=open(p,encoding="utf-8").read()
+# (find, replace, expected_count). A count mismatch means the vendor changed
+# the file and the patch would silently do nothing -- fail the build instead.
+subs=[
+ ("_('Enable Wireless')", "_('Enable Wi-Fi')", 1),
+ ("_('WiFi Enable')",     "_('Enable Wi-Fi')", 1),
+ ("_('band width')",      "_('Bandwidth')",    2),
+ ("_('Unified WiFi Settings')", "_('Unified Wi-Fi Settings')", 1),
+ ("_('Select WiFi Country or Region Regulatory Domain')",
+  "_('Regulatory domain - sets the legal channels and power limits')", 2),
+ # Card titles/subtitles that leaked radio0 / radio1 at the customer.
+ ("_('%s Setting').format(radio.bandLabel)", "_('%s Radio').format(radio.bandLabel)", 1),
+ ("_('%s Separate Configuration').format(radio.name)",
+  "_('Independent SSID, password and encryption for this band.')", 1),
+ ("_('%s Use a unified SSID, password, and encryption method.').format(radio.name)",
+  "_('Uses the shared SSID, password and encryption above.')", 1),
+]
+for find,repl,n in subs:
+    got=s.count(find)
+    if got!=n:
+        sys.exit("expected %d of %r, found %d" % (n,find[:60],got))
+    s=s.replace(find,repl)
+open(p,"w",encoding="utf-8",newline=chr(10)).write(s)
+print("  %d label fixes applied" % len(subs))
+PYEOF
+
+for bad in "Enable Wireless" "WiFi Enable" "band width" "%s Separate Configuration"; do
+	grep -qF "$bad" "$WV" && die "wifi label '$bad' survived"
+done
+
+# Appended rather than injected from the view: base.css is already loaded on
+# every misectel page and the rules are scoped to .misectel-page--wifi, so no
+# JS surgery is needed for a layout-only change.
+if ! grep -q 'Chester: Wi-Fi page layout' "$BC"; then
+	cat "$LU/wifi-tidy.css" >> "$BC"
+fi
+grep -q 'misectel-page--wifi .misectel-field__help' "$BC" || die "wifi css did not land in base.css"
+echo "  labels normalised, hints left-aligned, rows and band cards squared up"
+
+# Theme/branding, Wi-Fi decoration and the cellular IPv6 page, per
+# K43P-BIN-BUILDER-HANDOFF-2026-08-23. These were developed live on the bench
+# unit; without this step they exist only in that router's overlay and the next
+# build silently drops them.
+#
+# The Wi-Fi work DECORATES the stock page (wifi-polish-plain.js, loaded from
+# footer.ut) rather than replacing its backend, so the functional view stays as
+# the step above leaves it.
+step "Chester UI payload (theme, Wi-Fi polish, cellular IPv6)"
+UI="$HERE/chester-ui"
+[ -d "$UI" ] || die "chester-ui payload missing from $HERE (wsl-rebrand.sh must copy it)"
+
+# Checksums from section 4 of the handoff. These two carry the branding, so a
+# silent substitution is worth failing the build over.
+verify_sha() {
+	got=$(sha256sum "$1" | awk '{print toupper($1)}')
+	[ "$got" = "$2" ] || die "$(basename "$1") sha256 mismatch: got $got want $2"
+}
+verify_sha "$UI/usr/share/ucode/luci/template/themes/misectel/header.ut" \
+	93952D3BE9FC635E83E9196E5BED39D5EA102827AB7D61A707C12C8D8AB46787
+verify_sha "$UI/www/luci-static/misectel/cascade.css" \
+	9A1E311AAF61A74838B0F10E4B3A6401CBEE4E216710C060A8A3C72D5243CC39
+
+n=0
+while IFS= read -r f; do
+	rel="${f#$UI}"
+	install -d "$R$(dirname "$rel")"
+	install -m 0644 "$f" "$R$rel"
+	n=$((n+1))
+done <<< "$(find "$UI" -type f)"
+# rpcd backends are exec'd by rpcd; a 0644 file here is a page that silently
+# returns nothing.
+chmod 0755 "$R/usr/libexec/rpcd/chester_ipv6"
+[ -x "$R/usr/libexec/rpcd/chester_ipv6" ] || die "chester_ipv6 is not executable"
+echo "  $n files installed"
+
+# The IPv6 route must point at a view that exists, or the menu entry 404s.
+VP=$(sed -n 's/.*"path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+	"$R/usr/share/luci/menu.d/luci-app-chester-ipv6.json" | head -1)
+[ -f "$R/www/luci-static/resources/view/$VP.js" ] || die "IPv6 menu points at missing view: $VP"
+echo "  IPv6 route -> view/$VP.js, backend + acl in place"
+
+# footer.ut is what pulls the Wi-Fi decoration in; if the reference is missing
+# the page renders unstyled and nothing else complains.
+FU="$R/usr/share/ucode/luci/template/themes/misectel/footer.ut"
+grep -q 'wifi-polish-plain\.js' "$FU" || die "footer.ut does not load wifi-polish-plain.js"
+[ -f "$R/www/luci-static/resources/wifi-polish-plain.js" ] || die "wifi-polish-plain.js missing"
+
+# MAC address, uptime and temperature were listed BOTH as stat cards and again
+# in the System Information panel below them.
+OV="$R/www/luci-static/resources/view/misectel-dashboard/overview.js"
+python3 - "$OV" <<'PYEOF'
+import sys
+p=sys.argv[1]
+s=open(p,encoding="utf-8").read()
+dupes=("{label:_('MAC Address'),value:primaryMac},"
+       "{label:_('Uptime'),value:formatDuration(systemInfo.uptime)},"
+       "{label:_('Temperature'),value:extractTempText(data.tempInfo)||'--'}")
+if dupes in s:
+    open(p,"w",encoding="utf-8",newline=chr(10)).write(s.replace(dupes,"",1))
+    print("  overview: dropped the duplicated MAC/uptime/temperature fields")
+elif "{label:_('MAC Address'),value:primaryMac}" in s:
+    sys.exit("overview.js duplicate-field block changed shape - re-check by hand")
+else:
+    print("  overview: duplicated fields already absent")
+PYEOF
+
+# The theme files were captured from a running unit, so they are already past
+# the URL rename in step 2 -- but that guard ran long before this step, so
+# re-check rather than assume.
+left=$(grep -rhoE "(admin/(network/|system/|vpn/)?misectel[a-z0-9_-]*|admin-misectel[a-z0-9_-]*)" \
+	"$R/usr/share/ucode" "$R/www/luci-static/misectel" "$R/www/luci-static/resources" 2>/dev/null | sort -u || true)
+[ -z "$left" ] || die "payload reintroduced misectel URLs: $(echo $left)"
+echo "  no stale misectel URLs reintroduced"
+
+# Speedtest 1.1.2 preinstalled: the acceptance tests expect its menu present on
+# a first boot, which a feed-only package would not give.
+SPD=$(ls "$APKSRC"/luci-app-lettucepi-speedtest-*.apk 2>/dev/null | sort -V | tail -1)
+if [ -n "$SPD" ] && [ -x "$APKBIN" ]; then
+	if "$APKBIN" --root "$R" add --no-network --no-scripts "$SPD" >/dev/null 2>&1; then
+		V=$("$APKBIN" --root "$R" info 2>/dev/null | grep '^luci-app-lettucepi-speedtest' || true)
+		echo "  preinstalled $(basename "$SPD")"
+	else
+		die "could not preinstall $(basename "$SPD")"
+	fi
+else
+	echo "  NOTE: no speedtest apk in $APKSRC - not preinstalled"
+fi
+
+# The fourth Ethernet jack.
+#
+# kernel.bin carries a device tree patched to declare switch ports 0-3 as
+# lan1..lan4, matching the AlwayLink M01K43 tree (a working OpenWrt build for
+# this hardware) and the stock vendor tree. The stock ImmortalWrt tree omitted
+# port@0 entirely, so one physical jack was never instantiated - no netdev, and
+# nothing configurable could bring it back - and it labelled the remaining
+# three in reverse (port@3 was called "lan1").
+#
+# Two userspace pieces have to follow the tree or the new port stays unused:
+step "Fourth LAN port (lan4)"
+BD="$R/etc/board.d/02_network"
+[ -f "$BD" ] || die "board.d/02_network missing - image layout changed"
+# 1. First boot builds /etc/config/network from here, and the profile for this
+#    board still lists only three LAN ports.
+python3 - "$BD" <<'PYEOF'
+import sys
+p=sys.argv[1]
+s=open(p,encoding="utf-8").read()
+old='\tmisectel,m01k43|\\\n\tmisectel,m01k43-usb)\n\t\tucidef_set_interfaces_lan_wan "lan1 lan2 lan3" "wan"'
+new='\tmisectel,m01k43|\\\n\tmisectel,m01k43-usb)\n\t\tucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4" "wan"'
+if new in s:
+    print("  board.d already lists lan4")
+elif old in s:
+    open(p,"w",encoding="utf-8",newline=chr(10)).write(s.replace(old,new,1))
+    print("  board.d: LAN ports lan1-lan3 -> lan1-lan4")
+else:
+    sys.exit("board.d case for misectel,m01k43 not found verbatim")
+PYEOF
+
+# 2. An UPGRADE keeps /etc/config/network, so board.d never re-runs and the
+#    existing bridge would silently stay three ports wide. uci-defaults do run
+#    after a sysupgrade, so add the port there too - only if absent, so a
+#    deliberate customer change is not overwritten.
+cat > "$R/etc/uci-defaults/99-chester-lan4" <<'UCID'
+#!/bin/sh
+# Add the fourth LAN port to the bridge if it is not already a member.
+[ -e /sys/class/net/lan4 ] || exit 0
+ports=$(uci -q get network.@device[0].ports)
+case " $ports " in
+	*" lan4 "*) exit 0 ;;
+esac
+uci -q add_list network.@device[0].ports='lan4'
+uci -q commit network
+exit 0
+UCID
+chmod 0755 "$R/etc/uci-defaults/99-chester-lan4"
+grep -q 'lan1 lan2 lan3 lan4' "$BD" || die "board.d lan4 patch did not take"
+echo "  /etc/uci-defaults/99-chester-lan4 (adds lan4 to br-lan on upgrade)"
+
+# What a customer sees on SSH and in Status -> Overview.
+#
+# The image is built from ImmortalWrt, a downstream fork of OpenWrt, so every
+# identity string says "ImmortalWrt". This presents the product as OpenWrt 25
+# instead. The upstream revision is kept verbatim so the build stays traceable.
+step "Identity -> OpenWrt 25"
+REL="$R/etc/openwrt_release"
+[ -f "$REL" ] || die "/etc/openwrt_release missing - image layout changed"
+REV=$(sed -n "s/^DISTRIB_REVISION='\(.*\)'$/\1/p" "$REL")
+VER=$(sed -n "s/^DISTRIB_RELEASE='\(.*\)'$/\1/p" "$REL")
+[ -n "$REV" ] && [ -n "$VER" ] || die "could not read release/revision from $REL"
+
+sed -i -e "s/^DISTRIB_ID='.*'$/DISTRIB_ID='OpenWrt'/" \
+       -e "s/^DISTRIB_DESCRIPTION='.*'$/DISTRIB_DESCRIPTION='OpenWrt $VER $REV'/" "$REL"
+
+for OSR in "$R/usr/lib/os-release" "$R/etc/os-release"; do
+	[ -f "$OSR" ] || continue
+	sed -i -e 's|^NAME=.*|NAME="OpenWrt"|' \
+	       -e 's|^ID=.*|ID="openwrt"|' \
+	       -e 's|^ID_LIKE=.*|ID_LIKE="lede openwrt"|' \
+	       -e "s|^PRETTY_NAME=.*|PRETTY_NAME=\"OpenWrt $VER\"|" \
+	       -e "s|^OPENWRT_RELEASE=.*|OPENWRT_RELEASE=\"OpenWrt $VER $REV\"|" \
+	       -e 's|^HOME_URL=.*|HOME_URL="https://openwrt.org/"|' \
+	       -e 's|^BUG_URL=.*|BUG_URL="https://github.com/ElReyDeHotspot/LettucePi-K43P/issues"|' \
+	       -e 's|^SUPPORT_URL=.*|SUPPORT_URL="https://github.com/ElReyDeHotspot/LettucePi-K43P"|' \
+	       -e 's|^FIRMWARE_URL=.*|FIRMWARE_URL="https://github.com/ElReyDeHotspot/LettucePi-K43P"|' \
+	       -e "s|^OPENWRT_DEVICE_MANUFACTURER=.*|OPENWRT_DEVICE_MANUFACTURER=\"$SHORT\"|" \
+	       -e 's|^OPENWRT_DEVICE_MANUFACTURER_URL=.*|OPENWRT_DEVICE_MANUFACTURER_URL="https://openwrt.org/"|' \
+	       -e "s|^OPENWRT_DEVICE_PRODUCT=.*|OPENWRT_DEVICE_PRODUCT=\"$BRAND\"|" "$OSR"
+done
+
+# device_info feeds the LuCI overview and some scripts.
+DI="$R/etc/device_info"
+if [ -f "$DI" ]; then
+	sed -i -e "s|^DEVICE_MANUFACTURER=.*|DEVICE_MANUFACTURER='$SHORT'|" \
+	       -e "s|^DEVICE_MANUFACTURER_URL=.*|DEVICE_MANUFACTURER_URL='https://openwrt.org/'|" \
+	       -e "s|^DEVICE_PRODUCT=.*|DEVICE_PRODUCT='$BRAND'|" "$DI"
+fi
+
+# The self-signed HTTPS certificate is issued to "ImmortalWrt".
+U="$R/etc/config/uhttpd"
+[ -f "$U" ] && sed -i "s/ImmortalWrt/OpenWrt/g" "$U"
+
+cat > "$R/etc/banner" <<BANNER
+   ____ _               _
+  / ___| |__   ___  ___| |_ ___ _ __
+ | |   | '_ \\ / _ \\/ __| __/ _ \\ '__|
+ | |___| | | |  __/\\__ \\ ||  __/ |
+  \\____|_| |_|\\___||___/\\__\\___|_|
+
+ ------------------------------------------------------
+ $BRAND  -  OpenWrt $VER, $REV
+ ------------------------------------------------------
+BANNER
+
+grep -q "OpenWrt $VER" "$R/etc/banner" || die "banner not written"
+grep -q "^DISTRIB_ID='OpenWrt'$" "$REL" || die "DISTRIB_ID not set to OpenWrt"
+grep -qi immortal "$R/etc/banner" "$REL" "$R/usr/lib/os-release" && die "ImmortalWrt still present in an identity file"
+# Feeds are on openwrt.org (see the feeds step); make sure nothing put an
+# immortalwrt URL back, since the identity claims OpenWrt.
+grep -q 'downloads\.openwrt\.org' "$R/etc/apk/repositories.d/distfeeds.list" \
+	|| die "package feeds are not on downloads.openwrt.org"
+echo "  banner, openwrt_release, os-release, device_info -> OpenWrt $VER ($REV)"
+echo "  package feeds on downloads.openwrt.org"
+
+# ------------------------------------------------------------------ repack
+step "Repacking squashfs"
+mksquashfs "$R" "$WORK/rootfs.squashfs" \
+	-comp xz -Xdict-size 256K -b 262144 -noappend -nopad -no-xattrs \
+	-processors "$(nproc)" 2>&1 | tail -3
+OLD=$(stat -c%s "$HERE/rootfs.raw"); NEW=$(stat -c%s "$WORK/rootfs.squashfs")
+printf '  %s -> %s bytes (%+d)\n' "$OLD" "$NEW" "$((NEW-OLD))"
+
+step "Building UBI"
+cat > "$WORK/ubinize.cfg" <<CFG
+[kernel]
+mode=ubi
+image=$HERE/kernel.bin
+vol_id=0
+vol_type=dynamic
+vol_name=kernel
+vol_alignment=1
+
+[rootfs]
+mode=ubi
+image=$WORK/rootfs.squashfs
+vol_id=1
+vol_type=dynamic
+vol_name=rootfs
+vol_alignment=1
+
+[rootfs_data]
+mode=ubi
+vol_id=2
+vol_type=dynamic
+vol_name=rootfs_data
+vol_alignment=1
+vol_size=1MiB
+vol_flags=autoresize
+CFG
+BIN="$OUT/immortalwrt-$VERSION-ChesterK43P-ubi.bin"
+ubinize -o "$BIN" -p "$PEB" -m "$MINIO" "$WORK/ubinize.cfg"
+
+SZ=$(stat -c%s "$BIN")
+[ "$(head -c4 "$BIN")" = "UBI#" ] || die "output is not UBI"
+[ "$SZ" -le "$SLOT_MAX" ] || die "$SZ bytes is over the $SLOT_MAX slot"
+[ "$(dd if="$BIN" bs=1 skip=$PEB count=4 2>/dev/null)" = "UBI#" ] || die "PEB size is not $PEB"
+
+step "Done"
+printf '  %s\n  %s bytes (%.1f MiB), %.0f%% of the slot\n  sha256 %s\n\n' \
+	"$BIN" "$SZ" "$(echo "$SZ/1048576"|bc -l)" "$(echo "100*$SZ/$SLOT_MAX"|bc -l)" \
+	"$(sha256sum "$BIN" | awk '{print $1}')"

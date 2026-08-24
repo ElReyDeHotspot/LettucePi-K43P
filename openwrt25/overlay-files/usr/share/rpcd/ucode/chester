@@ -381,9 +381,9 @@ const methods = {
 	internet_status: {
 		call: function() {
 			let targets = [
-				{ name: 'Baidu', ip: '180.76.76.76' },
-				{ name: 'Alibaba', ip: '223.5.5.5' },
-				{ name: 'Google', ip: '8.8.8.8' }
+				{ name: 'Cloudflare', ip: '1.1.1.1' },
+				{ name: 'Google', ip: '8.8.8.8' },
+				{ name: 'Quad9', ip: '9.9.9.9' }
 			];
 
 			for (let target in targets) {
