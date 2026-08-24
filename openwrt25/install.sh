@@ -34,8 +34,8 @@ B_FAMILY="OpenWrt"
 B_NAME="OpenWrt 25 (official)"
 B_DESC="Stock OpenWrt with LuCI and QModem. Newer kernel (6.18), package feeds
              that match the build, upstream support. Fewer vendor pages."
-B_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/firmware/chester-openwrt25-20260824132408-factory.bin"
-B_SHA="c8cfc8cba7d05b359593d8f9673fa425eb763216f8382b7d61031c4efe9535d5"
+B_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/firmware/chester-openwrt25-20260824133205-factory.bin"
+B_SHA="c6ad0f9544691f18dc8e6e15f868e317d2fad520e604476bfbf6a90da650c8b9"
 B_SIZE=14811136
 
 PLATFORM_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/platform.sh"
@@ -119,8 +119,20 @@ ok "selected: $NAME"
 # Settings cannot be carried between firmware families: the two use different
 # config layouts, so a preserved /etc/config produces a router that boots to no
 # network. That is why the flash below is unconditionally sysupgrade -n.
-CURRENT=$(sed -n "s/^DISTRIB_ID='\(.*\)'$/\1/p" /etc/openwrt_release 2>/dev/null)
-[ -n "$CURRENT" ] || CURRENT="unknown"
+# Which firmware family is this? /etc/openwrt_release cannot answer it: the
+# ImmortalWrt-derived builds are rebranded and report DISTRIB_ID='OpenWrt'
+# too, so asking it would call a migration a clean install. Newer builds stamp
+# the answer; older ones are identified by the vendor updater, which only ever
+# shipped on the ImmortalWrt side.
+if [ -r /etc/chester-family ]; then
+    CURRENT=$(tr -d '[:space:]' < /etc/chester-family 2>/dev/null)
+elif [ -f /usr/sbin/chester-update ] || [ -f /etc/chester-version ]; then
+    CURRENT="ImmortalWrt"
+elif grep -qi immortalwrt /etc/openwrt_release 2>/dev/null; then
+    CURRENT="ImmortalWrt"
+else
+    CURRENT="OpenWrt"
+fi
 info "currently running: $CURRENT"
 
 printf '\n'

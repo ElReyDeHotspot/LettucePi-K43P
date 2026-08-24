@@ -1,9 +1,9 @@
 {
   "version": "25.12",
-  "built": "2026-08-24T13:24Z",
-  "build": "20260824132408",
-  "sha256": "c8cfc8cba7d05b359593d8f9673fa425eb763216f8382b7d61031c4efe9535d5",
-  "size": "14811136",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/firmware/chester-openwrt25-20260824132408-factory.bin",
-  "notes": "OpenWrt 25 snapshot with cellular TTL rewriting. Settings are NOT kept."
+  "built": "2026-08-24T04:15Z",
+  "build": "20260824041540",
+  "sha256": "ddcc0a8c86ff8de8fe0e249c6e4ae721b1c250fd2f12ae05b86511a779230811",
+  "size": "23592960",
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/14-2026-08-24-ChesterK43P-25.12.bin",
+  "notes": "Final ImmortalWrt build. Stepping stone to OpenWrt 25: its updater no longer keeps settings and reads next.json, so latest.json can stay pinned here for older routers."
 }
