@@ -1,0 +1,14 @@
+{
+	"admin/system/settings/terminal": {
+		"title": "Terminal",
+		"order": 20,
+		"action": {
+			"type": "view",
+			"path": "ttyd/term"
+		},
+		"depends": {
+			"acl": [ "luci-app-ttyd" ],
+			"uci": { "ttyd": true }
+		}
+	}
+}

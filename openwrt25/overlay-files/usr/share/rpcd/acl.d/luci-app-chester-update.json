@@ -1,0 +1,15 @@
+{
+	"luci-app-chester-update": {
+		"description": "Check for and install Chester firmware updates",
+		"read": {
+			"file": {
+				"/usr/sbin/chester-update status": [ "exec" ]
+			}
+		},
+		"write": {
+			"file": {
+				"/usr/sbin/chester-update install": [ "exec" ]
+			}
+		}
+	}
+}

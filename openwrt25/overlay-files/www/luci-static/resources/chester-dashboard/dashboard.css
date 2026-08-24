@@ -1115,6 +1115,7 @@
 .chester-dashboard-led-toggle-wrap {
 	display: flex;
 	justify-content: flex-end;
+	gap: 8px;
 	margin-bottom: 10px;
 }
 

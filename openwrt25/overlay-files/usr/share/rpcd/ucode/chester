@@ -847,6 +847,53 @@ const methods = {
 
 			return { success: true, enabled: on };
 		}
+	},
+
+	ttl_status: {
+		call: function() {
+			let ctx = cursor();
+			let value = ctx ? ctx.get('qmodem_ttl', 'main', 'enable') : null;
+			let ttl = ctx ? ctx.get('qmodem_ttl', 'main', 'ttl') : null;
+			// Absent means off: TTL rewriting is opt-in, because it
+			// forces flow offloading off while it is running.
+			return { enabled: (value == '1') ? true : false, ttl: ttl ? ttl : '64' };
+		}
+	},
+
+	set_ttl: {
+		args: {
+			enabled: 'String'
+		},
+		call: function(request) {
+			let want = trimSafe(request.args.enabled);
+			let on = !(want == '0' || lc(want) == 'false' || lc(want) == 'off');
+			let ctx = cursor();
+
+			if (!ctx)
+				return { success: false, message: 'failed to open uci cursor' };
+
+			ctx.set('qmodem_ttl', 'main', null, 'main');
+			ctx.set('qmodem_ttl', 'main', 'enable', on ? '1' : '0');
+
+			// The init script interpolates this straight into an nft file
+			// that fw4 parses, so a junk value takes down the WHOLE
+			// firewall rather than just this rule. Never let one through.
+			let ttl = ctx.get('qmodem_ttl', 'main', 'ttl');
+			let n = ttl ? +ttl : 0;
+			if (!(n >= 1 && n <= 255))
+				ctx.set('qmodem_ttl', 'main', 'ttl', '64');
+
+			ctx.commit('qmodem_ttl');
+
+			// stop, not start-with-enable-0: only stop_service restores
+			// the flow offloading that enabling turned off.
+			if (on)
+				readCommandOutput('/etc/init.d/qmodem_ttl restart >/dev/null 2>&1');
+			else
+				readCommandOutput('/etc/init.d/qmodem_ttl stop >/dev/null 2>&1');
+
+			return { success: true, enabled: on };
+		}
 	}
 };
 

@@ -47,6 +47,16 @@ EOF
 	[ -d /sys/kernel/debug/ecm/ ] && /etc/init.d/qca-nss-ecm stop
 	[ -d /sys/module/shortcut_fe_cm ] && rmmod shortcut_fe_cm
 	[ -d /sys/module/fast_classifier ] && rmmod fast_classifier
+	# Remember what offloading was set to before we turn it off. Without
+	# this, switching TTL on and then off again leaves the router with
+	# hardware offload disabled for good -- a silent throughput loss the
+	# user never asked for. Only record it once, so a second start does
+	# not overwrite the real value with the zero we just wrote.
+	if [ -z "$(uci -q get qmodem_ttl.main.saved_offload)" ]; then
+		uci -q set qmodem_ttl.main.saved_offload="$(uci -q get firewall.@defaults[0].flow_offloading || echo 0)"
+		uci -q set qmodem_ttl.main.saved_offload_hw="$(uci -q get firewall.@defaults[0].flow_offloading_hw || echo 0)"
+		uci -q commit qmodem_ttl
+	fi
 	uci set firewall.@defaults[0].flow_offloading='0'
 	uci set firewall.@defaults[0].flow_offloading_hw='0'
 	uci commit firewall
@@ -56,6 +66,17 @@ EOF
 stop_service() {
 	local kernel_version="$(uname -r)"
 	rm -f "$nftfile"
+
+	# Put offloading back the way we found it.
+	saved="$(uci -q get qmodem_ttl.main.saved_offload)"
+	if [ -n "$saved" ]; then
+		uci set firewall.@defaults[0].flow_offloading="$saved"
+		uci set firewall.@defaults[0].flow_offloading_hw="$(uci -q get qmodem_ttl.main.saved_offload_hw || echo 0)"
+		uci commit firewall
+		uci -q delete qmodem_ttl.main.saved_offload
+		uci -q delete qmodem_ttl.main.saved_offload_hw
+		uci -q commit qmodem_ttl
+	fi
 	[ -f /etc/init.d/qca-nss-ecm ] && /etc/init.d/qca-nss-ecm start
 	[ -e "/lib/modules/$kernel_version/shortcut-fe-cm.ko" ] && modprobe shortcut-fe-cm
 	[ -e "/lib/modules/$kernel_version/fast-classifier.ko" ] && modprobe fast-classifier

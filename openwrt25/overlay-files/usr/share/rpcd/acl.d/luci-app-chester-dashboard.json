@@ -36,7 +36,8 @@
                     "oem_model_name",
                     "system_time",
                     "tcp_connections",
-                    "temp_status"
+                    "temp_status",
+                    "ttl_status"
                 ],
                 "iwinfo": [
                     "info",
@@ -54,19 +55,21 @@
                 ]
             },
             "uci": [
-                "qmodem",
                 "chester",
+                "dhcp",
                 "firewall",
                 "network",
-                "wireless",
-                "dhcp"
+                "qmodem",
+                "qmodem_ttl",
+                "wireless"
             ]
         },
         "write": {
             "ubus": {
                 "chester": [
                     "set_led_power",
-                    "set_port_mode"
+                    "set_port_mode",
+                    "set_ttl"
                 ]
             }
         }
