@@ -1,0 +1,9 @@
+{
+  "version": "25.12",
+  "built": "2026-08-24T04:15Z",
+  "build": "20260824041540",
+  "sha256": "ddcc0a8c86ff8de8fe0e249c6e4ae721b1c250fd2f12ae05b86511a779230811",
+  "size": "23592960",
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/14-2026-08-24-ChesterK43P-25.12.bin",
+  "notes": "Final ImmortalWrt build. Stepping stone to OpenWrt 25: its updater no longer keeps settings and reads next.json, so latest.json can stay pinned here for older routers."
+}
