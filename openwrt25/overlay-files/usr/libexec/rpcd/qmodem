@@ -20,12 +20,29 @@ try_cache() {
     current_time=$(date +%s)
     file_time=$(stat -t "$cache_file" 2>/dev/null | awk '{print $14}')
     [ -z "$file_time" ] && file_time=0
-    if [ ! -f "$cache_file" ] || [ $((current_time - file_time)) -gt $cache_timeout ]; then
+    # An empty modem_info means the AT port was busy, not that the
+    # modem had nothing to say. Treating it as stale is what stops the
+    # dashboard blanking: a cached empty is never served, it is asked
+    # again. A good answer still caches normally.
+    cached_empty=0
+    [ -f "$cache_file" ] && [ "$(tr -d ' \t\n' < "$cache_file" 2>/dev/null)" = '{"modem_info":[]}' ] && cached_empty=1
+    if [ ! -f "$cache_file" ] || [ $((current_time - file_time)) -gt $cache_timeout ] || [ "$cached_empty" = 1 ]; then
         touch "$cache_file"
         json_add_array modem_info
         $function_name
         json_close_array
-        json_dump > "$cache_file"
+        json_dump > "$cache_file.new"
+        # An empty read means the AT port was busy, not that the modem
+        # has nothing to report. Keep the last good answer and serve
+        # that instead of handing every caller an empty set -- the
+        # dashboard and the LEDs both read this.
+        if [ "$(tr -d ' \t\n' < "$cache_file.new" 2>/dev/null)" = '{"modem_info":[]}' ] && \
+            [ -s "$cache_file" ] && \
+            [ "$(tr -d ' \t\n' < "$cache_file" 2>/dev/null)" != '{"modem_info":[]}' ]; then
+            rm -f "$cache_file.new"
+        else
+            mv "$cache_file.new" "$cache_file"
+        fi
         cat "$cache_file"
     else
         cat "$cache_file"

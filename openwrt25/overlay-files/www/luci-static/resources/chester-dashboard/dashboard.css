@@ -157,13 +157,65 @@
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
-	min-height: 92px;
-	padding: 12px 16px;
-	border-radius: 6px;
-	background: var(--chester-dashboard-quick-bg);
-	box-shadow: 0 6px 16px rgba(15, 39, 67, .10);
+	min-height: 96px;
+	padding: 14px 16px;
+	border-radius: 14px;
+	/* A flat fill reads as a coloured box. The sheen plus the two inset
+	   lines give a lit top edge and a shaded bottom one, which is what
+	   makes a macOS control look moulded rather than printed. */
+	background:
+		linear-gradient(165deg, rgba(255, 255, 255, .22) 0%, rgba(255, 255, 255, .05) 42%, rgba(0, 0, 0, .12) 100%),
+		var(--chester-dashboard-quick-bg);
+	border: 1px solid rgba(255, 255, 255, .16);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, .30),
+		inset 0 -1px 0 rgba(0, 0, 0, .16),
+		0 1px 2px rgba(9, 20, 38, .18),
+		0 12px 28px -10px rgba(9, 20, 38, .48);
 	color: #fff;
 	text-decoration: none;
+	overflow: hidden;
+	transition: transform .18s cubic-bezier(.2, .7, .3, 1),
+		box-shadow .18s cubic-bezier(.2, .7, .3, 1);
+}
+
+/* Specular highlight along the top, the way a glass control catches light.
+   Click-through, and the card content is lifted above it below. */
+.chester-dashboard-quick-card::before {
+	content: '';
+	position: absolute;
+	left: -30%;
+	right: -30%;
+	top: -70%;
+	height: 130%;
+	background: radial-gradient(58% 58% at 50% 100%, rgba(255, 255, 255, .30), rgba(255, 255, 255, 0) 70%);
+	pointer-events: none;
+}
+
+.chester-dashboard-quick-card > * {
+	position: relative;
+}
+
+.chester-dashboard-quick-card--clickable:hover {
+	transform: translateY(-2px);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, .34),
+		inset 0 -1px 0 rgba(0, 0, 0, .16),
+		0 2px 4px rgba(9, 20, 38, .20),
+		0 20px 38px -12px rgba(9, 20, 38, .58);
+}
+
+.chester-dashboard-quick-card--clickable:active {
+	transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.chester-dashboard-quick-card {
+		transition: none;
+	}
+	.chester-dashboard-quick-card--clickable:hover {
+		transform: none;
+	}
 }
 
 .chester-dashboard-quick-card--clickable {
@@ -176,19 +228,19 @@
 }
 
 .chester-dashboard-quick-card--internet {
-	--chester-dashboard-quick-bg: #1677ff;
+	--chester-dashboard-quick-bg: #0053de;
 }
 
 .chester-dashboard-quick-card--modem {
-	--chester-dashboard-quick-bg: #6b7cff;
+	--chester-dashboard-quick-bg: #183a97;
 }
 
 .chester-dashboard-quick-card--device {
-	--chester-dashboard-quick-bg: #18b65f;
+	--chester-dashboard-quick-bg: #017022;
 }
 
 .chester-dashboard-quick-card--wifi {
-	--chester-dashboard-quick-bg: #15afbe;
+	--chester-dashboard-quick-bg: #01536d;
 }
 
 .chester-dashboard-quick-card--warn {
@@ -226,9 +278,11 @@
 
 .chester-dashboard-quick-card__value {
 	margin-top: auto;
-	font-size: 17px;
+	font-size: 19px;
 	line-height: 1.1;
 	font-weight: 700;
+	letter-spacing: -.012em;
+	text-shadow: 0 1px 2px rgba(0, 0, 0, .20);
 }
 
 .chester-dashboard-quick-card__foot {
@@ -997,3 +1051,101 @@
 		font-size: 22px;
 	}
 }
+
+/* Frosted pill and label, matching the card treatment above. Appended so
+   they win over the earlier rules without editing them in place. */
+.chester-dashboard-quick-card__badge {
+	background: rgba(255, 255, 255, .20);
+	border: 1px solid rgba(255, 255, 255, .26);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, .26);
+	backdrop-filter: saturate(150%) blur(8px);
+	-webkit-backdrop-filter: saturate(150%) blur(8px);
+	font-weight: 600;
+}
+
+.chester-dashboard-quick-card__label {
+	letter-spacing: .015em;
+	text-shadow: 0 1px 1px rgba(0, 0, 0, .12);
+}
+
+/* A grid item will not shrink below its content by default (min-width is
+   auto), which is what pushed the port names outside their boxes on a
+   narrow screen. Let them shrink, and clip rather than overflow. */
+.chester-dashboard-port-panel__port {
+	min-width: 0;
+}
+
+.chester-dashboard-port-panel__name,
+.chester-dashboard-port-panel__role,
+.chester-dashboard-port-panel__speed,
+.chester-dashboard-port-panel__status {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Keep the stat cards to a single line each: the labels and the memory
+   figure are the ones long enough to wrap at a third of the width. */
+.chester-dashboard-stat__label,
+.chester-dashboard-stat__hint,
+.chester-dashboard-stat__value {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+@media screen and (max-width: 560px) {
+	/* Four ports across a phone leaves no room for a name. Give each one a
+	   readable floor and let the row scroll instead of crushing them. */
+	.chester-dashboard-port-panel {
+		grid-auto-columns: minmax(96px, 1fr);
+		overflow-x: auto;
+		padding-bottom: 4px;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	/* Three stat cards side by side are too narrow on a phone. */
+	.chester-dashboard-stats-grid {
+		grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+	}
+}
+
+/* Front panel light switch, sat above the quick cards. */
+.chester-dashboard-led-toggle-wrap {
+	display: flex;
+	justify-content: flex-end;
+	margin-bottom: 10px;
+}
+
+.chester-dashboard-led-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 7px 14px;
+	border-radius: 999px;
+	border: 1px solid rgba(16, 35, 62, .12);
+	background: linear-gradient(180deg, #ffffff, #f2f5f9);
+	box-shadow: 0 1px 2px rgba(9, 20, 38, .10), inset 0 1px 0 rgba(255, 255, 255, .9);
+	color: var(--chester-dashboard-text-main, #16324f);
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+}
+
+.chester-dashboard-led-toggle:hover { transform: translateY(-1px); }
+.chester-dashboard-led-toggle:disabled { opacity: .6; cursor: progress; }
+
+.chester-dashboard-led-toggle__icon {
+	font-size: 15px;
+	line-height: 1;
+	color: #0f9d58;
+}
+
+/* Off state: the switch itself goes dim, so it reads at a glance. */
+.chester-dashboard-led-toggle.is-off {
+	background: linear-gradient(180deg, #eceff3, #e2e6ec);
+	color: #6b7a8d;
+}
+.chester-dashboard-led-toggle.is-off .chester-dashboard-led-toggle__icon { color: #98a4b3; }

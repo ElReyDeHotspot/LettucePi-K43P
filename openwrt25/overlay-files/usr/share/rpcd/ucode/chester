@@ -765,6 +765,88 @@ const methods = {
 				message: result.result ? null : 'failed to persist setup wizard skip state'
 			};
 		}
+	},
+
+	set_port_mode: {
+		args: {
+			mode: 'String'
+		},
+		call: function(request) {
+			// Switching the WAN socket into the LAN is more than a uci
+			// value: the port has to join br-lan, the wan interface has to
+			// go down, and the firewall zone has to drop it.
+			// chester-optional-wan already derives all of that from this
+			// one option, so set it and let the service reconcile rather
+			// than duplicating the logic in the browser.
+			let mode = trimSafe(request.args.mode);
+
+			if (mode != 'wan' && mode != 'lan')
+				return { success: false, message: 'mode must be wan or lan' };
+
+			let ctx = cursor();
+
+			if (!ctx)
+				return { success: false, message: 'failed to open uci cursor' };
+
+			ctx.set('chester', 'network_defaults', null, 'network');
+			ctx.set('chester', 'network_defaults', 'optional_wan_mode', mode);
+
+			if (ctx.commit('chester') !== true)
+				return { success: false, message: 'failed to commit port mode' };
+
+			readCommandOutput('/etc/init.d/chester-optional-wan start 2>&1');
+			readCommandOutput('/etc/init.d/network reload >/dev/null 2>&1');
+			readCommandOutput('/etc/init.d/firewall reload >/dev/null 2>&1');
+
+			let check = cursor();
+
+			return {
+				success: true,
+				mode: check ? check.get('chester', 'network_defaults', 'optional_wan_mode') : mode
+			};
+		}
+	},
+
+	led_power: {
+		call: function() {
+			let ctx = cursor();
+			let value = ctx ? ctx.get('chester', 'main', 'led_power') : null;
+			// Absent means on: the panel lights up unless someone asked
+			// for them to be off.
+			return { enabled: (value == '0') ? false : true };
+		}
+	},
+
+	set_led_power: {
+		args: {
+			enabled: 'String'
+		},
+		call: function(request) {
+			// Turning the panel off is more than stopping the service:
+			// the signal indicators keep whatever brightness they were
+			// left at, so they are cleared explicitly. Turning it back on
+			// just restarts the services that own them.
+			let want = trimSafe(request.args.enabled);
+			let on = !(want == '0' || lc(want) == 'false' || lc(want) == 'off');
+			let ctx = cursor();
+
+			if (!ctx)
+				return { success: false, message: 'failed to open uci cursor' };
+
+			ctx.set('chester', 'main', null, 'main');
+			ctx.set('chester', 'main', 'led_power', on ? '1' : '0');
+			ctx.commit('chester');
+
+			if (on) {
+				readCommandOutput('/etc/init.d/qmodem_led start >/dev/null 2>&1');
+				readCommandOutput('/etc/init.d/led restart >/dev/null 2>&1');
+			} else {
+				readCommandOutput('/etc/init.d/qmodem_led stop >/dev/null 2>&1');
+				readCommandOutput('for l in /sys/class/leds/*; do echo none > "$l/trigger" 2>/dev/null; echo 0 > "$l/brightness" 2>/dev/null; done');
+			}
+
+			return { success: true, enabled: on };
+		}
 	}
 };
 

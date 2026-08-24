@@ -59,4 +59,16 @@ uci -q set luci.themes.Chester='/luci-static/chester'
 uci -q set luci.main.mediaurlbase='/luci-static/chester'
 uci -q commit luci
 
+# Wi-Fi indicator: solid blue while the AP is up, dark when Wi-Fi is off.
+# mode 'link' holds it steady; adding tx/rx would make it flicker.
+if [ -z "$(uci -q get system.led_wlan)" ]; then
+	uci -q set system.led_wlan=led
+	uci -q set system.led_wlan.name='WLAN'
+	uci -q set system.led_wlan.sysfs='blue:wlan'
+	uci -q set system.led_wlan.trigger='netdev'
+	uci -q set system.led_wlan.dev='phy0-ap0'
+	uci -q set system.led_wlan.mode='link'
+	uci -q commit system
+fi
+
 exit 0

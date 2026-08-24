@@ -1,0 +1,9 @@
+config main 'main'
+	option poll_interval '5'
+
+# Drives the front panel signal indicators from the modem. The script is
+# QModem's own board script with the LED names corrected for this build.
+config modem_status 'cellular'
+	option enabled '1'
+	option script 'm01k43'
+	option bind 'any'
