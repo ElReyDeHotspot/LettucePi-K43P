@@ -44,4 +44,11 @@ uci -q set qmodem.main.enable_pcie_scan='1'
 uci -q set qmodem.main.enable_usb_scan='1'
 uci -q commit qmodem
 
+# Chester theme. The directory keeps its original name because cascade.css and
+# the templates reference it throughout; only the label shown in the picker is
+# rebranded.
+uci -q set luci.themes.Chester='/luci-static/chester'
+uci -q set luci.main.mediaurlbase='/luci-static/chester'
+uci -q commit luci
+
 exit 0
