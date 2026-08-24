@@ -423,15 +423,43 @@ const methods = {
 			node: 'String'
 		},
 		call: function(request) {
-			let node = trimSafe(request.args.node);
-			let raw = node ? readCommandOutput(`cat ${quoteArg(node)} 2>/dev/null`) : null;
+			// Reports the MODEM temperature, not the SoC. The original read a
+			// sysfs thermal node named by the caller, which is empty here - and
+			// the router's own temperature is not what this product cares about.
+			//
+			// AT+QTEMP returns a whole sensor set. modem-ambient-usr is the
+			// representative one; disabled sensors report 0 or -273, so they are
+			// filtered and the hottest plausible reading is used as a fallback.
+			let port = trimSafe(readCommandOutput(`uci -q get qmodem.$(uci -q show qmodem | sed -n 's/^qmodem\.\([^.=]*\)=modem-device$/\1/p' | head -n 1).at_port 2>/dev/null`));
+
+			if (!length(port))
+				port = '/dev/mhi_DUN';
+
+			// -u routes through ubus-at-daemon rather than opening the serial
+			// port directly, so this cannot collide with QModem's own polling
+			// or with a dial in progress. It is the same path QModem's scripts
+			// use (tom_modem $use_ubus_flag ...).
+			let out = readCommandOutput(`tom_modem -u -d ${quoteArg(port)} -c 'AT+QTEMP' -t 4 2>/dev/null`);
+			let best = null, best_node = '', ambient = null;
+
+			for (let line in split(out ?? '', /\r?\n/)) {
+				let m = match(line, /\+QTEMP:"([^"]+)","(-?[0-9]+)"/);
+				if (!m) continue;
+				let name = m[1], val = int(m[2]);
+				if (val <= 0 || val > 120) continue;
+				if (name == 'modem-ambient-usr') ambient = val;
+				if (best == null || val > best) { best = val; best_node = name; }
+			}
+
+			let value = (ambient != null) ? ambient : best;
+			let node  = (ambient != null) ? 'modem-ambient-usr' : best_node;
 
 			return {
-				available: raw != null,
+				available: value != null,
 				node: node,
-				raw: raw,
-				value: raw,
-				temperature: raw
+				raw: value != null ? `${value}` : null,
+				value: value,
+				temperature: value != null ? `${value}` : null
 			};
 		}
 	},
@@ -459,8 +487,23 @@ const methods = {
 			if (value == null)
 				value = readCommandOutput(`fw_printenv owrt_oem_model_name 2>/dev/null | sed -n 's/^owrt_oem_model_name=//p' | head -n 1`);
 
+			// This board's u-boot env has a bad CRC, so owrt_oem_model_name
+			// reads back empty and the Model card renders blank. Fall back to
+			// the board compatible - alwaylink,m01k43 -> M01K43 - rather than
+			// hardcoding, so a properly provisioned unit still wins.
+			value = trimSafe(value);
+
+			if (!length(value)) {
+				let board = readCommandOutput('cat /tmp/sysinfo/board_name 2>/dev/null');
+				board = trimSafe(board);
+				if (length(board)) {
+					let parts = split(board, ',');
+					value = uc(parts[length(parts) - 1]);
+				}
+			}
+
 			return {
-				model_name: trimSafe(value)
+				model_name: value
 			};
 		}
 	},
