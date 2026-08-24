@@ -18,19 +18,19 @@ Run it on the router over SSH:
 wget -qO- https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh
 ```
 
-It lists the firmware choices, checks the download, and asks you to type `YES`
+It installs **OpenWrt 25**. It checks the download and asks you to type `YES`
 before anything is written. Nothing is copied by hand.
 
-Straight to OpenWrt 25, no questions asked:
+No questions asked, for when you are driving it yourself:
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh -s -- --choice 2 --yes
+wget -qO- https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh -s -- --yes
 ```
 
 Check everything and write nothing — safe to run any time:
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh -s -- --choice 2 --dry-run
+wget -qO- https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh -s -- --dry-run
 ```
 
 The installer refuses to run if the board is not a K43P, if the flash layout is
@@ -50,7 +50,7 @@ boots to no network at all. So a family change is always a clean install:
 
 - Wi-Fi name and password → back to `5G_CPE` / `123456789`
 - LAN address and DHCP → back to `192.168.100.1`
-- admin password → back to none, **set one immediately after**
+- admin password → back to `admin`, **change it immediately after**
 - APN and modem settings
 - installed packages, VPN profiles, port forwards
 
@@ -85,8 +85,11 @@ one: old ImmortalWrt → final ImmortalWrt (settings kept) → OpenWrt 25 (wiped
 ## After the upgrade
 
 The router comes back on **`192.168.100.1`**, Wi-Fi `5G_CPE` / `123456789`,
-with **no admin password** — set one straight away under
+admin password **`admin`** — change it straight away under
 *System → Settings → Administration*.
+
+The WAN socket ships bridged into the LAN, so all four sockets are LAN ports
+out of the box. Switch it back under *Network → Settings → Port Mode*.
 
 Give the modem a minute; the dashboard fills in once it registers and dials.
 

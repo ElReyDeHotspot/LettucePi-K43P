@@ -1,13 +1,13 @@
 #!/bin/sh
 # ============================================================================
-#  Chester K43P - firmware chooser
+#  Chester K43P - OpenWrt 25 installer
 #
 #  Run on the router over SSH:
 #
 #      wget -qO- https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh
 #
-#  Offers a choice of firmware, downloads it, checks it, and flashes it.
-#  The router must be online. Nothing is copied by hand.
+#  Downloads OpenWrt 25, checks it, and flashes it. The router must be online.
+#  Nothing is copied by hand.
 #
 #  * This REPLACES the router firmware and writes BOTH flash banks. There is no
 #    fallback bank afterwards and no way back except TFTP or serial recovery.
@@ -15,28 +15,17 @@
 #
 #  Options:  --dry-run    do every check and download, flash nothing
 #            --yes        skip the confirmation (unattended)
-#            --choice N   pick 1 or 2 without prompting
 # ============================================================================
 set -u
 
 # ---------------------------------------------------------------- firmware
-# Both images are raw UBI. They are written to both banks by the staged
-# platform.sh, because this board boots the bank the stock writer ignores.
-A_FAMILY="ImmortalWrt"
-A_NAME="ImmortalWrt 25 (Chester)"
-A_DESC="Vendor-style interface: dashboard, modem pages, port map, VPN, QModem.
-             Closest to the firmware the router shipped with."
-A_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/13-2026-08-23-ChesterK43P-25.12.bin"
-A_SHA="d1740c6f75ae7de00703d08b4acda859761fe6dac67d2a402c18588df83c1859"
-A_SIZE=23592960
-
-B_FAMILY="OpenWrt"
-B_NAME="OpenWrt 25 (official)"
-B_DESC="Stock OpenWrt with LuCI and QModem. Newer kernel (6.18), package feeds
-             that match the build, upstream support. Fewer vendor pages."
-B_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/firmware/chester-openwrt25-20260824190646-factory.bin"
-B_SHA="430e0f87565a1b8a4f5da1291cf40e026fd47bad00d56588fc010e51152072fa"
-B_SIZE=14811136
+# The image is raw UBI. It is written to both banks by the staged platform.sh,
+# because this board boots the bank the stock writer ignores.
+FW_FAMILY="OpenWrt"
+FW_NAME="OpenWrt 25 (official)"
+FW_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/firmware/chester-openwrt25-20260824190646-factory.bin"
+FW_SHA="430e0f87565a1b8a4f5da1291cf40e026fd47bad00d56588fc010e51152072fa"
+FW_SIZE=14811136
 
 PLATFORM_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/platform.sh"
 
@@ -53,20 +42,22 @@ die(){  printf '\n  [FAIL] %s\n\n' "$*" >&2; exit 1; }
 # execute a half-read script: sh only runs this once the final line is read.
 lp_main() {
 
-DRY=0; ASSUME_YES=0; CHOICE=
+DRY=0; ASSUME_YES=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --dry-run) DRY=1 ;;
         --yes|-y)  ASSUME_YES=1 ;;
-        --choice)  shift; CHOICE="${1:-}" ;;
-        --choice=*) CHOICE="${1#--choice=}" ;;
+        # There used to be a choice of firmware here. Accept and ignore the old
+        # flag so existing one-liners and scripts do not fail on it.
+        --choice)  shift ;;
+        --choice=*) ;;
         *) die "unknown option: $1" ;;
     esac
     shift
 done
 
-printf '\n  Chester K43P firmware installer\n'
-printf '  ==============================\n\n'
+printf '\n  Chester K43P - install %s\n' "$FW_NAME"
+printf '  ==========================================\n\n'
 
 # ------------------------------------------------------------ sanity checks
 [ "$(id -u 2>/dev/null || echo 0)" = 0 ] || die "run this as root"
@@ -90,31 +81,8 @@ ok "flash layout looks right (ubi + ubi2)"
 
 FREE=$(df -k /tmp | awk 'NR==2{print $4}')
 
-# ------------------------------------------------------------------- menu
-printf '\n  Choose the firmware to install:\n\n'
-printf '    1) %s\n             %s\n\n' "$A_NAME" "$A_DESC"
-printf '    2) %s\n             %s\n\n' "$B_NAME" "$B_DESC"
-printf '    3) Cancel\n\n'
-
-if [ -z "$CHOICE" ]; then
-    # A piped script has no stdin left, so read from the terminal.
-    if [ -r /dev/tty ] && ( : < /dev/tty ) 2>/dev/null; then
-        printf '  Enter 1, 2 or 3: '
-        read -r CHOICE < /dev/tty
-    else
-        die "no terminal available - re-run with --choice 1 or --choice 2"
-    fi
-fi
-
-case "$CHOICE" in
-    1) NAME="$A_NAME"; URL="$A_URL"; SHA="$A_SHA"; SIZE="$A_SIZE"; FAMILY="$A_FAMILY" ;;
-    2) NAME="$B_NAME"; URL="$B_URL"; SHA="$B_SHA"; SIZE="$B_SIZE"; FAMILY="$B_FAMILY" ;;
-    3|c|C|q|Q) printf '\n  Cancelled. Nothing was changed.\n\n'; exit 0 ;;
-    *) die "invalid choice '$CHOICE'" ;;
-esac
-
-printf '\n'
-ok "selected: $NAME"
+NAME="$FW_NAME"; URL="$FW_URL"; SHA="$FW_SHA"; SIZE="$FW_SIZE"; FAMILY="$FW_FAMILY"
+ok "installing: $NAME"
 
 # Settings cannot be carried between firmware families: the two use different
 # config layouts, so a preserved /etc/config produces a router that boots to no
@@ -145,7 +113,7 @@ fi
 info "currently running: $CURRENT"
 
 printf '\n'
-if [ "$CURRENT" != "unknown" ] && [ "$CURRENT" != "$FAMILY" ]; then
+if [ "$CURRENT" != "$FAMILY" ]; then
     warn "MIGRATION: $CURRENT  ->  $FAMILY"
     warn "This changes firmware family, so NOTHING is carried over."
 else
@@ -154,7 +122,7 @@ fi
 info "These are ERASED and go back to defaults:"
 info "  - Wi-Fi name and password  (back to 5G_CPE / 123456789)"
 info "  - LAN address and DHCP     (back to 192.168.100.1)"
-info "  - admin password           (back to none - set one after)"
+info "  - admin password           (back to admin - change it after)"
 info "  - APN and modem settings"
 info "  - installed packages, VPN profiles, port forwards"
 info "Write down anything you still need before continuing."
@@ -210,7 +178,8 @@ if [ "$ASSUME_YES" != 1 ]; then
     warn "About to install: $NAME"
     warn "This erases the current firmware and BOTH flash banks."
     warn "Settings are NOT kept. There is no fallback bank afterwards."
-    printf '\n  Type YES to continue: '
+    printf '\n  Type YES to continue (anything else cancels): '
+    # A piped script has no stdin left, so read from the terminal.
     if [ -r /dev/tty ] && ( : < /dev/tty ) 2>/dev/null; then
         read -r REPLY < /dev/tty
     else

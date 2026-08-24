@@ -14,8 +14,8 @@ SSH into the router and paste one line:
 wget -qO- https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh
 ```
 
-It offers a choice of firmware, checks the download, tells you what a firmware
-change erases, and asks you to type `YES` before writing anything.
+It installs OpenWrt 25: checks the download, tells you what the install erases,
+and asks you to type `YES` before writing anything.
 
 **[Read the upgrade guide first](UPGRADING.md)** — it covers which routers can
 upgrade in place, which need the one-liner, and what a firmware change erases.
@@ -27,7 +27,7 @@ upgrade in place, which need the one-liner, and what a firmware change erases.
 | | |
 |---|---|
 | [`UPGRADING.md`](UPGRADING.md) | Which upgrade path applies, and what it erases |
-| [`openwrt25/install.sh`](openwrt25/install.sh) | The one-liner. Offers ImmortalWrt 25 or OpenWrt 25 |
+| [`openwrt25/install.sh`](openwrt25/install.sh) | The one-liner. Installs OpenWrt 25 |
 | [`openwrt25/README.md`](openwrt25/README.md) | Longer guide for the OpenWrt 25 build |
 | `openwrt25/firmware/` | OpenWrt 25 images |
 | `openwrt25/overlay-files/` | Exactly what the OpenWrt 25 build ships on top of stock |
