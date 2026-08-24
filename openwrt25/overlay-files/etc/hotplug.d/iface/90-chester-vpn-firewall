@@ -1,0 +1,8 @@
+#!/bin/sh
+
+case "$ACTION" in
+	ifup|ifdown|ifupdate)
+		/usr/libexec/chester-vpn-firewall >/dev/null 2>&1
+		/etc/init.d/firewall reload >/dev/null 2>&1
+	;;
+esac

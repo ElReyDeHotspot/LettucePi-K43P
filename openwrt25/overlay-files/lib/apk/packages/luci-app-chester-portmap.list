@@ -1,0 +1,3 @@
+/usr/share/luci/menu.d/luci-app-chester-portmap.json
+/usr/share/rpcd/acl.d/luci-app-chester-portmap.json
+/www/luci-static/resources/view/chester-portmap/index.js

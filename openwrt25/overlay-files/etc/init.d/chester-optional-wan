@@ -1,0 +1,213 @@
+#!/bin/sh /etc/rc.common
+
+START=19
+
+LOG_TAG="chester-optional-wan"
+
+append_word() {
+	local list="$1"
+	local word="$2"
+	local item
+
+	for item in $list; do
+		[ "$item" = "$word" ] && {
+			printf '%s\n' "$list"
+			return 0
+		}
+	done
+
+	[ -n "$list" ] && printf '%s %s\n' "$list" "$word" || printf '%s\n' "$word"
+}
+
+remove_word() {
+	local list="$1"
+	local word="$2"
+	local item kept
+
+	for item in $list; do
+		[ "$item" = "$word" ] && continue
+		[ -n "$kept" ] && kept="$kept "
+		kept="$kept$item"
+	done
+
+	printf '%s\n' "$kept"
+}
+
+set_list_words() {
+	local config="$1"
+	local section="$2"
+	local option="$3"
+	local words="$4"
+	local item added kept found
+
+	uci -q delete "$config"."$section"."$option" 2>/dev/null || true
+
+	for item in $words; do
+		found=0
+		for added in $kept; do
+			[ "$added" = "$item" ] && {
+				found=1
+				break
+			}
+		done
+		[ "$found" = '1' ] && continue
+
+		uci -q add_list "$config"."$section"."$option"="$item"
+		[ -n "$kept" ] && kept="$kept "
+		kept="$kept$item"
+	done
+}
+
+find_lan_bridge_section() {
+	local lan_device sid
+
+	lan_device="$(uci -q get network.lan.device 2>/dev/null)"
+	lan_device="${lan_device%% *}"
+	[ -n "$lan_device" ] || lan_device='br-lan'
+
+	for sid in $(uci show network 2>/dev/null | sed -n 's/^network\.\([^.=]*\)=device$/\1/p'); do
+		[ "$(uci -q get network."$sid".name 2>/dev/null)" = "$lan_device" ] || continue
+		printf '%s\n' "$sid"
+		return 0
+	done
+
+	return 1
+}
+
+add_port_to_lan() {
+	local port="$1"
+	local sid ports lan_ifname lan_device item
+
+	sid="$(find_lan_bridge_section)"
+	if [ -n "$sid" ]; then
+		ports="$(uci -q get network."$sid".ports 2>/dev/null || true)"
+		lan_ifname="$(uci -q get network.lan.ifname 2>/dev/null || true)"
+		lan_device="$(uci -q get network.lan.device 2>/dev/null || true)"
+		lan_device="${lan_device%% *}"
+		for item in $lan_ifname; do
+			[ "$item" = "$lan_device" ] && continue
+			ports="$(append_word "$ports" "$item")"
+		done
+		set_list_words network "$sid" ports "$(append_word "$ports" "$port")"
+		return 0
+	fi
+
+	lan_ifname="$(uci -q get network.lan.ifname 2>/dev/null || true)"
+	uci -q set network.lan.ifname="$(append_word "$lan_ifname" "$port")"
+}
+
+remove_port_from_lan() {
+	local port="$1"
+	local sid ports lan_ifname
+
+	sid="$(find_lan_bridge_section)"
+	if [ -n "$sid" ]; then
+		ports="$(uci -q get network."$sid".ports 2>/dev/null || true)"
+		set_list_words network "$sid" ports "$(remove_word "$ports" "$port")"
+	fi
+
+	lan_ifname="$(uci -q get network.lan.ifname 2>/dev/null || true)"
+	if [ -n "$lan_ifname" ]; then
+		uci -q set network.lan.ifname="$(remove_word "$lan_ifname" "$port")"
+	fi
+}
+
+ensure_wan_firewall() {
+	local iface="$1"
+	local zone_sid networks found sid
+
+	for sid in $(uci show firewall 2>/dev/null | sed -n 's/^firewall\.\([^.=]*\)=zone$/\1/p'); do
+		[ "$(uci -q get firewall."$sid".name 2>/dev/null)" = 'wan' ] || continue
+		zone_sid="$sid"
+		break
+	done
+
+	if [ -z "$zone_sid" ]; then
+		zone_sid="$(uci add firewall zone)"
+		uci -q set firewall."$zone_sid".name='wan'
+		uci -q set firewall."$zone_sid".input='REJECT'
+		uci -q set firewall."$zone_sid".output='ACCEPT'
+		uci -q set firewall."$zone_sid".forward='DROP'
+		uci -q set firewall."$zone_sid".masq='1'
+		uci -q set firewall."$zone_sid".mtu_fix='1'
+	fi
+
+	networks="$(uci -q get firewall."$zone_sid".network 2>/dev/null || true)"
+	uci -q set firewall."$zone_sid".network="$(append_word "$networks" "$iface")"
+
+	found=0
+	for sid in $(uci show firewall 2>/dev/null | sed -n 's/^firewall\.\([^.=]*\)=forwarding$/\1/p'); do
+		[ "$(uci -q get firewall."$sid".src 2>/dev/null)" = 'lan' ] || continue
+		[ "$(uci -q get firewall."$sid".dest 2>/dev/null)" = 'wan' ] || continue
+		found=1
+		break
+	done
+
+	if [ "$found" != '1' ]; then
+		sid="$(uci add firewall forwarding)"
+		uci -q set firewall."$sid".src='lan'
+		uci -q set firewall."$sid".dest='wan'
+	fi
+}
+
+remove_wan_firewall() {
+	local iface="$1"
+	local sid networks kept
+
+	for sid in $(uci show firewall 2>/dev/null | sed -n 's/^firewall\.\([^.=]*\)=zone$/\1/p'); do
+		[ "$(uci -q get firewall."$sid".name 2>/dev/null)" = 'wan' ] || continue
+		networks="$(uci -q get firewall."$sid".network 2>/dev/null || true)"
+		kept="$(remove_word "$networks" "$iface")"
+		if [ -n "$kept" ]; then
+			uci -q set firewall."$sid".network="$kept"
+		else
+			uci -q delete firewall."$sid".network 2>/dev/null || true
+		fi
+	done
+}
+
+reconcile_optional_wan() {
+	local wan_role optional_wan mode
+
+	wan_role="$(uci -q get chester.network_defaults.wan_role 2>/dev/null)"
+	[ -n "$wan_role" ] || wan_role='wan'
+
+	optional_wan="$(uci -q get chester.network_defaults.optional_wan 2>/dev/null)"
+	[ -n "$optional_wan" ] || optional_wan="$(uci -q get chester.network_defaults.wan_device 2>/dev/null)"
+	[ -n "$optional_wan" ] || optional_wan="$(uci -q get network."$wan_role".device 2>/dev/null || uci -q get network."$wan_role".ifname 2>/dev/null)"
+	[ -n "$optional_wan" ] || return 0
+
+	mode="$(uci -q get chester.network_defaults.optional_wan_mode 2>/dev/null)"
+	[ "$mode" = 'lan' ] || mode='wan'
+
+	uci -q set chester.network_defaults=network
+	uci -q set chester.network_defaults.wan_role="$wan_role"
+	uci -q set chester.network_defaults.wan_device="$optional_wan"
+	uci -q set chester.network_defaults.optional_wan="$optional_wan"
+	uci -q set chester.network_defaults.optional_wan_mode="$mode"
+
+	if [ "$mode" = 'lan' ]; then
+		add_port_to_lan "$optional_wan"
+		uci -q set network."$wan_role".device="$optional_wan"
+		uci -q set network."$wan_role".disabled='1'
+		remove_wan_firewall "$wan_role"
+	else
+		remove_port_from_lan "$optional_wan"
+		uci -q delete network."$wan_role".disabled 2>/dev/null || true
+		uci -q set network."$wan_role".device="$optional_wan"
+		ensure_wan_firewall "$wan_role"
+	fi
+
+	uci -q commit chester
+	uci -q commit network
+	uci -q commit firewall
+	logger -t "$LOG_TAG" "checked optional WAN $optional_wan as $mode"
+}
+
+start() {
+	reconcile_optional_wan
+}
+
+reload() {
+	reconcile_optional_wan
+}

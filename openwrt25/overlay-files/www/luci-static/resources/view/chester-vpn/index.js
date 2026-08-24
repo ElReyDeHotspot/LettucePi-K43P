@@ -1,0 +1,1 @@
+'use strict';'require view';'require chester.vpn as vpn';return view.extend({render(){return vpn.render(null);}});

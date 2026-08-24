@@ -1,0 +1,73 @@
+{
+	"luci-app-chester-modem": {
+		"description": "Grant access to Chester modem management",
+		"read": {
+			"ubus": {
+				"qmodem": [
+					"base_info",
+					"info",
+					"network_info",
+					"cell_info",
+					"sim_info",
+					"get_connect_status",
+					"dial_status",
+					"get_network_interfaces",
+					"get_at_cfg",
+					"get_imei",
+					"get_disabled_features",
+					"get_mode",
+					"get_network_prefer",
+					"get_lockband",
+					"get_neighborcell",
+					"get_reboot_caps",
+					"get_sim_switch_capabilities",
+					"get_sim_slot",
+					"get_stats",
+					"get_traffic_reset_schedule"
+				],
+				"qmodem_sms": [
+					"list_sms",
+					"get_conversation",
+					"get_sms_storage",
+					"get_sim_sms",
+					"get_sent_history",
+					"get_received_history"
+				],
+				"network.interface": [ "dump" ],
+				"network.device": [ "status" ],
+				"chester": [ "apn_presets_get", "modem_boost_info" ]
+			},
+			"uci": [ "qmodem", "qmodem_ttl", "network", "chester" ]
+		},
+		"write": {
+			"ubus": {
+				"qmodem": [
+					"send_at",
+					"set_imei",
+					"set_mode",
+					"set_network_prefer",
+					"set_lockband",
+					"set_neighborcell",
+					"do_reboot",
+					"scan_pcie",
+					"scan_usb",
+					"scan_all",
+					"set_sim_slot",
+					"clear_stats",
+					"set_traffic_reset_schedule"
+				],
+				"qmodem_sms": [
+					"send_sms",
+					"delete_sms",
+					"mark_read",
+					"set_sms_storage",
+					"delete_sim_sms",
+					"clear_sent_history",
+					"clear_received_history"
+				],
+				"chester": [ "restart_modem_dial", "apn_presets_save", "apn_presets_reset", "modem_boost_apply" ]
+			},
+			"uci": [ "qmodem", "qmodem_ttl", "chester" ]
+		}
+	}
+}

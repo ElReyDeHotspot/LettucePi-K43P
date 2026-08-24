@@ -1,0 +1,15 @@
+{
+	"admin/modem/ipv6": {
+		"title": "IPv6",
+		"order": 85,
+		"action": {
+			"type": "view",
+			"path": "chester-modem/ipv6"
+		},
+		"depends": {
+			"acl": [
+				"luci-app-chester-ipv6"
+			]
+		}
+	}
+}

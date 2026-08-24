@@ -1,0 +1,4 @@
+/etc/board.d/99-chester-config
+/etc/config/chester_oem
+/etc/uci-defaults/99_chester-oem-defaults
+/usr/sbin/oem-set

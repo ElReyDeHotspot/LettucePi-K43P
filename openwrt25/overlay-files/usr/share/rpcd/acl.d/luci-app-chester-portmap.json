@@ -1,0 +1,11 @@
+{
+	"luci-app-chester-portmap": {
+		"description": "Grant access to Chester port mappings",
+		"read": {
+			"uci": [ "firewall", "chester", "network" ]
+		},
+		"write": {
+			"uci": [ "firewall" ]
+		}
+	}
+}

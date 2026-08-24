@@ -1,0 +1,36 @@
+#!/usr/bin/ucode
+'use strict';
+
+const methods = {
+	get_stats: {
+		args: {
+			modem_cfg: 'String'
+		},
+		call: function(req) {
+			return {
+				available: false,
+				modem_cfg: req.args?.modem_cfg || '',
+				updated_at: 0,
+				total_rx_bytes: 0,
+				total_tx_bytes: 0,
+				today_rx_bytes: 0,
+				today_tx_bytes: 0,
+				month_rx_bytes: 0,
+				month_tx_bytes: 0
+			};
+		}
+	},
+	clear_stats: {
+		args: {
+			modem_cfg: 'String'
+		},
+		call: function(req) {
+			return {
+				result: true,
+				modem_cfg: req.args?.modem_cfg || ''
+			};
+		}
+	}
+};
+
+return { qmodem: methods };

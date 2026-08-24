@@ -1,0 +1,15 @@
+{
+	"luci-app-chester-wifi": {
+		"description": "Grant access to Chester WiFi settings",
+		"read": {
+			"ubus": {
+				"network.wireless": [ "status" ],
+				"iwinfo": [ "info", "countrylist", "freqlist", "phyname" ]
+			},
+			"uci": [ "wireless", "chester" ]
+		},
+		"write": {
+			"uci": [ "wireless", "chester" ]
+		}
+	}
+}

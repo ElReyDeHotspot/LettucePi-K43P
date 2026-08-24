@@ -1,0 +1,17 @@
+{
+	"luci-base-chester": {
+		"description": "Grant access to Chester shared helpers",
+		"read": {
+			"ubus": {
+				"chester": [ "internet_status", "neighbors", "tcp_connections", "temp_status", "apn_presets_get", "modem_boost_info" ]
+			},
+			"uci": [ "chester" ]
+		},
+		"write": {
+			"ubus": {
+				"chester": [ "apn_presets_save", "apn_presets_reset", "modem_boost_apply" ]
+			},
+			"uci": [ "chester" ]
+		}
+	}
+}

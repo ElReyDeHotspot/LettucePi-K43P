@@ -1,0 +1,40 @@
+#!/bin/sh
+
+. /lib/functions.sh
+. /lib/functions/uci-defaults.sh
+
+set_chester_network_defaults() {
+	local wan_role="$1"
+	local wan_device="$2"
+	local optional_wan="${3:-$2}"
+	local optional_wan_mode="${4:-wan}"
+
+	json_select_object chester
+	json_select_object network_defaults
+	json_add_string wan_role "$wan_role"
+	json_add_string wan_device "$wan_device"
+	json_add_string optional_wan "$optional_wan"
+	json_add_string optional_wan_mode "$optional_wan_mode"
+	json_select ..
+	json_select ..
+}
+
+board_config_update
+
+case "$(board_name)" in
+huasifei,ws3006|\
+alwaylink,m01k43|\
+alwaylink,m01k43-p|\
+chester,m01k43|\
+chester,m01k43-p|\
+chester,m01k43-usb|\
+chester,m01k43-usb-p|\
+chester,m02k45|\
+chester,m02k45-emmc)
+	set_chester_network_defaults "wan" "wan" "wan" "wan"
+	;;
+esac
+
+board_config_flush
+
+exit 0

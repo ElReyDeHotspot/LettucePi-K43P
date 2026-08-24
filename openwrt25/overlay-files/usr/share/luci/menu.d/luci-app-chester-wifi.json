@@ -1,0 +1,13 @@
+{
+	"admin/network/wifi": {
+		"title": "Wi-Fi",
+		"order": 80,
+		"action": {
+			"type": "view",
+			"path": "chester-wifi/index"
+		},
+		"depends": {
+			"acl": [ "luci-app-chester-wifi" ]
+		}
+	}
+}

@@ -1,0 +1,15 @@
+{
+	"unauthenticated": {
+		"description": "Extend unauthenticated access for the first-run Chester setup wizard",
+		"read": {
+			"ubus": {
+				"chester_setup_wizard": [ "get_setup_wizard_context", "get_setup_wizard_network_context", "get_setup_wizard_wifi_context", "get_setup_wizard_modem_context" ]
+			}
+		},
+		"write": {
+			"ubus": {
+				"chester_setup_wizard": [ "apply_setup_wizard_config", "skip_setup_wizard" ]
+			}
+		}
+	}
+}

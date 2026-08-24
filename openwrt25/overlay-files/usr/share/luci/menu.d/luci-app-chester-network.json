@@ -1,0 +1,13 @@
+{
+	"admin/network/settings": {
+		"title": "Network",
+		"order": 100,
+		"action": {
+			"type": "view",
+			"path": "chester-network/index"
+		},
+		"depends": {
+			"acl": [ "luci-app-chester-network" ]
+		}
+	}
+}

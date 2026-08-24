@@ -1,0 +1,110 @@
+{
+	"admin/dashboard": {
+		"title": "Overview",
+		"order": 10
+	},
+	"admin/dashboard/channel_analysis": {
+		"title": "Channel Analysis",
+		"order": 20,
+		"action": {
+			"type": "view",
+			"path": "status/channel_analysis"
+		},
+		"depends": {
+			"acl": [ "luci-mod-status-channel_analysis" ],
+			"uci": { "wireless": { "@wifi-device": true } }
+		}
+	},
+	"admin/dashboard/realtime": {
+		"title": "Realtime Graphs",
+		"order": 30,
+		"action": {
+			"type": "alias",
+			"path": "admin/dashboard/realtime/load"
+		},
+		"depends": {
+			"acl": [ "luci-mod-status-realtime" ]
+		}
+	},
+	"admin/dashboard/realtime/load": {
+		"title": "Load",
+		"order": 1,
+		"action": {
+			"type": "view",
+			"path": "status/load"
+		}
+	},
+	"admin/dashboard/realtime/bandwidth": {
+		"title": "Bandwidth",
+		"order": 2,
+		"action": {
+			"type": "view",
+			"path": "status/bandwidth"
+		}
+	},
+	"admin/dashboard/realtime/wireless": {
+		"title": "Wireless",
+		"order": 3,
+		"action": {
+			"type": "view",
+			"path": "status/wireless"
+		},
+		"depends": {
+			"uci": { "wireless": { "@wifi-device": true } }
+		}
+	},
+	"admin/dashboard/realtime/connections": {
+		"title": "Connections",
+		"order": 4,
+		"action": {
+			"type": "view",
+			"path": "status/connections"
+		}
+	},
+	"admin/network": {
+		"title": "Network Settings",
+		"order": 20
+	},
+	"admin/modem": {
+		"title": "Cellular",
+		"order": 30,
+		"action": {
+			"type": "firstchild"
+		}
+	},
+	"admin/vpn": {
+		"title": "VPN",
+		"order": 40
+	},
+	"admin/system": {
+		"title": "System Settings",
+		"order": 50
+	},
+	"admin/system/logs": {
+		"title": "System Log",
+		"order": 30,
+		"action": {
+			"type": "alias",
+			"path": "admin/system/logs/syslog"
+		},
+		"depends": {
+			"acl": [ "luci-mod-status-logs" ]
+		}
+	},
+	"admin/system/logs/syslog": {
+		"title": "System Log",
+		"order": 1,
+		"action": {
+			"type": "view",
+			"path": "status/syslog"
+		}
+	},
+	"admin/system/logs/dmesg": {
+		"title": "Kernel Log",
+		"order": 2,
+		"action": {
+			"type": "view",
+			"path": "status/dmesg"
+		}
+	}
+}

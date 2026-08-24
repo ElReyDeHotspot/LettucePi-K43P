@@ -20,6 +20,14 @@ for r in $(uci show wireless 2>/dev/null | sed -n 's/^wireless\.\([a-z0-9]*\)=wi
 	uci -q set wireless.$r.country='US'
 	uci -q set wireless.$r.disabled='0'
 done
+# Enabling the radio is not enough - OpenWrt ships each AP interface
+# disabled, so without this the box boots with nothing on the air.
+for i in $(uci show wireless 2>/dev/null | sed -n 's/^wireless\.\([a-z0-9_]*\)=wifi-iface$/\1/p'); do
+	uci -q set wireless.$i.ssid='5G_CPE'
+	uci -q set wireless.$i.encryption='psk2'
+	uci -q set wireless.$i.key='123456789'
+	uci -q set wireless.$i.disabled='0'
+done
 uci -q commit wireless
 
 # Vendor name from the upstream board profile: the device tree model is already

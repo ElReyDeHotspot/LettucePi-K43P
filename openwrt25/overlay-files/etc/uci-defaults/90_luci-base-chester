@@ -1,0 +1,27 @@
+#!/bin/sh
+
+if [ -z "$(uci -q get chester.main.apn_country)" ]; then
+	country=''
+
+	if command -v fw_printenv >/dev/null 2>&1; then
+		country="$(fw_printenv -n owrt_country 2>/dev/null)"
+
+		if [ -z "$country" ]; then
+			country="$(fw_printenv owrt_country 2>/dev/null | sed -n 's/^owrt_country=//p' | head -n 1)"
+		fi
+	fi
+
+	country="$(echo "$country" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | tr 'A-Z' 'a-z')"
+
+	case "$country" in
+	*[!a-z0-9_-]*|'')
+		country='unknown'
+		;;
+	esac
+
+	uci -q set chester.main=main
+	uci -q set "chester.main.apn_country=${country}"
+	uci commit chester
+fi
+
+exit 0

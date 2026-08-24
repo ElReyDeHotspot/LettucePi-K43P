@@ -1,0 +1,23 @@
+{
+	"luci-app-chester-system": {
+		"description": "Grant access to Chester system management",
+		"read": {
+			"ubus": {
+				"luci": [ "getInitList", "getTimezones" ],
+				"system": [ "validate_firmware_image" ],
+				"network.interface": [ "dump" ],
+				"network.device": [ "status" ]
+			},
+			"uci": [ "dropbear", "chester", "system", "luci" ]
+		},
+		"write": {
+			"ubus": {
+				"luci": [ "setInitAction", "setPassword" ],
+				"rpc-sys": [ "factory" ],
+				"file": [ "write", "remove", "exec" ],
+				"system": [ "validate_firmware_image" ]
+			},
+			"uci": [ "dropbear", "chester", "system", "luci" ]
+		}
+	}
+}

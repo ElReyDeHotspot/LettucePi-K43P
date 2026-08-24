@@ -1,0 +1,320 @@
+#!/bin/sh
+
+. /lib/functions.sh
+
+VPN_IFACES=
+VPN_POLICIES=
+VPN_POLICY_IFACES=
+
+policy_name() {
+	local id="$1"
+	printf 'vpn_p%02x' "$((id & 255))"
+}
+
+append_unique() {
+	local var="$1"
+	local value="$2"
+	local current item
+
+	eval "current=\"\${$var}\""
+	for item in $current; do
+		[ "$item" = "$value" ] && return
+	done
+
+	eval "$var=\"\$current \$value\""
+}
+
+is_managed_proto() {
+	case "$1" in
+		wireguard|openvpn|l2tp|pptp) return 0 ;;
+	esac
+
+	return 1
+}
+
+vpn_proto_from_name() {
+	case "$1" in
+		vpw[0-9a-f][0-9a-f][0-9a-f][0-9a-f]) echo wireguard ;;
+		vpo[0-9a-f][0-9a-f][0-9a-f][0-9a-f]) echo openvpn ;;
+		vpl[0-9a-f][0-9a-f][0-9a-f][0-9a-f]) echo l2tp ;;
+		vpp[0-9a-f][0-9a-f][0-9a-f][0-9a-f]) echo pptp ;;
+	esac
+}
+
+is_short_vpn_iface() {
+	case "$1" in
+		vpw[0-9a-f][0-9a-f][0-9a-f][0-9a-f]|vpo[0-9a-f][0-9a-f][0-9a-f][0-9a-f]|vpl[0-9a-f][0-9a-f][0-9a-f][0-9a-f]|vpp[0-9a-f][0-9a-f][0-9a-f][0-9a-f]|vpz[0-9a-f][0-9a-f][0-9a-f][0-9a-f]) return 0 ;;
+	esac
+
+	return 1
+}
+
+collect_vpn_interface() {
+	local section="$1"
+	local proto policy managed vpn_proto
+
+	config_get proto "$section" proto
+	config_get vpn_proto "$section" mvpn_proto
+	config_get policy "$section" vp
+	config_get_bool managed "$section" mvpn 0
+
+	[ -n "$vpn_proto" ] || vpn_proto="$proto"
+	is_managed_proto "$vpn_proto" || {
+		[ "$managed" = "1" ] || return
+		vpn_proto="$(vpn_proto_from_name "$section")"
+	}
+	is_managed_proto "$vpn_proto" || return
+	[ -n "$policy" ] || return
+
+	policy="$((policy & 255))"
+	append_unique VPN_IFACES "$section"
+	append_unique VPN_POLICIES "$policy"
+
+	local key="VPN_POLICY_${policy}_IFACES"
+	append_unique "$key" "$section"
+}
+
+get_zone_section() {
+	local name="$1"
+	local section found
+
+	for section in $(uci -q show firewall | sed -n "s/^firewall\\.\\([^.=]*\\)=zone$/\\1/p"); do
+		[ "$(uci -q get firewall."$section".name)" = "$name" ] || continue
+		echo "$section"
+		return
+	done
+}
+
+ensure_zone_base() {
+	local id="$1"
+	local name section
+
+	name="$(policy_name "$id")"
+	section="$(get_zone_section "$name")"
+
+	if [ -z "$section" ]; then
+		section="$(uci add firewall zone)"
+		uci set firewall."$section".name="$name"
+	fi
+
+	uci set firewall."$section".input='REJECT'
+	uci set firewall."$section".output='ACCEPT'
+	uci set firewall."$section".forward='DROP'
+	uci set firewall."$section".family='ipv4'
+	uci set firewall."$section".masq='0'
+	uci set firewall."$section".mtu_fix='1'
+	uci set firewall."$section".mvpn='1'
+
+	echo "$section"
+}
+
+zone_has_network() {
+	local section="$1"
+	local iface="$2"
+	local net
+
+	for net in $(uci -q get firewall."$section".network); do
+		[ "$net" = "$iface" ] && return 0
+	done
+
+	return 1
+}
+
+zone_add_network() {
+	local section="$1"
+	local iface="$2"
+	local networks
+
+	zone_has_network "$section" "$iface" && return
+	networks="$(uci -q get firewall."$section".network)"
+	uci set firewall."$section".network="$networks $iface"
+}
+
+zone_remove_network() {
+	local section="$1"
+	local iface="$2"
+	local net kept
+
+	for net in $(uci -q get firewall."$section".network); do
+		[ "$net" = "$iface" ] && continue
+		append kept "$net"
+	done
+
+	if [ -n "$kept" ]; then
+		uci set firewall."$section".network="$kept"
+	else
+		uci delete firewall."$section".network 2>/dev/null
+	fi
+}
+
+remove_iface_from_other_vpn_zones() {
+	local iface="$1"
+	local target="$2"
+	local section zone
+
+	for section in $(uci -q show firewall | sed -n "s/^firewall\\.\\([^.=]*\\)=zone$/\\1/p"); do
+		zone="$(uci -q get firewall."$section".name)"
+		case "$zone" in
+			vpn_p*) ;;
+			*) continue ;;
+		esac
+
+		[ "$section" = "$target" ] && continue
+		zone_has_network "$section" "$iface" && zone_remove_network "$section" "$iface"
+	done
+}
+
+sync_interface_zone() {
+	local iface="$1"
+	local policy="$2"
+	local target
+
+	target="$(ensure_zone_base "$policy")"
+	remove_iface_from_other_vpn_zones "$iface" "$target"
+	zone_add_network "$target" "$iface"
+}
+
+has_forwarding() {
+	local src="$1"
+	local dest="$2"
+	local section
+
+	for section in $(uci -q show firewall | sed -n "s/^firewall\\.\\([^.=]*\\)=forwarding$/\\1/p"); do
+		[ "$(uci -q get firewall."$section".src)" = "$src" ] || continue
+		[ "$(uci -q get firewall."$section".dest)" = "$dest" ] || continue
+		return 0
+	done
+
+	return 1
+}
+
+ensure_forwarding() {
+	local src="$1"
+	local dest="$2"
+	local section
+
+	has_forwarding "$src" "$dest" && return
+
+	section="$(uci add firewall forwarding)"
+	uci set firewall."$section".src="$src"
+	uci set firewall."$section".dest="$dest"
+	uci set firewall."$section".mvpn='1'
+}
+
+sync_forwardings() {
+	local id="$1"
+	local zone="$2"
+
+	[ $((id & 1)) -ne 0 ] && ensure_forwarding lan "$zone"
+	[ $((id & 2)) -ne 0 ] && ensure_forwarding wan "$zone"
+	[ $((id & 4)) -ne 0 ] && ensure_forwarding "$zone" lan
+	[ $((id & 8)) -ne 0 ] && ensure_forwarding "$zone" wan
+}
+
+delete_managed_nats() {
+	local section
+
+	for section in $(uci -q show firewall | sed -n "s/^firewall\\.\\([^.=]*\\)=nat$/\\1/p"); do
+		[ "$(uci -q get firewall."$section".mvpn)" = "1" ] || continue
+		uci delete firewall."$section"
+	done
+}
+
+delete_managed_forwardings() {
+	local section
+
+	for section in $(uci -q show firewall | sed -n "s/^firewall\\.\\([^.=]*\\)=forwarding$/\\1/p"); do
+		[ "$(uci -q get firewall."$section".mvpn)" = "1" ] || continue
+		uci delete firewall."$section"
+	done
+}
+
+ensure_nat() {
+	local src="$1"
+	local dest="$2"
+	local name="$3"
+	local section
+
+	section="$(uci add firewall nat)"
+	uci set firewall."$section".name="$name"
+	uci set firewall."$section".src="$src"
+	uci set firewall."$section".dest="$dest"
+	uci set firewall."$section".target='MASQUERADE'
+	uci set firewall."$section".family='ipv4'
+	uci set firewall."$section".enabled='1'
+	uci set firewall."$section".mvpn='1'
+}
+
+sync_nats() {
+	local id="$1"
+	local zone="$2"
+	local hex
+
+	hex="$(printf '%02x' "$((id & 255))")"
+	[ $((id & 16)) -ne 0 ] && ensure_nat lan "$zone" "mvpn_${hex}_l2v"
+	[ $((id & 32)) -ne 0 ] && ensure_nat wan "$zone" "mvpn_${hex}_w2v"
+	[ $((id & 64)) -ne 0 ] && ensure_nat "$zone" lan "mvpn_${hex}_v2l"
+	[ $((id & 128)) -ne 0 ] && ensure_nat "$zone" wan "mvpn_${hex}_v2w"
+}
+
+detach_stale_vpn_networks() {
+	local section zone networks net kept
+
+	for section in $(uci -q show firewall | sed -n "s/^firewall\\.\\([^.=]*\\)=zone$/\\1/p"); do
+		zone="$(uci -q get firewall."$section".name)"
+		case "$zone" in
+			vpn_p*) ;;
+			*) continue ;;
+		esac
+
+		networks="$(uci -q get firewall."$section".network)"
+		kept=
+		for net in $networks; do
+			local managed=
+			for iface in $VPN_IFACES; do
+				[ "$iface" = "$net" ] && managed=1 && break
+			done
+
+			if [ -z "$managed" ] && is_short_vpn_iface "$net"; then
+				continue
+			fi
+
+			append kept "$net"
+		done
+
+		if [ -n "$kept" ]; then
+			uci set firewall."$section".network="$kept"
+		else
+			uci delete firewall."$section".network 2>/dev/null
+		fi
+	done
+}
+
+sync_interface_zones() {
+	local iface policy
+
+	for iface in $VPN_IFACES; do
+		policy="$(uci -q get network."$iface".vp)"
+		[ -n "$policy" ] || continue
+		sync_interface_zone "$iface" "$((policy & 255))"
+	done
+}
+
+config_load network
+config_foreach collect_vpn_interface interface
+
+detach_stale_vpn_networks
+sync_interface_zones
+delete_managed_forwardings
+delete_managed_nats
+
+for policy in $VPN_POLICIES; do
+	zone_section="$(ensure_zone_base "$policy")"
+	zone_name="$(uci -q get firewall."$zone_section".name)"
+	sync_forwardings "$policy" "$zone_name"
+	sync_nats "$policy" "$zone_name"
+done
+
+uci commit firewall
+
+exit 0

@@ -22,6 +22,7 @@ set -u
 # ---------------------------------------------------------------- firmware
 # Both images are raw UBI. They are written to both banks by the staged
 # platform.sh, because this board boots the bank the stock writer ignores.
+A_FAMILY="ImmortalWrt"
 A_NAME="ImmortalWrt 25 (Chester)"
 A_DESC="Vendor-style interface: dashboard, modem pages, port map, VPN, QModem.
              Closest to the firmware the router shipped with."
@@ -29,12 +30,13 @@ A_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/Ches
 A_SHA="d1740c6f75ae7de00703d08b4acda859761fe6dac67d2a402c18588df83c1859"
 A_SIZE=23592960
 
+B_FAMILY="OpenWrt"
 B_NAME="OpenWrt 25 (official)"
 B_DESC="Stock OpenWrt with LuCI and QModem. Newer kernel (6.18), package feeds
              that match the build, upstream support. Fewer vendor pages."
-B_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/firmware/chester-openwrt25-20260824010243-factory.bin"
-B_SHA="94bc1171f4e406b2df463e3998ca98d3aecebdb4b8ec45ca61d3886252ea01ca"
-B_SIZE=14680064
+B_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/firmware/chester-openwrt25-20260824040227-factory.bin"
+B_SHA="fac91847ff475d1beeec0cc3fd69c787b88d339f00446be09a437b8bcd2683cd"
+B_SIZE=14811136
 
 PLATFORM_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/platform.sh"
 
@@ -105,14 +107,36 @@ if [ -z "$CHOICE" ]; then
 fi
 
 case "$CHOICE" in
-    1) NAME="$A_NAME"; URL="$A_URL"; SHA="$A_SHA"; SIZE="$A_SIZE" ;;
-    2) NAME="$B_NAME"; URL="$B_URL"; SHA="$B_SHA"; SIZE="$B_SIZE" ;;
+    1) NAME="$A_NAME"; URL="$A_URL"; SHA="$A_SHA"; SIZE="$A_SIZE"; FAMILY="$A_FAMILY" ;;
+    2) NAME="$B_NAME"; URL="$B_URL"; SHA="$B_SHA"; SIZE="$B_SIZE"; FAMILY="$B_FAMILY" ;;
     3|c|C|q|Q) printf '\n  Cancelled. Nothing was changed.\n\n'; exit 0 ;;
     *) die "invalid choice '$CHOICE'" ;;
 esac
 
 printf '\n'
 ok "selected: $NAME"
+
+# Settings cannot be carried between firmware families: the two use different
+# config layouts, so a preserved /etc/config produces a router that boots to no
+# network. That is why the flash below is unconditionally sysupgrade -n.
+CURRENT=$(sed -n "s/^DISTRIB_ID='\(.*\)'$/\1/p" /etc/openwrt_release 2>/dev/null)
+[ -n "$CURRENT" ] || CURRENT="unknown"
+info "currently running: $CURRENT"
+
+printf '\n'
+if [ "$CURRENT" != "unknown" ] && [ "$CURRENT" != "$FAMILY" ]; then
+    warn "MIGRATION: $CURRENT  ->  $FAMILY"
+    warn "This changes firmware family, so NOTHING is carried over."
+else
+    warn "This is a clean install. NOTHING is carried over."
+fi
+info "These are ERASED and go back to defaults:"
+info "  - Wi-Fi name and password  (back to 5G_CPE / 123456789)"
+info "  - LAN address and DHCP     (back to 192.168.100.1)"
+info "  - admin password           (back to none - set one after)"
+info "  - APN and modem settings"
+info "  - installed packages, VPN profiles, port forwards"
+info "Write down anything you still need before continuing."
 
 NEED=$(( (SIZE / 1024) + 4096 ))
 [ "$FREE" -ge "$NEED" ] || die "not enough space in /tmp (${FREE}K free, need ${NEED}K)"
