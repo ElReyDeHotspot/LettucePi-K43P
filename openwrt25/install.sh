@@ -124,14 +124,23 @@ ok "selected: $NAME"
 # too, so asking it would call a migration a clean install. Newer builds stamp
 # the answer; older ones are identified by the vendor updater, which only ever
 # shipped on the ImmortalWrt side.
-if [ -r /etc/chester-family ]; then
-    CURRENT=$(tr -d '[:space:]' < /etc/chester-family 2>/dev/null)
-elif [ -f /usr/sbin/chester-update ] || [ -f /etc/chester-version ]; then
-    CURRENT="ImmortalWrt"
-elif grep -qi immortalwrt /etc/openwrt_release 2>/dev/null; then
-    CURRENT="ImmortalWrt"
-else
-    CURRENT="OpenWrt"
+CURRENT=""
+[ -r /etc/chester-family ] && CURRENT=$(cat /etc/chester-family 2>/dev/null)
+# Only trust a stamp we recognise. busybox tr has no [:space:] class -- it
+# deletes those characters literally -- so the stamp is validated rather than
+# scrubbed, and command substitution has already dropped the trailing newline.
+case "$CURRENT" in
+    ImmortalWrt|OpenWrt) ;;
+    *) CURRENT="" ;;
+esac
+if [ -z "$CURRENT" ]; then
+    if [ -f /usr/sbin/chester-update ] || [ -f /etc/chester-version ]; then
+        CURRENT="ImmortalWrt"
+    elif grep -qi immortalwrt /etc/openwrt_release 2>/dev/null; then
+        CURRENT="ImmortalWrt"
+    else
+        CURRENT="OpenWrt"
+    fi
 fi
 info "currently running: $CURRENT"
 
