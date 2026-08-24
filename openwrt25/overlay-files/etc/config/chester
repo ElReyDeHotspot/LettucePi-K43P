@@ -3,10 +3,7 @@ config display 'clients'
 	option filtermode 'blacklist'
 	# The switch numbers its ports in reverse of the sockets on the case:
 	# leftmost socket is lan4. Label them the way the case is printed.
-	option port_labels 'lan4=LAN1 lan3=LAN2 lan2=LAN3 wan=WAN'
-	# In LAN mode the WAN socket is bridged into the LAN, so it becomes LAN1
-	# and the other three shift up one.
-	option port_labels_lan 'wan=LAN1 lan4=LAN2 lan3=LAN3 lan2=LAN4'
+	option port_labels 'lan4=LAN1 lan3=LAN2 lan2=LAN3 wan=WAN/LAN'
 	# lan1 is declared by the switch but wired to no socket on this board.
 	option hidden_ports 'lan1'
 	option temp_node 'modem'
@@ -30,7 +27,7 @@ config network 'network_defaults'
 	option wan_role 'wan'
 	option wan_device ''
 	option optional_wan ''
-	option optional_wan_mode 'wan'
+	option optional_wan_mode 'lan'
 
 config modem 'modem_cfg_main'
 	list hidden_lockband 'UMTS'

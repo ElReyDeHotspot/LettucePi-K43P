@@ -31,7 +31,7 @@ chester,m01k43-usb|\
 chester,m01k43-usb-p|\
 chester,m02k45|\
 chester,m02k45-emmc)
-	set_chester_network_defaults "wan" "wan" "wan" "wan"
+	set_chester_network_defaults "wan" "wan" "wan" "lan"
 	;;
 esac
 
