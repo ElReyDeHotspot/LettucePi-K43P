@@ -1,9 +1,9 @@
 {
   "version": "25.12",
-  "built": "2026-08-24T04:15Z",
-  "build": "20260824041540",
-  "sha256": "ddcc0a8c86ff8de8fe0e249c6e4ae721b1c250fd2f12ae05b86511a779230811",
-  "size": "23592960",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/14-2026-08-24-ChesterK43P-25.12.bin",
-  "notes": "Final ImmortalWrt build. Stepping stone to OpenWrt 25: its updater no longer keeps settings and reads next.json, so latest.json can stay pinned here for older routers."
+  "built": "2026-08-24T04:02Z",
+  "build": "20260824040227",
+  "sha256": "fac91847ff475d1beeec0cc3fd69c787b88d339f00446be09a437b8bcd2683cd",
+  "size": "14811136",
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/firmware/chester-openwrt25-20260824040227-factory.bin",
+  "notes": "OpenWrt 25 snapshot. Settings are NOT kept - Wi-Fi, LAN address, admin password and APN return to defaults."
 }
