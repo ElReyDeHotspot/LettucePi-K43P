@@ -1,4 +1,23 @@
 {
+    "setup": {
+        "title": "Setup Wizard",
+        "order": 1,
+        "hidden": true,
+        "action": {
+            "type": "view",
+            "path": "misectel-dashboard/setup-wizard"
+        },
+        "auth": {},
+        "depends": {
+            "uci": {
+                "misectel": {
+                    "setup": {
+                        "completed": "0"
+                    }
+                }
+            }
+        }
+    },
     "admin/dashboard": {
         "title": "Overview",
         "order": 5,
