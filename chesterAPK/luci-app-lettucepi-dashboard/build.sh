@@ -4,7 +4,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 APK="${APK_TOOLS:-/root/apk-tools/build/src/apk}"
 KEY="${1:-/mnt/c/Users/CTR/claude/k43p-factory/keys/chester-apk.key}"
-VERSION="${VERSION:-1.1.0-r1}"
+VERSION="${VERSION:-1.1.1-r1}"
 OUT="$HERE/../luci-app-lettucepi-dashboard-$VERSION.apk"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
