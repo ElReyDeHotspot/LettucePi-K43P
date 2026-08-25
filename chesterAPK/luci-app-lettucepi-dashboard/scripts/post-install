@@ -20,6 +20,34 @@ fi
 # rather than a dash that fills in 30s later.
 [ -x /usr/sbin/chester-modem-temp ] && /usr/sbin/chester-modem-temp refresh >/dev/null 2>&1 &
 
+# Retire the phantom lan4.
+#
+# Images up to and including bin 20 patched board.d to declare a fourth LAN
+# port this board does not have, so first boot baked lan4 into board.json.
+# The Overview draws its ports from luci.getBuiltinEthernetPorts, which reads
+# board.json -- not uci -- so the extra socket kept appearing even after the
+# uci port list was corrected. Newer images never write it, but a box already
+# in the field has it stamped in and only this can clear it.
+#
+# Guarded on the netdev being absent: if some future variant really does have
+# a fourth LAN port, this must not strip it.
+if [ -f /etc/board.json ] && ! [ -e /sys/class/net/lan4 ] \
+	&& grep -q '"lan4"' /etc/board.json; then
+	cp -a /etc/board.json /etc/board.json.pre-lan4
+	sed -i '/^[[:space:]]*"lan4"[[:space:]]*$/d' /etc/board.json
+	# The removal leaves the previous entry with a dangling comma.
+	sed -i 's/^\([[:space:]]*"lan3"\),$/\1/' /etc/board.json
+	# Never leave the file unparseable -- rpcd reads it for half the status UI.
+	if ! jsonfilter -i /etc/board.json -e '@.network' >/dev/null 2>&1; then
+		cp -a /etc/board.json.pre-lan4 /etc/board.json
+	fi
+fi
+
+# And out of the bridge, where it was equally inert.
+if ! [ -e /sys/class/net/lan4 ]; then
+	uci -q del_list network.@device[0].ports='lan4' && uci -q commit network
+fi
+
 rm -f /tmp/luci-indexcache* 2>/dev/null
 rm -rf /tmp/luci-modulecache 2>/dev/null
 [ -x /etc/init.d/rpcd ] && /etc/init.d/rpcd restart >/dev/null 2>&1
