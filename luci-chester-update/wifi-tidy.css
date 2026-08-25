@@ -1,0 +1,79 @@
+
+/* ------------------------------------------------------------------ */
+/* Chester: Wi-Fi page layout                                          */
+/*                                                                     */
+/* Scoped to .misectel-page--wifi, the class the Wi-Fi view already     */
+/* puts on its root, so nothing else in the UI is affected.            */
+/*                                                                     */
+/* The page was ragged for three reasons, all fixed below.             */
+/* ------------------------------------------------------------------ */
+
+/* 1. Field hints were `text-align: right` inside a `space-between`
+      flex head that also wrapped. So a hint sat to the RIGHT of its
+      label on a wide column and jumped BELOW it on a narrow one --
+      every field's label line landing at a different place. Put the
+      hint under the label, left aligned, always. */
+.misectel-page--wifi .misectel-field__head {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 4px;
+}
+
+.misectel-page--wifi .misectel-field__help {
+	flex: none;
+	text-align: left;
+}
+
+/* 2. .misectel-form-grid is a TWO-COLUMN grid, and the fields have
+      unequal natural heights (some carry a hint, some an inline
+      checkbox, some neither). Grid rows are sized by their tallest
+      cell, so the controls stair-stepped down the page. A common
+      minimum makes every row the same height and lines the inputs up
+      across both columns. */
+.misectel-page--wifi .misectel-field {
+	min-height: 92px;
+	justify-content: flex-start;
+}
+
+/* Controls fill their column, so the right-hand edge is a straight
+   line instead of following each control's natural width. */
+.misectel-page--wifi .misectel-input,
+.misectel-page--wifi .misectel-select {
+	min-height: 40px;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.misectel-page--wifi .misectel-select-wrap {
+	width: 100%;
+}
+
+/* The checkbox row is shorter than an input; match it so the row it
+   shares with a text field does not sit off-centre. */
+.misectel-page--wifi .misectel-inline-check {
+	min-height: 40px;
+}
+
+/* 3. The two band cards sit in an auto-fit grid and were sized
+      independently, so 2.4 GHz and 5.8 GHz ended at different
+      heights. Stretch them to match. */
+.misectel-page--wifi .misectel-grid {
+	align-items: stretch;
+}
+
+.misectel-page--wifi .misectel-grid > .misectel-card {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+/* One column on small screens -- the forced row height only helps when
+   there are two columns to align. */
+@media (max-width: 720px) {
+	.misectel-page--wifi .misectel-form-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.misectel-page--wifi .misectel-field {
+		min-height: 0;
+	}
+}

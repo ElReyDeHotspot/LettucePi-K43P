@@ -1,0 +1,41 @@
+{%
+	import { getuid, getspnam } from 'luci.core';
+	const boardinfo = ubus.call('system', 'board');
+	http.prepare_content('text/html; charset=UTF-8');
+-%}
+<!DOCTYPE html>
+<html lang="{{ dispatcher.lang }}" data-darkmode="true">
+	<head>
+		<meta charset="utf-8">
+		<title>{{ striptags(`LettucePi${dispatched?.title ? ` | ${_(dispatched.title)}` : ''}`) }}</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+		<meta name="theme-color" content="#04111f">
+		<meta name="darkreader-lock">
+		<link rel="stylesheet" href="{{ media }}/cascade.css?v=0.1.0">
+		<link rel="icon" href="{{ media }}/logo.svg" sizes="any">
+		{% if (node?.css): %}<link rel="stylesheet" href="{{ resource }}/{{ node.css }}">{% endif %}
+		{% if (css): %}<style title="text/css">{{ css }}</style>{% endif %}
+		<script src="{{ dispatcher.build_url('admin/translations', dispatcher.lang) }}"></script>
+		<script src="{{ resource }}/cbi.js"></script>
+	</head>
+	<body class="lang_{{ dispatcher.lang }} {{ entityencode(striptags(node?.title ?? ''), true) }}" data-page="{{ entityencode(join('-', ctx.request_path), true) }}">
+		{% if (!blank_page): %}
+		<header>
+			<a class="brand" href="{{ dispatcher.build_url('admin') }}">
+				<img src="{{ media }}/logo.svg" alt="">
+				<span><strong>LettucePi</strong><small>K43P</small></span>
+			</a>
+			<div class="lp-header-status"><i></i><span>Router Online</span></div>
+			<ul class="nav" id="topmenu" style="display:none"></ul>
+			<div id="indicators" class="pull-right"></div>
+		</header>
+		<div id="maincontent" class="container">
+			{% if (getuid() == 0 && getspnam('root')?.pwdp === ''): %}
+			<div class="alert-message warning"><h4>{{ _('No password set!') }}</h4><p>{{ _('Set a root password to protect this router.') }}</p></div>
+			{% endif %}
+			{% if (boardinfo.rootfs_type == 'initramfs'): %}
+			<div class="alert-message warning"><h4>{{ _('Recovery mode') }}</h4><p>{{ _('Settings will not survive a reboot while recovery mode is active.') }}</p></div>
+			{% endif %}
+			<noscript><div class="alert-message warning">{{ _('JavaScript is required for this interface.') }}</div></noscript>
+			<div id="tabmenu" style="display:none"></div>
+		{% endif %}

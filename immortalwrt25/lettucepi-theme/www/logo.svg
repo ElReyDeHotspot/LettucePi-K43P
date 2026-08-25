@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="LettucePi">
+  <rect x="2" y="2" width="60" height="60" rx="17" fill="#063044" stroke="#16c6e8" stroke-width="2"/>
+  <path d="M46 13C28 16 17 27 17 43c0 5 3 8 8 8 16 0 26-17 21-38Z" fill="none" stroke="#20d6f3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M20 48c6-12 13-20 24-29M26 39c5 0 9-1 13-4" fill="none" stroke="#83ff67" stroke-width="2.4" stroke-linecap="round"/>
+</svg>

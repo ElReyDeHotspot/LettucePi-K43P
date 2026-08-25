@@ -1,0 +1,103 @@
+			</div>
+			<footer class="mobile-hide">
+				<span class="footer-brand">Misectel LuCI Theme</span>
+				<span class="footer-meta">
+					<a href="https://github.com/openwrt/luci" target="_blank" rel="noreferrer">{{ _('Powered by') }} {{ version.luciname }} ({{ version.luciversion }})</a>
+					/
+					{{ version.distname }} {{ version.distversion }} ({{ version.distrevision }})
+				</span>
+			</footer>
+		</div>
+	</div>
+
+	<script>L.require('menu-misectel')</script>
+	<script>
+	(function() {
+		if (!document.body.classList.contains('node-main-login'))
+			return;
+
+		const main = document.querySelector('.node-main-login > .main');
+		const container = document.querySelector('.node-main-login #maincontent > .container');
+		const form = document.querySelector('.node-main-login form');
+		const textInput = document.querySelector('.node-main-login input[type="text"]');
+		const passwordInput = document.querySelector('.node-main-login input[type="password"]');
+		const submitButton = document.querySelector('.node-main-login input[type="submit"], .node-main-login .cbi-button');
+		const valueFields = Array.from(document.querySelectorAll('.node-main-login .cbi-value-field'));
+		const setupRequired = document.body.getAttribute('data-setup-required') === '1';
+
+		if (main && !main.querySelector('.login-bg-bubbles')) {
+			const bubbles = document.createElement('ul');
+			bubbles.className = 'login-bg-bubbles';
+
+			for (let i = 0; i < 10; i++)
+				bubbles.appendChild(document.createElement('li'));
+
+			main.appendChild(bubbles);
+		}
+
+		if (container && !container.querySelector('.login-shell-card-title')) {
+			const title = document.createElement('div');
+			title.className = 'login-shell-card-title';
+			title.innerHTML = '<span>5G Wireless Data Terminal</span>';
+			container.insertBefore(title, container.firstChild);
+		}
+
+		if (form && container && !container.querySelector('.login-shell-body')) {
+			const body = document.createElement('div');
+			body.className = 'login-shell-body';
+			form.parentNode.insertBefore(body, form);
+			body.appendChild(form);
+		}
+
+		const loginBody = container ? container.querySelector('.login-shell-body') : null;
+
+		document.querySelectorAll('.node-main-login .cbi-section-descr, .node-main-login .cbi-value-title, .node-main-login .cbi-map-descr').forEach((el) => el.remove());
+		document.querySelectorAll('.node-main-login p, .node-main-login .cbi-map-descr').forEach((el) => {
+			const text = (el.textContent || '').trim();
+
+			if (text === 'Please enter your username and password.')
+				el.remove();
+		});
+
+		valueFields.forEach((field, index) => {
+			field.classList.add('login-field');
+			field.classList.add(index === 0 ? 'login-field-user' : 'login-field-password');
+
+			if (!field.querySelector('.login-field-icon')) {
+				const icon = document.createElement('span');
+				icon.className = 'login-field-icon';
+				field.prepend(icon);
+			}
+		});
+
+		if (textInput) {
+			if (!textInput.value)
+				textInput.value = 'admin';
+			textInput.placeholder = '{{ entityencode(_("Username"), true) }}';
+			textInput.classList.add('login-user-input');
+		}
+
+		if (passwordInput) {
+			passwordInput.placeholder = '{{ entityencode(_("Enter password"), true) }}';
+			passwordInput.classList.add('login-password-input');
+		}
+
+		if (submitButton) {
+			if ('value' in submitButton)
+				submitButton.value = '{{ entityencode(_("Log in"), true) }}';
+			if (submitButton.tagName === 'BUTTON')
+				submitButton.textContent = '{{ entityencode(_("Log in"), true) }}';
+			submitButton.classList.add('login-submit-button');
+		}
+
+		if (form)
+			form.setAttribute('autocomplete', 'on');
+
+		if (setupRequired)
+			window.location.replace('{{ entityencode(dispatcher.build_url("setup"), true) }}');
+	})();
+	</script>
+	<script src="/luci-static/resources/wifi-polish-plain.js?v=7"></script>
+
+</body>
+</html>

@@ -8,7 +8,17 @@
 # reaches it through an rpcd ACL that permits exactly these arguments.
 set -u
 
-MANIFEST_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/latest.json"
+# This build reads its OWN manifest, not latest.json.
+#
+# latest.json stays pinned at this build forever, so a router on any older
+# ImmortalWrt only ever sees this one -- the stepping stone. Those older
+# builds flash with sysupgrade -k, and reaching OpenWrt 25 that way would
+# carry an ImmortalWrt /etc/config onto it and strand the box.
+#
+# Only a router already running THIS build reads next.json, and this build
+# flashes with -n. So pointing next.json at OpenWrt 25 migrates exactly the
+# routers that can survive the crossing, and nothing else.
+MANIFEST_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/next.json"
 # raw.githubusercontent caches at the edge for minutes, so a freshly published
 # release would otherwise show up late. A unique query string per check avoids
 # serving the customer a stale answer.
@@ -76,10 +86,18 @@ install)
 	sync
 
 	echo "OK: installing, the router will restart"
-	# No -n: keep settings. Detached so the HTTP response is not cut off.
-	# -k also saves the list of user-installed packages, which
-	# /etc/init.d/chester-restore-pkgs reinstalls on the new firmware.
-	( sleep 2; sysupgrade -k "$IMG" >>"$LOG" 2>&1 ) >/dev/null 2>&1 &
+	# -n: do NOT keep settings.
+	#
+	# This is the last ImmortalWrt build; the update after it moves the router
+	# to OpenWrt 25. The two use different config layouts -- ImmortalWrt names
+	# the modem interface pcie0, OpenWrt names it after the PCI slot -- so a
+	# preserved /etc/config produces a router that boots to no network. The
+	# earlier -k could not express that, which is why this build exists: it is
+	# the stepping stone that teaches the fleet to wipe on the way across.
+	#
+	# The image carries its own /etc/shadow (root/admin), so a wipe still
+	# leaves a usable login. Detached so the HTTP response is not cut off.
+	( sleep 2; sysupgrade -n "$IMG" >>"$LOG" 2>&1 ) >/dev/null 2>&1 &
 	;;
 *)
 	echo "usage: chester-update status|install" >&2; exit 2 ;;

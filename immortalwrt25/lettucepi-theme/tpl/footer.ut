@@ -1,0 +1,11 @@
+		{% if (!blank_page): %}
+		</div>
+		<footer>
+			<span>LettucePi K43P</span>
+			<span class="lp-footer-version">{{ version.distname }} {{ version.distversion }}</span>
+			<ul class="breadcrumb pull-right" id="modemenu" style="display:none"></ul>
+		</footer>
+		<script>L.require('menu-bootstrap')</script>
+		{% endif %}
+	</body>
+</html>

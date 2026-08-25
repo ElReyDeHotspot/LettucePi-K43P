@@ -1,0 +1,5 @@
+chain postrouting {
+    type filter hook postrouting priority mangle; policy accept;
+    iifname "br-lan" ip ttl set 64 comment "Reset TTL for br-lan IPv4"
+    iifname "br-lan" meta l4proto != ipv6-icmp ip6 hoplimit set 64 comment "Reset Hop Limit for forwarded br-lan IPv6"
+}

@@ -1,0 +1,17 @@
+{% include('header', { blank_page: true }) %}
+<main class="lp-login-shell">
+	<section class="lp-login-card">
+		<div class="lp-login-brand"><img src="{{ media }}/logo.svg" alt=""><div><strong>LettucePi</strong><span>K43P</span></div></div>
+		<h1>Welcome</h1>
+		<p>Sign in to manage your router.</p>
+		<form method="post" class="cbi-map">
+			<label for="luci_username">{{ _('Username') }}</label>
+			<input name="luci_username" id="luci_username" type="text" autocomplete="username" value="{{ entityencode(duser, true) }}">
+			<label for="luci_password">{{ _('Password') }}</label>
+			<input name="luci_password" id="luci_password" type="password" autocomplete="current-password" autofocus>
+			{% if (fuser): %}<div class="alert-message error">{{ _('Invalid username or password.') }}</div>{% endif %}
+			<button type="submit" class="btn cbi-button-positive important">{{ _('Log in') }}</button>
+		</form>
+	</section>
+</main>
+{% include('footer', { blank_page: true }) %}

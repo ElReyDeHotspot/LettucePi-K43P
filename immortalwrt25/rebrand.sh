@@ -1092,6 +1092,78 @@ grep -q 'downloads\.openwrt\.org' "$R/etc/apk/repositories.d/distfeeds.list" \
 echo "  banner, openwrt_release, os-release, device_info -> OpenWrt $VER ($REV)"
 echo "  package feeds on downloads.openwrt.org"
 
+# ------------------------------------------- 11. our own LuCI packages
+# Baked in LAST, on purpose. These packages carry files that earlier steps in
+# this script also patch (overview.js, dashboard.css, cascade.css). Their
+# contents were harvested from a working bench box that was itself built by
+# this script, so they are a superset of what those steps produce -- letting
+# them land last means the image matches the box that was actually tested,
+# rather than a merge of two sources that was never run anywhere.
+#
+# apk extract only unpacks; it does not run post-install. Anything those
+# scripts would have done is handled by the uci-defaults entry below.
+step "LettucePi LuCI packages"
+
+install_feed_apk() {    # install_feed_apk <package-name>
+	pkg="$1"
+
+	# Prefer a local build: when packaging and imaging in the same sitting,
+	# the newest package exists here before it is ever published.
+	src=""
+	if [ -d "$APKSRC" ]; then
+		src=$(ls "$APKSRC"/$pkg-*.apk 2>/dev/null | sort -V | tail -1)
+	fi
+
+	if [ -z "$src" ]; then
+		ver=$("$APKBIN" adbdump "$WORK/feed.adb" 2>/dev/null \
+			| awk -v p="$pkg" '/name:/{n=$NF} /version:/{if(n==p) v=$NF} END{print v}')
+		[ -n "$ver" ] || { echo "  SKIP $pkg (not local, not published)"; return 1; }
+		curl -fsSL --max-time 120 "$FEED/$pkg-$ver.apk" -o "$WORK/$pkg.apk" \
+			|| { echo "  SKIP $pkg (download failed)"; return 1; }
+		src="$WORK/$pkg.apk"
+	fi
+
+	rm -rf "$WORK/pkg"; mkdir -p "$WORK/pkg"
+	"$APKBIN" extract --allow-untrusted --destination "$WORK/pkg" "$src" >/dev/null 2>&1 \
+		|| { echo "  SKIP $pkg (extract failed)"; return 1; }
+
+	for d in etc usr www; do
+		[ -d "$WORK/pkg/$d" ] && cp -a "$WORK/pkg/$d/." "$R/$d/"
+	done
+	echo "  $(basename "$src")"
+	return 0
+}
+
+# The feed index, for whichever packages are not built locally.
+curl -fsSL --max-time 40 "$FEED/packages.adb?cb=$(date +%s)" -o "$WORK/feed.adb" 2>/dev/null || true
+
+install_feed_apk luci-app-lettucepi-dashboard || true
+install_feed_apk luci-app-lettucepi-zapret    || true
+
+# Services these packages own. Enabling by hand here would mean writing
+# /etc/rc.d symlinks into the rootfs, and a plain file there (rather than a
+# symlink) makes procd register the service under its rc.d name, so a later
+# restart runs two daemons. Letting the target enable them on first boot
+# avoids that class of mistake entirely.
+#
+# The 4K/HD engine is deliberately NOT started: it ships staged so the
+# operator turns it on from the Overview.
+cat > "$R/etc/uci-defaults/98-lettucepi-services" <<'UCID'
+#!/bin/sh
+# WAN socket LED watchdog. It only writes a PHY register when that register is
+# actually wrong, so it cannot fight a firmware that already sets them.
+if [ -x /etc/init.d/chester-phy-led ]; then
+	/etc/init.d/chester-phy-led enable
+	/etc/init.d/chester-phy-led start
+fi
+# Prime the modem temperature cache so the Overview shows a number on first
+# paint rather than a dash.
+[ -x /usr/sbin/chester-modem-temp ] && /usr/sbin/chester-modem-temp refresh >/dev/null 2>&1 &
+exit 0
+UCID
+chmod 0755 "$R/etc/uci-defaults/98-lettucepi-services"
+echo "  /etc/uci-defaults/98-lettucepi-services (phy-led enable, temp cache)"
+
 # ------------------------------------------------------------------ repack
 step "Repacking squashfs"
 mksquashfs "$R" "$WORK/rootfs.squashfs" \

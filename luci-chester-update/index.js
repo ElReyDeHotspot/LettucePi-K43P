@@ -33,7 +33,7 @@ return view.extend({
 		ui.showModal(_('Update firmware'), [
 			E('p', {}, _('The router will download the update, check it, install it and restart.')),
 			E('ul', {}, [
-				E('li', {}, _('Your settings are kept.')),
+				E('li', { 'class': 'alert-message warning' }, _('Your settings are NOT kept. Wi-Fi name and password, LAN address, admin password and APN all return to factory defaults.')),
 				E('li', {}, _('Packages you installed yourself are not kept.')),
 				E('li', {}, _('Do not unplug the router while it works.'))
 			]),
@@ -116,7 +116,7 @@ return view.extend({
 				}, _('Install update'))
 			]));
 			body.push(E('p', {}, [ E('small', {},
-				_('Your settings are kept. Packages you installed yourself are not.')) ]));
+				_('This update does NOT keep your settings. Write down your Wi-Fi name, password and APN first.')) ]));
 		}
 
 		return E('div', {}, body);
