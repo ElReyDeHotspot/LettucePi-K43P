@@ -2141,12 +2141,21 @@
 
 /* Keep the stat cards to a single line each: the labels and the memory
    figure are the ones long enough to wrap at a third of the width. */
-.misectel-dashboard-stat__label,
+/* The label is deliberately NOT in this list. Clipping it turns 'Memory'
+ * into 'm...' once the cards are narrow, which tells the reader nothing.
+ * The value and hint still clip -- a long byte figure should stay on one
+ * line rather than reflow the card. */
 .misectel-dashboard-stat__hint,
 .misectel-dashboard-stat__value {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+.misectel-dashboard-stat__label {
+	white-space: normal;
+	overflow: visible;
+	text-overflow: clip;
 }
 
 @media screen and (max-width: 560px) {

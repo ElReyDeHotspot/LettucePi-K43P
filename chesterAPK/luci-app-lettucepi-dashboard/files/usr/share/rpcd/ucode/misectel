@@ -465,6 +465,46 @@ const methods = {
 	// the TLS SNI; tpws splits the ClientHello so the hostname is
 	// never intact in one packet. Toggling it also sets the boot
 	// flag, so the switch means the same thing after a reboot.
+	// The 2.5G socket can act as a WAN uplink or as another LAN
+	// port. misectel-optional-wan reads optional_wan_mode at boot
+	// to decide; wan_role only NAMES which network interface it is
+	// (default 'wan') and is not the switch -- setting that instead
+	// changes nothing and looks like the toggle is broken.
+	wan_to_lan: {
+		call: function() {
+			let ctx = cursor();
+			let mode = ctx ? ctx.get('misectel', 'network_defaults',
+				'optional_wan_mode') : null;
+
+			return { enabled: (mode == 'lan') };
+		}
+	},
+
+	set_wan_to_lan: {
+		args: { enabled: 'String' },
+		call: function(request) {
+			let want = trimSafe(request.args.enabled);
+			let on = !(want == '0' || lc(want) == 'false' || lc(want) == 'off');
+			let ctx = cursor();
+
+			if (!ctx)
+				return { success: false, message: 'failed to open uci cursor' };
+
+			ctx.set('misectel', 'network_defaults', null, 'network');
+			ctx.set('misectel', 'network_defaults', 'optional_wan_mode', on ? 'lan' : 'wan');
+			ctx.commit('misectel');
+
+			// Detached, and deliberately so: this reloads the
+			// network, which drops the very connection that asked
+			// for it when the caller is plugged into that socket.
+			// Answering first at least lets the UI report success
+			// before the link goes.
+			readCommandOutput('(/etc/init.d/misectel-optional-wan restart; /etc/init.d/network reload) >/dev/null 2>&1 &');
+
+			return { success: true, enabled: on };
+		}
+	},
+
 	video_engine: {
 		call: function() {
 			let running = trimSafe(readCommandOutput(

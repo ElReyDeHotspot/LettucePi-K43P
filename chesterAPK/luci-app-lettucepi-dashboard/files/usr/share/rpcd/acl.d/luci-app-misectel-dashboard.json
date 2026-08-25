@@ -39,7 +39,8 @@
                     "tcp_connections",
                     "temp_status",
                     "ttl_status",
-                    "video_engine"
+                    "video_engine",
+                    "wan_to_lan"
                 ],
                 "iwinfo": [
                     "info",
@@ -71,7 +72,8 @@
                 "misectel": [
                     "set_led_power",
                     "set_ttl",
-                    "set_video_engine"
+                    "set_video_engine",
+                    "set_wan_to_lan"
                 ]
             }
         }
