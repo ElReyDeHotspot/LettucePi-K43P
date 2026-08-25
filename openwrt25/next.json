@@ -1,10 +1,10 @@
 {
   "family": "ImmortalWrt",
   "version": "25.12",
-  "built": "2026-08-24T04:15Z",
-  "build": "20260824041540",
-  "sha256": "ddcc0a8c86ff8de8fe0e249c6e4ae721b1c250fd2f12ae05b86511a779230811",
-  "size": "23592960",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/14-2026-08-24-ChesterK43P-25.12.bin",
-  "notes": "Current build. OpenWrt 25 is withheld: it does not bring up the modem on some units."
+  "built": "2026-08-25T16:32Z",
+  "build": "20260825163208",
+  "sha256": "7f569641262632ab4fbb465f1220f1a8946601f12744a3fddfddcd780a2e54bf",
+  "size": "25034752",
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/26-2026-08-25-ChesterK43P-25.12.bin",
+  "notes": "4K/HD video engine, WAN/LAN switch on the WAN port, Developer menu, LTE+5G signal, modem temperature. Settings are NOT kept: this flashes with -n, so Wi-Fi, LAN and the admin password return to defaults. OpenWrt 25 is still withheld: it does not bring up the modem on some units."
 }
