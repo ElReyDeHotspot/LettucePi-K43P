@@ -1,132 +1,207 @@
 # Upgrading a Chester K43P
 
-Two ways to move a router forward. Pick by what it is running now.
-
-| Router is on | Do this | Settings |
-|---|---|---|
-| **OpenWrt 25** | **Nothing.** System Update updates it over the air | Kept |
-| ImmortalWrt, any older build | **Nothing.** System Update offers the stepping stone | Kept |
-| ImmortalWrt, final build (`20260824041540`) | System Update, once `next.json` points at OpenWrt 25 | **Erased** |
-| Anything, want OpenWrt 25 now | The one-liner below | **Erased** |
-| A stale build with no System Update page | The one-liner below | **Erased** |
+Every step here was run against a real unit on 2026-08-25: a factory-stock
+M01K43P on OpenWrt 21.02-SNAPSHOT 2.6.0, taken to build `20260825163208`.
+Where something failed, the failure is written down rather than tidied away —
+that is the part worth reading.
 
 ---
 
-## Already on OpenWrt 25? It updates itself
+## 1. Work out what the router is running
 
-Go to **System → Settings → System Update**. The router checks
-`openwrt25/ota.json`, tells you what it is running and what is published, and
-installs with one click. **Settings are kept** — this is a same-family update.
+SSH in (`root`, password `admin` on stock) and run:
 
-Nothing needs to be typed and nobody needs to SSH in. That page is the normal
-way a router moves forward from here.
+```sh
+cat /etc/openwrt_release | grep DISTRIB_DESCRIPTION
+cat /etc/chester-version 2>/dev/null
+uname -r
+```
 
-The updater refuses an image whose manifest is not marked `"family":
-"OpenWrt"`, so a router can never be walked backwards onto ImmortalWrt by a
-mistake in a published manifest.
+| What you see | Which path |
+|---|---|
+| `chester-version` exists | **Path A** — it updates itself |
+| `OpenWrt 21.02-SNAPSHOT`, kernel `5.4.x`, no `chester-version` | **Path B** — factory stock |
+| Anything else with no `chester-version` | **Path B** |
 
 ---
 
-## The one-liner — for a stale router
+## 2. Path A — already on a Chester build
 
-Use this when the router **has no System Update page**, or is too old to reach
-the current build on its own. Builds before `20260824232739` shipped no updater
-at all, so they cannot update themselves and this is the only way forward.
+**System Update**, under **Overview**. It compares the build stamped in
+`/etc/chester-version` against `openwrt25/next.json`, downloads, verifies size
+**and** sha256, stages the correct flash writer, and reboots.
 
-Run it on the router over SSH:
+> ⚠️ **Settings are erased.** It flashes with `sysupgrade -n`. Wi-Fi name and
+> password, LAN address, admin password, APN and port forwards all return to
+> defaults.
+
+**If it says "up to date" and you know it is not, the manifest is stale, not
+the router.** The check is a plain string comparison between the manifest's
+`build` and the installed one, so an un-bumped `next.json` reads as "nothing to
+do" rather than as an error. Fix `next.json`, not the router. This has bitten
+us once already.
+
+---
+
+## 3. Path B — factory stock OpenWrt 21
+
+One line, on the router, over SSH:
 
 ```sh
 wget -qO- https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh
 ```
 
-It installs **OpenWrt 25**. It checks the download and asks you to type `YES`
-before anything is written. Nothing is copied by hand.
+It asks you to type `YES` before writing anything. To drive it unattended, add
+`-s -- --yes`.
 
-No questions asked, for when you are driving it yourself:
+That script does four things that matter, and **all four are required**:
 
-```sh
-wget -qO- https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh -s -- --yes
-```
-
-Check everything and write nothing — safe to run any time:
-
-```sh
-wget -qO- https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh -s -- --dry-run
-```
-
-The installer refuses to run if the board is not a K43P, if the flash layout is
-not what it expects, if the download is the wrong size, if the sha256 does not
-match, or if the image is not a valid UBI image. Every one of those checks
-happens **before** anything is erased, because once the flash is wiped the only
-way back is TFTP or serial.
+1. downloads the image and checks **size and sha256** before touching flash
+2. **replaces `/lib/upgrade/platform.sh` with ours** (see below — this is the
+   step everyone misses)
+3. `sysupgrade -n`
+4. our writer puts the image in **both banks**
 
 ---
 
-## Crossing firmware families erases everything
+## 4. Why the obvious way fails
 
-ImmortalWrt and OpenWrt lay out their configuration differently — ImmortalWrt
-calls the modem interface `pcie0`, OpenWrt names it after the PCI slot
-(`0000_01_00_0`). Carrying one config onto the other produces a router that
-boots to no network at all. So a family change is always a clean install:
+The natural thing to try is to copy the `.bin` over and run `sysupgrade`. It
+does not work, and it fails in a way that looks like success.
 
-- Wi-Fi name and password → back to `5G_CPE` / `123456789`
-- LAN address and DHCP → back to `192.168.100.1`
-- admin password → back to `admin`, **change it immediately after**
-- APN and modem settings
-- installed packages, VPN profiles, port forwards
+### First failure: the vendor image check
 
-Write down anything you still need first. The installer prints this list and
-names the family change before it asks you to confirm.
-
----
-
-## Why there is a stepping stone
-
-Older ImmortalWrt builds update themselves with `sysupgrade -k`, which **keeps**
-settings. There is no way to tell them otherwise — the instruction is compiled
-into the firmware already on the router, not something the server can change.
-If those routers were pointed straight at OpenWrt 25 they would install it while
-preserving an ImmortalWrt config, which is exactly the combination that strands
-a box.
-
-So there are two manifests:
-
-- **`openwrt25/latest.json`** — read by every older ImmortalWrt build. Pinned at
-  the final ImmortalWrt build and left there. Those routers only ever see the
-  stepping stone, and they take it safely because it is the same family.
-- **`openwrt25/next.json`** — read only by the final build, which updates with
-  `sysupgrade -n`. Pointing this at OpenWrt 25 migrates exactly the routers that
-  can survive the crossing, and nothing else.
-
-A router therefore reaches OpenWrt 25 in two safe hops rather than one unsafe
-one: old ImmortalWrt → final ImmortalWrt (settings kept) → OpenWrt 25 (wiped).
-
----
-
-## After the upgrade
-
-The router comes back on **`192.168.100.1`**, Wi-Fi `5G_CPE` / `123456789`,
-admin password **`admin`** — change it straight away under
-*System → Settings → Administration*.
-
-The WAN socket ships bridged into the LAN, so all four sockets are LAN ports
-out of the box. Switch it back under *Network → Settings → Port Mode*.
-
-Give the modem a minute; the dashboard fills in once it registers and dials.
-
-## Verifying a download yourself
-
-Every published image has its sha256 recorded next to it — in
-[`ChesterK43P-Bin/README.md`](ChesterK43P-Bin/README.md) for ImmortalWrt, and in
-`openwrt25/install.sh` for OpenWrt 25. The installer checks it for you and
-refuses to flash on a mismatch, but you can confirm by hand:
-
-```sh
-sha256sum /tmp/snand-ubi.bin
+```
+Image metadata not present
+wt: board name failed(UBI#/M01K43P)
+Image check failed.
 ```
 
-## If it goes wrong
+Our images are raw UBI with no OpenWrt metadata and no vendor header, so the
+stock `wt` (wtcheck) validator reads the first bytes, expects a board name and
+finds `UBI#`.
 
-Both flash banks are written, so there is no fallback bank to boot from. The
-vendor dropbear on port **2222** has been the way back into a half-broken box
-more than once. Failing that, recovery is TFTP or serial.
+### Second failure: `-F` gets past the check and still does not flash
+
+Forcing it (`sysupgrade -F -n`) gets past the check. The unit reboots and comes
+back **still on OpenWrt 21** — in our test it came back on `2.5.2` when it had
+been on `2.6.0`, because it had flipped to the other bank and found an older
+factory image sitting there. Nothing announced a failure.
+
+The reason is in the stock writer:
+
+```sh
+snand_do_upgrade() {
+	local mtdname="ubi2"
+	dd if=$1 of=/tmp/snand-ubi.bin bs=64k skip=1     # <-- strips 64 KiB
+	ubiformat /dev/${mtdpart} -y -f /tmp/snand-ubi.bin
+	wtoem -r
+}
+```
+
+**`skip=1` throws away the first 64 KiB.** Vendor images carry a 64 KiB signed
+header in front of the UBI, so the vendor writer strips it. Ours *is* the UBI,
+starting at byte 0 — so that `dd` cuts 64 KiB out of the middle of real data
+and `ubiformat` writes a corrupt volume. `wtoem -r` then flips the boot bank
+into the corruption, the bootloader falls back, and you land on whatever stale
+image was in the other bank.
+
+It is a good failure mode in one respect: **the dual banks mean a botched
+flash does not brick the unit.** We did it twice and recovered both times.
+
+### The fix
+
+Replace the writer before flashing. Ours:
+
+* does **not** skip 64 KiB — it writes the image as given
+* verifies the `UBI#` magic **before erasing anything**, so a truncated
+  download stops early instead of half-way through
+* looks partitions up **by name**, never by number
+* writes **both** `ubi` and `ubi2`, so there is no stale bank to fall back to
+
+```sh
+wget -qO /lib/upgrade/platform.sh \
+  https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/platform.sh
+sysupgrade -n /tmp/your-image.bin
+```
+
+With ours staged, `-F` is not needed — our `platform_check_image` returns 0.
+Confirm before committing with `sysupgrade -T`: you should see only
+`Image metadata not present`, and **no** `Image check failed`.
+
+> ⚠️ **Never hardcode mtd numbers.** On stock OpenWrt 21 `ubi` is **mtd8** and
+> `ubi2` is **mtd9**. On our ImmortalWrt-derived build they are **mtd7** and
+> **mtd8**. A script with numbers in it writes the wrong partition, and on some
+> layouts could land on the bootloader.
+
+---
+
+## 5. Which image — the two things called "OpenWrt 25"
+
+* **The genuine OpenWrt 25 snapshot** has an open PCIe fault: on some units the
+  modem never appears (`PCIe link down, LTSSM state: detect.quiet`). Two
+  migrated clients lost their modem. **Not shipped.**
+* **The published Chester builds** in `ChesterK43P-Bin/` are ImmortalWrt-derived
+  and *branded* OpenWrt 25 (`rebrand.sh` rewrites the identity strings). These
+  are what `install.sh` and System Update install, and the modem works.
+
+Both report `OpenWrt 25.12-SNAPSHOT`, so the banner cannot tell them apart.
+Trust the build id in `/etc/chester-version`.
+
+---
+
+## 6. Check it worked
+
+```sh
+cat /etc/chester-version          # build should be the new one
+uname -r                          # 6.12.x, not 5.4.x
+ip -4 route show default          # via rmnet_mhi0.1
+ping -c2 1.1.1.1
+ls /sys/bus/pci/devices/          # the modem should be present
+```
+
+From the tested run, after the upgrade:
+
+```
+kernel 6.12.85    OpenWrt 25.12-SNAPSHOT r37830+5    build 20260825163208
+modem  0000:01:00.0, mhi_BHI/DIAG/DUN/QMI0, rmnet_mhi0.1 = 192.0.0.2, internet UP
+```
+
+Two things change across the upgrade and are **not** faults:
+
+* **The PCI address moves.** Stock (kernel 5.4) had the modem at
+  `0001:01:00.0`; ours (6.12) has it at `0000:01:00.0`. Any check pinned to a
+  domain is wrong on one side or the other.
+* **`lan4` disappears.** Kernel 5.4 declares four LAN netdevs on the M01K43P;
+  6.12 declares the three that are actually wired. The dashboard asks the
+  kernel what exists rather than assuming, so it shows 3 LAN + WAN here, 4 on
+  an M02K43 and 5 on an M60K43 — same image, no configuration.
+
+---
+
+## 7. After a clean flash
+
+* **The 2.5G socket goes back to WAN mode.** If your cable is in it you lose
+  access — move to a LAN socket or join Wi-Fi, then flip it back with the
+  **WAN square** on the Overview.
+* **The admin password resets** to the image default.
+* The **4K/HD engine ships staged, not running.** Turn it on from the Overview.
+
+---
+
+## 8. If it goes wrong
+
+The unit has two banks and the bootloader falls back to the good one, so a
+failed flash leaves you with a working router on an older image rather than a
+brick. Get in over SSH and try again — checking that the writer was actually
+staged before you do.
+
+Verify a download by hand at any time:
+
+```sh
+sha256sum /tmp/your-image.bin
+wc -c    < /tmp/your-image.bin
+```
+
+against the `sha256` and `size` in
+[`openwrt25/next.json`](openwrt25/next.json).

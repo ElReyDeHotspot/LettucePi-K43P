@@ -24,9 +24,9 @@
 set -u
 
 FW_NAME="ImmortalWrt (final Chester build)"
-FW_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/14-2026-08-24-ChesterK43P-25.12.bin"
-FW_SHA="ddcc0a8c86ff8de8fe0e249c6e4ae721b1c250fd2f12ae05b86511a779230811"
-FW_SIZE=23592960
+FW_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/26-2026-08-25-ChesterK43P-25.12.bin"
+FW_SHA="7f569641262632ab4fbb465f1220f1a8946601f12744a3fddfddcd780a2e54bf"
+FW_SIZE=25034752
 
 PLATFORM_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/platform.sh"
 PEB=131072
