@@ -8813,3 +8813,11 @@ body[data-page="admin-network-wifi"] .misectel-page--wifi .misectel-card__footer
 	font-weight: 600;
 	letter-spacing: .2px;
 }
+
+/* Developer. Appended rather than slotted in beside the other top-level
+ * icons: those live inside a media block, and a rule added before it would
+ * be overridden. */
+body.logged-in:not(.node-main-login) .nav > li[data-menu-name="developer"],
+body.logged-in:not(.node-main-login) .nav > .slide[data-menu-name="developer"] {
+	--top-menu-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m8 6-6 6 6 6M16 6l6 6-6 6M14 3l-4 18'/%3E%3C/svg%3E");
+}

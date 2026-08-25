@@ -1,0 +1,270 @@
+{
+    "admin/dashboard/channel_analysis": {
+        "hidden": true
+    },
+    "admin/dashboard/realtime": {
+        "hidden": true
+    },
+    "admin/developer": {
+        "action": {
+            "recurse": true,
+            "type": "firstchild"
+        },
+        "order": 90,
+        "title": "Developer"
+    },
+    "admin/developer/dashboard-channel_analysis": {
+        "action": {
+            "path": "admin/dashboard/channel_analysis",
+            "type": "alias"
+        },
+        "order": 61,
+        "title": "Channel Analysis (dashboard)"
+    },
+    "admin/developer/dashboard-realtime": {
+        "action": {
+            "path": "admin/dashboard/realtime",
+            "type": "alias"
+        },
+        "order": 60,
+        "title": "Realtime Graphs (dashboard)"
+    },
+    "admin/developer/modem-advanced": {
+        "action": {
+            "path": "admin/modem/advanced",
+            "type": "alias"
+        },
+        "order": 40,
+        "title": "Cellular Advanced"
+    },
+    "admin/developer/modem-pin": {
+        "action": {
+            "path": "admin/modem/pin",
+            "type": "alias"
+        },
+        "order": 41,
+        "title": "PIN Code"
+    },
+    "admin/developer/modem-qmodem-config_advanced": {
+        "action": {
+            "path": "admin/modem/qmodem/config_advanced",
+            "type": "alias"
+        },
+        "order": 42,
+        "title": "Advanced Modem Config"
+    },
+    "admin/developer/nas": {
+        "action": {
+            "path": "admin/nas",
+            "type": "alias"
+        },
+        "order": 51,
+        "title": "NAS"
+    },
+    "admin/developer/network-dhcp": {
+        "action": {
+            "path": "admin/network/dhcp",
+            "type": "alias"
+        },
+        "order": 32,
+        "title": "DHCP and DNS"
+    },
+    "admin/developer/network-diagnostics": {
+        "action": {
+            "path": "admin/network/diagnostics",
+            "type": "alias"
+        },
+        "order": 33,
+        "title": "Diagnostics"
+    },
+    "admin/developer/network-firewall-zones": {
+        "action": {
+            "path": "admin/network/firewall/zones",
+            "type": "alias"
+        },
+        "order": 35,
+        "title": "Firewall"
+    },
+    "admin/developer/network-network": {
+        "action": {
+            "path": "admin/network/network",
+            "type": "alias"
+        },
+        "order": 30,
+        "title": "Interfaces"
+    },
+    "admin/developer/network-routes": {
+        "action": {
+            "path": "admin/network/routes",
+            "type": "alias"
+        },
+        "order": 34,
+        "title": "Static Routes"
+    },
+    "admin/developer/network-wireless": {
+        "action": {
+            "path": "admin/network/wireless",
+            "type": "alias"
+        },
+        "order": 31,
+        "title": "Wireless (stock)"
+    },
+    "admin/developer/services": {
+        "action": {
+            "path": "admin/services",
+            "type": "alias"
+        },
+        "order": 50,
+        "title": "Services"
+    },
+    "admin/developer/setup": {
+        "action": {
+            "path": "setup",
+            "type": "alias"
+        },
+        "order": 62,
+        "title": "Setup Wizard"
+    },
+    "admin/developer/status-channel_analysis": {
+        "action": {
+            "path": "admin/status/channel_analysis",
+            "type": "alias"
+        },
+        "order": 17,
+        "title": "Channel Analysis"
+    },
+    "admin/developer/status-logs-dmesg": {
+        "action": {
+            "path": "admin/status/logs/dmesg",
+            "type": "alias"
+        },
+        "order": 14,
+        "title": "Kernel Log"
+    },
+    "admin/developer/status-logs-syslog": {
+        "action": {
+            "path": "admin/status/logs/syslog",
+            "type": "alias"
+        },
+        "order": 13,
+        "title": "System Log"
+    },
+    "admin/developer/status-nftables": {
+        "action": {
+            "path": "admin/status/nftables",
+            "type": "alias"
+        },
+        "order": 11,
+        "title": "Firewall Status"
+    },
+    "admin/developer/status-processes": {
+        "action": {
+            "path": "admin/status/processes",
+            "type": "alias"
+        },
+        "order": 10,
+        "title": "Processes"
+    },
+    "admin/developer/status-realtime": {
+        "action": {
+            "path": "admin/status/realtime",
+            "type": "alias"
+        },
+        "order": 16,
+        "title": "Realtime Graphs"
+    },
+    "admin/developer/status-routes": {
+        "action": {
+            "path": "admin/status/routes",
+            "type": "alias"
+        },
+        "order": 12,
+        "title": "Routing Table"
+    },
+    "admin/developer/status-wireguard": {
+        "action": {
+            "path": "admin/status/wireguard",
+            "type": "alias"
+        },
+        "order": 15,
+        "title": "WireGuard Status"
+    },
+    "admin/developer/system-admin-dropbear": {
+        "action": {
+            "path": "admin/system/admin/dropbear",
+            "type": "alias"
+        },
+        "order": 25,
+        "title": "SSH Access"
+    },
+    "admin/developer/system-admin-sshkeys": {
+        "action": {
+            "path": "admin/system/admin/sshkeys",
+            "type": "alias"
+        },
+        "order": 26,
+        "title": "SSH Keys"
+    },
+    "admin/developer/system-crontab": {
+        "action": {
+            "path": "admin/system/crontab",
+            "type": "alias"
+        },
+        "order": 21,
+        "title": "Scheduled Tasks"
+    },
+    "admin/developer/system-flash": {
+        "action": {
+            "path": "admin/system/flash",
+            "type": "alias"
+        },
+        "order": 28,
+        "title": "Backup / Flash Firmware"
+    },
+    "admin/developer/system-leds": {
+        "action": {
+            "path": "admin/system/leds",
+            "type": "alias"
+        },
+        "order": 23,
+        "title": "LED Configuration"
+    },
+    "admin/developer/system-mounts": {
+        "action": {
+            "path": "admin/system/mounts",
+            "type": "alias"
+        },
+        "order": 22,
+        "title": "Mount Points"
+    },
+    "admin/developer/system-package-manager": {
+        "action": {
+            "path": "admin/system/package-manager",
+            "type": "alias"
+        },
+        "order": 24,
+        "title": "Software"
+    },
+    "admin/developer/system-settings-admin": {
+        "action": {
+            "path": "admin/system/settings/admin",
+            "type": "alias"
+        },
+        "order": 27,
+        "title": "Administration"
+    },
+    "admin/developer/system-startup": {
+        "action": {
+            "path": "admin/system/startup",
+            "type": "alias"
+        },
+        "order": 20,
+        "title": "Startup"
+    },
+    "admin/modem/advanced": {
+        "hidden": true
+    },
+    "admin/modem/pin": {
+        "hidden": true
+    }
+}
