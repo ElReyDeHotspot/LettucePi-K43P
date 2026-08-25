@@ -1123,13 +1123,26 @@ install_feed_apk() {    # install_feed_apk <package-name>
 		src="$WORK/$pkg.apk"
 	fi
 
-	rm -rf "$WORK/pkg"; mkdir -p "$WORK/pkg"
-	"$APKBIN" extract --allow-untrusted --destination "$WORK/pkg" "$src" >/dev/null 2>&1 \
-		|| { echo "  SKIP $pkg (extract failed)"; return 1; }
+	# apk add --root, not extract + cp.
+	#
+	# extract only unpacks the archive: it resolves no dependencies and writes
+	# no database entry. That bit us twice. phytool is a dependency of the
+	# dashboard package, so it never reached the image, and chester-phy-led
+	# opens with `command -v phytool || exit 0` -- the WAN LED watchdog started,
+	# found nothing, and exited 0 on every flashed box without logging a word.
+	# And with no database entry `apk list --installed` never showed these
+	# packages, so `apk upgrade` would never have updated them in the field.
+	#
+	#   --no-scripts : the host is x86_64 and this rootfs is aarch64, so apk
+	#                  cannot chroot in to run post-install. Everything those
+	#                  scripts would do is handled by the uci-defaults entry
+	#                  written below, which runs on the target at first boot.
+	#   --arch       : without it apk assumes the host architecture and finds
+	#                  no candidate.
+	"$APKBIN" add --root "$R" --no-scripts --arch aarch64_cortex-a53 \
+		--allow-untrusted "$src" 2>&1 | sed 's/^/    /' \
+		|| { echo "  SKIP $pkg (install failed)"; return 1; }
 
-	for d in etc usr www; do
-		[ -d "$WORK/pkg/$d" ] && cp -a "$WORK/pkg/$d/." "$R/$d/"
-	done
 	echo "  $(basename "$src")"
 	return 0
 }
