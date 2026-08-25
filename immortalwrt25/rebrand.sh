@@ -341,6 +341,74 @@ else
 	die "could not install ttyd from the feed"
 fi
 
+# ------------------------------------------------- 5b. IPv6 on the LAN
+# ImmortalWrt ships /etc/config/dhcp WITHOUT the IPv6 server options:
+#
+#     config dhcp lan
+#         option interface lan
+#         option start 100 / limit 150 / leasetime 12h
+#
+# and nothing else. odhcpd therefore advertises nothing on the LAN, so no
+# client ever learns an IPv6 address no matter what the modem has upstream.
+# The OpenWrt 25 build we trialled shipped `ra server` and `dhcpv6 server`
+# in that same section, which is the entire reason IPv6 worked instantly
+# there and not here. Verified by extracting both images and diffing the
+# file -- everything else about IPv6 is identical between the two.
+#
+# This is NOT the NAT6 toggle on the Cellular > IPv6 page. That one is for
+# the separate case where the carrier hands over a single address and no
+# delegated prefix, so there is no real subnet to advertise and a ULA has to
+# be masqueraded instead. These three lines only make odhcpd speak at all.
+step "IPv6 on the LAN (ra + dhcpv6 server)"
+python3 - "$R/etc/config/dhcp" <<'PYEOF'
+import sys
+p = sys.argv[1]
+lines = open(p, encoding='utf-8').read().split(chr(10))
+
+# Find the lan dhcp section. The vendor file writes it unquoted
+# (`config dhcp lan`); stock OpenWrt quotes it. Accept either.
+start = None
+for i, l in enumerate(lines):
+    t = l.strip().replace("'", '')
+    if t == 'config dhcp lan':
+        start = i
+        break
+if start is None:
+    sys.exit('no `config dhcp lan` section in /etc/config/dhcp')
+
+end = len(lines)
+for i in range(start + 1, len(lines)):
+    if lines[i].startswith('config '):
+        end = i
+        break
+
+body = lines[start:end]
+have = ' '.join(x.strip().split()[1] for x in body if x.strip().startswith('option '))
+add = [k for k in ('ra', 'dhcpv6', 'ra_slaac') if k not in have.split()]
+if not add:
+    print('  already present - nothing to add')
+    sys.exit(0)
+
+# Insert after the last option line of THIS section, so the block stays
+# together and the following `config` stanza is untouched.
+last = start
+for i in range(start, end):
+    if lines[i].strip().startswith('option '):
+        last = i
+vals = {'ra': 'server', 'dhcpv6': 'server', 'ra_slaac': '1'}
+ins = [chr(9) + 'option ' + k + chr(9) + vals[k] for k in add]
+lines[last + 1:last + 1] = ins
+open(p, 'w', encoding='utf-8', newline=chr(10)).write(chr(10).join(lines))
+print('  added: ' + ', '.join(add))
+PYEOF
+
+# Prove it landed in the section that matters, not appended to the file.
+sed -n '/config dhcp lan/,/^config /p' "$R/etc/config/dhcp" | grep -q "option ra" \
+	|| die "ra was not added to the lan section"
+sed -n '/config dhcp lan/,/^config /p' "$R/etc/config/dhcp" | grep -q "option dhcpv6" \
+	|| die "dhcpv6 was not added to the lan section"
+echo "  odhcpd will advertise on the LAN from first boot"
+
 # ------------------------------------------------------ 6. root password
 # A sysupgrade -n leaves /etc/shadow with an EMPTY root password, which the
 # login banner warns about and which contradicts the guide (root/admin).
