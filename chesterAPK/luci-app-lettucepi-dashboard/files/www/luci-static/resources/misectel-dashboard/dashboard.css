@@ -2152,10 +2152,19 @@
 	text-overflow: ellipsis;
 }
 
+/* One line, never clipped, never wrapped.
+ *
+ * The label lives in a flex row (__head) alongside the sparkline. The
+ * sparkline was winning the width fight and squeezing the label until the
+ * shared ellipsis rule chopped it to 'm...'. nowrap alone would not have
+ * been enough -- it is `flex: 0 0 auto` plus `min-width: max-content` that
+ * stops the label being shrunk below its own text in the first place. */
 .misectel-dashboard-stat__label {
-	white-space: normal;
+	white-space: nowrap;
 	overflow: visible;
 	text-overflow: clip;
+	flex: 0 0 auto;
+	min-width: max-content;
 }
 
 @media screen and (max-width: 560px) {
@@ -2213,3 +2222,46 @@
 	color: #6b7a8d;
 }
 .misectel-dashboard-led-toggle.is-off .misectel-dashboard-led-toggle__icon { color: #98a4b3; }
+
+/* The WAN square doubles as the WAN/LAN switch, so it has to look like it
+ * can be pressed -- the other three squares are read-only and must not.
+ * Kept deliberately quiet: a cursor, a hairline, and a small lift on
+ * hover. Anything louder would read as an alert on a status panel. */
+.misectel-dashboard-port-panel__port.is-switchable {
+	cursor: pointer;
+	outline: 1px dashed rgba(120, 140, 170, .45);
+	outline-offset: -3px;
+	transition: transform .16s ease, box-shadow .16s ease;
+}
+
+.misectel-dashboard-port-panel__port.is-switchable:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 6px 16px rgba(15, 39, 67, .16);
+	outline-color: rgba(120, 140, 170, .8);
+}
+
+.misectel-dashboard-port-panel__port.is-switchable:focus-visible {
+	outline: 2px solid #3c79f5;
+	outline-offset: -2px;
+}
+
+/* A port with no cable greys out rather than announcing itself. The card
+ * used to spell out 'Not connected' directly under a name that already
+ * sat beneath the word 'LAN' -- three lines to say one thing. Now an
+ * unused socket simply recedes and the ones carrying traffic are the only
+ * ones reading at full strength.
+ *
+ * Appended at the end on purpose: the existing is-offline rule earlier in
+ * this file only sets a dashed border, and a rule placed before it would
+ * be overridden. */
+.misectel-dashboard-port-panel__port.is-offline {
+	opacity: .42;
+	filter: grayscale(100%);
+}
+
+/* The WAN square stays legible with nothing plugged in: it is a control,
+ * and a control that looks disabled invites nobody to press it. */
+.misectel-dashboard-port-panel__port.is-offline.is-switchable {
+	opacity: .82;
+	filter: none;
+}
