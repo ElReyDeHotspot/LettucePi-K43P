@@ -1,10 +1,4 @@
 {
-    "admin/dashboard/channel_analysis": {
-        "hidden": true
-    },
-    "admin/dashboard/realtime": {
-        "hidden": true
-    },
     "admin/developer": {
         "action": {
             "recurse": true,
@@ -260,11 +254,5 @@
         },
         "order": 20,
         "title": "Startup"
-    },
-    "admin/modem/advanced": {
-        "hidden": true
-    },
-    "admin/modem/pin": {
-        "hidden": true
     }
 }
