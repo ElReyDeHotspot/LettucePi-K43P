@@ -1,2 +1,0 @@
-config state 'state'
-	option initialized '0'

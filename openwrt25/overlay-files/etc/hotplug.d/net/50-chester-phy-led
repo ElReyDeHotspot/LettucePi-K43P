@@ -1,5 +1,0 @@
-# The PHY loses this configuration whenever it is reset, so reapply it when the
-# WAN device reappears rather than only at boot.
-[ "$DEVICENAME" = "wan" ] || exit 0
-[ "$ACTION" = "add" ] || exit 0
-/usr/sbin/chester-phy-led wan

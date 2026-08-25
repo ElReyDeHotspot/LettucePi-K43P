@@ -53,11 +53,12 @@ Routers running ImmortalWrt check for updates themselves. Two manifests, so a
 router is only ever offered a build it can install safely:
 
 | | Read by | Flashes with |
-|---|---|---|
-| `openwrt25/latest.json` | every older ImmortalWrt build | `sysupgrade -k`, settings kept |
-| `openwrt25/next.json` | the final ImmortalWrt build only | `sysupgrade -n`, settings erased |
+|---|---`openwrt25/next.json` names the current image. Every router reads it and
+every router takes one hop to current.
 
-`latest.json` stays pinned at the final ImmortalWrt build, so older routers only
-ever see that one. Only routers already on it read `next.json`, and only those
-can cross to OpenWrt 25 without carrying a config that would strand them.
-[The reasoning is in UPGRADING.md](UPGRADING.md#why-there-is-a-stepping-stone).
+`openwrt25/latest.json` names the same image. It is kept only so a router
+old enough to still read it lands on the current build rather than a dead
+end. There is no longer a stepping stone between them.
+
+The directory is still called `openwrt25/` because that path is baked into
+every deployed router's updater. Renaming it would break them all.

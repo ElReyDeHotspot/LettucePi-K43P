@@ -30,7 +30,7 @@ The first time, it asks if you trust the router. Type `yes`.
 ## Step 2 — Paste this one line
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install-openwrt25.sh | sh
+wget -qO- https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh
 ```
 
 ## Step 3 — Type YES
@@ -85,7 +85,7 @@ error always means the router was left alone.
 To check everything works **without installing anything**:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install-openwrt25.sh | sh -s -- --dry-run
+wget -qO- https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh -s -- --dry-run
 ```
 
 ---
@@ -114,7 +114,7 @@ because the image went to a bank nothing boots. Confirmed on hardware.
 The `platform.sh` here writes **both** banks, which is what makes the new
 firmware take, and is why there is no fallback bank afterwards.
 
-`platform.sh` is also embedded inside `install-openwrt25.sh`. Change one, change
+`platform.sh` is fetched at run time by `install.sh`. Change one, change
 the other.
 
 ### Verified result

@@ -8,16 +8,20 @@
 # reaches it through an rpcd ACL that permits exactly these arguments.
 set -u
 
-# This build reads its OWN manifest, not latest.json.
+# One firmware family, one manifest.
 #
-# latest.json stays pinned at this build forever, so a router on any older
-# ImmortalWrt only ever sees this one -- the stepping stone. Those older
-# builds flash with sysupgrade -k, and reaching OpenWrt 25 that way would
-# carry an ImmortalWrt /etc/config onto it and strand the box.
+# There used to be two: latest.json pinned at a stepping stone for older
+# routers, and next.json for the crossing to a genuine OpenWrt 25 build.
+# That build is gone -- it never brought the modem up on some units -- so
+# there is nothing to cross to and no stepping stone to stand on. Both
+# manifests now name the same image; latest.json is kept only so a router
+# old enough to still read it lands on the current build rather than a
+# dead end.
 #
-# Only a router already running THIS build reads next.json, and this build
-# flashes with -n. So pointing next.json at OpenWrt 25 migrates exactly the
-# routers that can survive the crossing, and nothing else.
+# The path stays openwrt25/ because it is a URL baked into every router
+# already in the field. Renaming the directory would silently break every
+# deployed updater, which is a far worse outcome than a directory whose
+# name is now only historical.
 MANIFEST_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/next.json"
 # raw.githubusercontent caches at the edge for minutes, so a freshly published
 # release would otherwise show up late. A unique query string per check avoids

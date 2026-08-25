@@ -109,19 +109,20 @@ With ours staged, **`-F` is not needed** — our `platform_check_image` returns
 
 ---
 
-## Two things called "OpenWrt 25"
+## What you are installing
 
-Both report `OpenWrt 25.12-SNAPSHOT`, so the banner cannot tell them apart.
+**Immortal-Chester-25** — ImmortalWrt-derived, built here, published in
+`ChesterK43P-Bin/`. One family, one path, no variants to choose between.
 
-| | |
-|---|---|
-| **Genuine OpenWrt 25 snapshot** | Open PCIe fault — on some units the modem never appears (`PCIe link down, LTSSM state: detect.quiet`). Two migrated clients lost their modem. **Not shipped.** |
-| **Chester builds** in `ChesterK43P-Bin/` | ImmortalWrt-derived, *branded* OpenWrt 25 by `rebrand.sh`. What this guide installs. Modem works. |
+Its identity strings say `OpenWrt 25.12-SNAPSHOT` because `rebrand.sh`
+rewrites them. The banner is therefore not a reliable way to tell builds
+apart — trust the build id in `/etc/chester-version`.
 
-Trust the build id in `/etc/chester-version`, not the banner.
+> A genuine OpenWrt 25 snapshot build was trialled and abandoned: it did
+> not bring the modem up on some units. It has been removed from this
+> repository. Any reference you find to it elsewhere is stale.
 
 ---
-
 ## Confirming it worked
 
 ```sh

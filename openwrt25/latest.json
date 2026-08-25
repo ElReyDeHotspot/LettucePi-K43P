@@ -1,9 +1,10 @@
 {
+  "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-08-24T04:15Z",
-  "build": "20260824041540",
-  "sha256": "ddcc0a8c86ff8de8fe0e249c6e4ae721b1c250fd2f12ae05b86511a779230811",
-  "size": "23592960",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/14-2026-08-24-ChesterK43P-25.12.bin",
-  "notes": "Final ImmortalWrt build and stepping stone to OpenWrt 25. Its updater no longer keeps settings and reads next.json so latest.json can stay pinned here for older routers."
+  "built": "2026-08-25T20:41Z",
+  "build": "20260825204115",
+  "sha256": "ed7aca1291705141f572b3fcb2d5aaacd7f12af7fddfa663330fbba199eecf51",
+  "size": "25821184",
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/27-2026-08-25-ChesterK43P-25.12.bin",
+  "notes": "Package feeds back on ImmortalWrt (the OpenWrt feed cannot serve this tree), Terminal (ttyd) built in, chesterAPK feed guaranteed present. Settings are NOT kept: this flashes with -n."
 }

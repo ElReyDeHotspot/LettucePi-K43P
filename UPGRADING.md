@@ -136,20 +136,21 @@ Confirm before committing with `sysupgrade -T`: you should see only
 
 ---
 
-## 5. Which image — the two things called "OpenWrt 25"
+## 5. Which image
 
-* **The genuine OpenWrt 25 snapshot** has an open PCIe fault: on some units the
-  modem never appears (`PCIe link down, LTSSM state: detect.quiet`). Two
-  migrated clients lost their modem. **Not shipped.**
-* **The published Chester builds** in `ChesterK43P-Bin/` are ImmortalWrt-derived
-  and *branded* OpenWrt 25 (`rebrand.sh` rewrites the identity strings). These
-  are what `install.sh` and System Update install, and the modem works.
+One family: **Immortal-Chester-25** — ImmortalWrt-derived, built by
+`immortalwrt25/build-bin.sh`, published in `ChesterK43P-Bin/`. That is what
+`install.sh` and System Update install, and it is the only thing shipped.
 
-Both report `OpenWrt 25.12-SNAPSHOT`, so the banner cannot tell them apart.
+The identity strings say `OpenWrt 25.12-SNAPSHOT` because `rebrand.sh`
+rewrites them, so the banner is not a reliable way to tell builds apart.
 Trust the build id in `/etc/chester-version`.
 
----
+> A genuine OpenWrt 25 snapshot build was trialled and **abandoned** — it
+> did not bring the modem up on some units. It has been removed from this
+> repository entirely. If you find a reference to it anywhere, it is stale.
 
+---
 ## 6. Check it worked
 
 ```sh
@@ -191,22 +192,24 @@ Two things change across the upgrade and are **not** faults:
 
 ## Why there is a stepping stone
 
-There are two manifests, and they are not interchangeable:
+**There isn't one any more.** This section is kept because older notes and
+links point at it.
 
-| Manifest | Read by | Flash |
-|---|---|---|
-| `openwrt25/latest.json` | every older build | `sysupgrade -k`, settings **kept** |
-| `openwrt25/next.json` | the stepping-stone build only | `sysupgrade -n`, settings **erased** |
+There used to be two manifests: `latest.json` pinned at a stepping-stone
+build for older routers, and `next.json` for the crossing to a genuine
+OpenWrt 25 build. The split existed so a config could never be carried
+across a firmware family that could not use it.
 
-`latest.json` stays pinned at the stepping stone, so an older router only
-ever sees that one and reaches it with its settings intact. Only a router
-already on the stepping stone reads `next.json` and takes the erasing step.
+That OpenWrt 25 build is gone, so there is nothing to cross to. Both
+manifests now name the same image and every router takes one hop to
+current.
 
-The split exists so a config can never be carried across a firmware family
-that cannot use it -- which is what strands a router. Pinning `latest.json`
-forward to skip the hop would hand older routers a `-n` flash they were not
-expecting.
+The path stays `openwrt25/` because it is a URL baked into every router
+already in the field. Renaming the directory would silently break every
+deployed updater — a far worse outcome than a directory whose name is now
+only historical.
 
+---
 ## 8. If it goes wrong
 
 The unit has two banks and the bootloader falls back to the good one, so a

@@ -268,45 +268,53 @@ done
 echo "  language list cleared, lang forced to en (config + first boot)"
 
 # --------------------------------------------------------- 5. package feeds
-# Three of the shipped feeds do not exist on the download server (they are
-# build-time feeds), so every `apk update` ends in
+# The shipped list has nine feeds. Three of them -- misectel, qmodem and
+# video -- are build-time feeds that do not exist on the download server, so
+# every `apk update` ends in
 #   ERROR: wget: exited with error 8 ... unexpected end of file
-# Confirmed by fetching each: misectel/qmodem/video are 404, the rest are 200.
-step "Package feeds -> openwrt.org"
+# Verified live: those three 404, the other six return 200.
+step "Package feeds -> immortalwrt.org"
 F="$R/etc/apk/repositories.d/distfeeds.list"
 [ -f "$F" ] || die "distfeeds.list missing - image layout changed"
 before=$(grep -c . "$F")
 
-# Point package installs at OpenWrt's own servers rather than ImmortalWrt's.
-# The image already trusts openwrt-25.12.pem, so signatures verify without
-# shipping any new key.
+# ImmortalWrt, not OpenWrt.
 #
-# The TARGET feed (mediatek/filogic) is deliberately NOT included. It carries
-# the kernel modules, and those pin an exact kernel build:
+# This was pointed at downloads.openwrt.org for a while and it does not work:
+# this rootfs IS ImmortalWrt, and OpenWrt's 25.12.5 feed is built against a
+# different tree, so installs fail rather than merely missing kmods. The
+# image already trusts immortalwrt-25.12.pem, so signatures verify with no
+# new key.
 #
-#     this image   kernel 6.12.85~065c30ba...
-#     OpenWrt 25.12.5     6.12.94~5a6c1f71...
-#     ImmortalWrt feed    6.12.87~24374d30...
+# The TARGET feed (mediatek/filogic) is still left out, and it is worth being
+# precise about why, because it DOES resolve:
 #
-# No feed anywhere matches a snapshot build once it has aged, so kmods were
-# already uninstallable. Listing a kmod feed that cannot match only invites
-# `apk upgrade` to pull a mismatched kernel over a working one, which breaks
-# wifi and the modem. Userspace packages have no such dependency and install
-# normally.
-OWBASE="https://downloads.openwrt.org/releases/25.12.5/packages/aarch64_cortex-a53"
+#     this image                 kernel 6.12.85
+#     ImmortalWrt target feed    kernel 6.12.87
+#
+# It cannot supply a matching kmod either way, so listing it buys nothing --
+# while inviting `apk upgrade` to pull 6.12.87 over a working 6.12.85, which
+# takes wifi and the modem with it. Checked at the same time: neither that
+# feed nor OpenWrt's carries kmod-nft-queue or kmod-nfnetlink-queue at all,
+# which is why the 4K/HD engine uses tpws (no kernel module) rather than
+# nfqws. Userspace packages have no such dependency and install normally.
+IWBASE="https://downloads.immortalwrt.org/releases/25.12-SNAPSHOT/packages/aarch64_cortex-a53"
 cat > "$F" <<FEEDS
-$OWBASE/base/packages.adb
-$OWBASE/luci/packages.adb
-$OWBASE/packages/packages.adb
-$OWBASE/routing/packages.adb
-$OWBASE/telephony/packages.adb
+$IWBASE/base/packages.adb
+$IWBASE/luci/packages.adb
+$IWBASE/packages/packages.adb
+$IWBASE/routing/packages.adb
+$IWBASE/telephony/packages.adb
 FEEDS
 after=$(grep -c . "$F")
-grep -q immortalwrt "$F" && die "immortalwrt feed still listed"
-grep -qc 'downloads\.openwrt\.org' "$F" >/dev/null || die "openwrt feeds not written"
-[ -f "$R/etc/apk/keys/openwrt-25.12.pem" ] || die "openwrt signing key missing from the image"
-echo "  $before -> $after feeds, all on downloads.openwrt.org (25.12.5)"
-echo "  kmod/target feed omitted on purpose - see the comment above"
+grep -q 'downloads\.immortalwrt\.org' "$F" || die "immortalwrt feeds not written"
+grep -q 'downloads\.openwrt\.org' "$F" && die "an openwrt feed is still listed"
+for dead in misectel qmodem video; do
+	grep -q "/$dead/" "$F" && die "the $dead feed 404s - it must not be listed"
+done
+[ -f "$R/etc/apk/keys/immortalwrt-25.12.pem" ] || die "immortalwrt signing key missing from the image"
+echo "  $before -> $after feeds, all on downloads.immortalwrt.org (25.12-SNAPSHOT)"
+echo "  misectel/qmodem/video dropped (they 404); target feed omitted - see above"
 
 # Our own feed, served from the GitHub repo. Its public key goes into
 # /etc/apk/keys so signed packages from it are trusted; the private key never
@@ -318,7 +326,19 @@ if [ -f "$HERE/chester-apk.pem" ]; then
 	echo "$CHESTER_FEED" > "$R/etc/apk/repositories.d/chester.list"
 	echo "  added chesterAPK feed + signing key"
 else
-	echo "  (no chester-apk.pem beside the script - feed not added)"
+	die "chester-apk.pem is not beside the script - the Chester feed would be missing"
+fi
+
+# A terminal in the browser. Pulled from the feed rather than vendored so it
+# tracks upstream, and installed with --no-scripts because the build host is
+# x86_64 and this rootfs is aarch64 -- apk cannot chroot in to run them.
+step "Terminal (ttyd)"
+if "$APKBIN" add --root "$R" --no-scripts --arch aarch64_cortex-a53 \
+		--allow-untrusted ttyd luci-app-ttyd 2>&1 | sed 's/^/  /'; then
+	[ -x "$R/usr/bin/ttyd" ] || die "ttyd did not land in the rootfs"
+	echo "  ttyd $("$APKBIN" list --root "$R" --installed 2>/dev/null | sed -n 's/^ttyd-\([^ ]*\).*/\1/p') installed"
+else
+	die "could not install ttyd from the feed"
 fi
 
 # ------------------------------------------------------ 6. root password
@@ -1063,12 +1083,18 @@ BANNER
 grep -q "OpenWrt $VER" "$R/etc/banner" || die "banner not written"
 grep -q "^DISTRIB_ID='OpenWrt'$" "$REL" || die "DISTRIB_ID not set to OpenWrt"
 grep -qi immortal "$R/etc/banner" "$REL" "$R/usr/lib/os-release" && die "ImmortalWrt still present in an identity file"
-# Feeds are on openwrt.org (see the feeds step); make sure nothing put an
-# immortalwrt URL back, since the identity claims OpenWrt.
+# The identity says OpenWrt, but the packages come from ImmortalWrt, and that
+# is correct rather than a contradiction: the identity is branding, the feed
+# has to match the tree this rootfs was actually built from. Pointing the feed
+# at openwrt.org to agree with the banner is what broke package installs.
+grep -q 'downloads\.immortalwrt\.org' "$R/etc/apk/repositories.d/distfeeds.list" \
+	|| die "package feeds are not on downloads.immortalwrt.org"
 grep -q 'downloads\.openwrt\.org' "$R/etc/apk/repositories.d/distfeeds.list" \
-	|| die "package feeds are not on downloads.openwrt.org"
+	&& die "an openwrt feed is listed - it cannot serve this tree"
+[ -s "$R/etc/apk/repositories.d/chester.list" ] \
+	|| die "the chesterAPK feed is missing"
 echo "  banner, openwrt_release, os-release, device_info -> OpenWrt $VER ($REV)"
-echo "  package feeds on downloads.openwrt.org"
+echo "  package feeds on downloads.immortalwrt.org, plus chesterAPK"
 
 # ------------------------------------------- 11. our own LuCI packages
 # Baked in LAST, on purpose. These packages carry files that earlier steps in
