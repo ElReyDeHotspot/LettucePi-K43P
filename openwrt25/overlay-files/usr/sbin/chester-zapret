@@ -1,0 +1,151 @@
+#!/bin/sh
+# 4K/HD engine (zapret) control for the Chester K43P.
+#
+# zapret is not in the OpenWrt feed and is not baked into the firmware, so
+# "install" pulls the packages from our own store on GitHub and needs a working
+# WAN. The menu entry under Apps is present either way.
+#
+#   chester-zapret status     -> JSON for the UI
+#   chester-zapret install    -> fetch + apk add + enable + start
+#   chester-zapret uninstall  -> stop, disable, apk del
+#
+# The packages are the upstream remittor/zapret-openwrt builds for
+# aarch64_cortex-a53, mirrored into our repo so a customer install does not
+# depend on a third-party release page staying up.
+set -u
+
+BASE="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/packages/aarch64_cortex-a53"
+PKG_MAIN="zapret-72.20260307-r1.apk"
+PKG_LUCI="luci-app-zapret-72.20260307-r1.apk"
+SHA_MAIN="2d1d3aa78b43d5319be3bb831cf81050c33920162f8e39368238a58ccbc16922"
+SHA_LUCI="6bdcc35f923b73f006f576e71a17b2b7076376a589bc7c2bd667d9a500a7a104"
+
+ENGINE=/opt/zapret/nfq/nfqws
+INIT=/etc/init.d/zapret
+LOG=/tmp/chester-zapret.log
+TMP=/tmp/chester-zapret-pkg
+
+is_present() { [ -x "$ENGINE" ] && [ -x "$INIT" ]; }
+is_running() { pgrep nfqws >/dev/null 2>&1; }
+is_enabled() { ls /etc/rc.d/S*zapret >/dev/null 2>&1; }
+
+fetch() {
+	# $1 file, $2 expected sha256
+	rm -f "$TMP/$1"
+	wget -q -O "$TMP/$1" "$BASE/$1" || return 1
+	[ -s "$TMP/$1" ] || return 1
+	if [ -n "$2" ]; then
+		got=$(sha256sum "$TMP/$1" | awk '{print $1}')
+		[ "$got" = "$2" ] || { echo "checksum mismatch on $1" >>"$LOG"; return 1; }
+	fi
+	return 0
+}
+
+case "${1:-status}" in
+status)
+	present=false; running=false; enabled=false
+	is_present && present=true
+	is_running && running=true
+	is_enabled && enabled=true
+	ver=$(apk list -I zapret 2>/dev/null | sed -n 's/^zapret-\([^ ]*\) .*/\1/p' | head -1)
+	printf '{"ok":true,"present":%s,"running":%s,"enabled":%s,"version":"%s"}\n' \
+		"$present" "$running" "$enabled" "${ver:-}"
+	;;
+
+install)
+	if is_present; then
+		echo "OK: already installed"; exit 0
+	fi
+	: > "$LOG"
+	mkdir -p "$TMP"
+
+	# The kernel side comes from the official feed; nfqws cannot work without
+	# NFQUEUE, and this image ships neither module.
+	if ! apk update >>"$LOG" 2>&1; then
+		echo "FAIL: no package feed reachable - check the internet connection"; exit 1
+	fi
+	if ! apk add kmod-nft-queue kmod-nfnetlink-queue >>"$LOG" 2>&1; then
+		echo "FAIL: could not install the kernel modules - see $LOG"; exit 1
+	fi
+
+	fetch "$PKG_MAIN" "$SHA_MAIN" || { echo "FAIL: could not download the engine"; exit 1; }
+	fetch "$PKG_LUCI" "$SHA_LUCI" || { echo "FAIL: could not download the settings page"; exit 1; }
+
+	if ! apk add --allow-untrusted "$TMP/$PKG_MAIN" >>"$LOG" 2>&1; then
+		echo "FAIL: could not install the engine - see $LOG"; exit 1
+	fi
+	apk add --allow-untrusted "$TMP/$PKG_LUCI" >>"$LOG" 2>&1
+	rm -rf "$TMP"
+
+	is_present || { echo "FAIL: installed but $ENGINE is missing"; exit 1; }
+
+	# Two settings decide whether this does anything at all, and neither is
+	# right out of the box:
+	#
+	#  - the video path on this carrier is IPv6, and zapret ships with
+	#    DISABLE_IPV6=1, so every rule it installs would be IPv4-only and the
+	#    throttle would survive untouched;
+	#  - MODE_FILTER=hostlist points at a Russian blocklist that contains no
+	#    video CDN, so nfqws would inspect nothing.
+	#
+	# The config FILE is what the init script sources -- setting the uci key
+	# alone is not enough, and the two silently disagreeing is what makes this
+	# look installed-and-working while video stays capped.
+	if [ -f /opt/zapret/config ]; then
+		sed -i 's/^DISABLE_IPV6=.*/DISABLE_IPV6=0/' /opt/zapret/config
+		sed -i 's/^DISABLE_IPV4=.*/DISABLE_IPV4=0/' /opt/zapret/config
+	fi
+	uci -q set zapret.config.DISABLE_IPV6='0'
+	uci -q set zapret.config.DISABLE_IPV4='0'
+	uci -q set zapret.config.run_on_boot='1'
+	uci -q commit zapret
+
+	# Video CDNs, so the hostlist filter actually matches streaming traffic.
+	if [ -d /opt/zapret/ipset ] && [ ! -s /opt/zapret/ipset/zapret-hosts-user.txt ]; then
+		cat > /opt/zapret/ipset/zapret-hosts-user.txt <<'HOSTS'
+youtube.com
+googlevideo.com
+ytimg.com
+ggpht.com
+youtu.be
+facebook.com
+fbcdn.net
+instagram.com
+cdninstagram.com
+tiktok.com
+tiktokcdn.com
+tiktokv.com
+snapchat.com
+sc-cdn.net
+netflix.com
+nflxvideo.net
+disneyplus.com
+cloudfront.net
+akamaized.net
+HOSTS
+	fi
+
+	"$INIT" enable >/dev/null 2>&1
+	"$INIT" restart >>"$LOG" 2>&1
+	sleep 3
+	if is_running; then
+		uci -q set chester.main.video_boost='1'; uci -q commit chester
+		echo "OK: installed and running"
+	else
+		echo "FAIL: installed but the engine did not start - see $LOG"; exit 1
+	fi
+	;;
+
+uninstall)
+	"$INIT" stop >/dev/null 2>&1
+	"$INIT" disable >/dev/null 2>&1
+	apk del luci-app-zapret >/dev/null 2>&1
+	apk del zapret >/dev/null 2>&1
+	uci -q set chester.main.video_boost='0'; uci -q commit chester
+	is_present && { echo "FAIL: could not remove the engine"; exit 1; }
+	echo "OK: removed"
+	;;
+
+*)
+	echo "usage: chester-zapret status|install|uninstall" >&2; exit 2 ;;
+esac

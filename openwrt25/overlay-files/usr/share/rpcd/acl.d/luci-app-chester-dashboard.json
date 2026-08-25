@@ -37,7 +37,8 @@
                     "system_time",
                     "tcp_connections",
                     "temp_status",
-                    "ttl_status"
+                    "ttl_status",
+                    "video_boost"
                 ],
                 "iwinfo": [
                     "info",
@@ -62,14 +63,37 @@
                 "qmodem",
                 "qmodem_ttl",
                 "wireless"
-            ]
+            ],
+            "file": {
+                "/usr/sbin/chester-videotest both": [
+                    "exec"
+                ],
+                "/usr/sbin/chester-videotest ab-status": [
+                    "exec"
+                ],
+                "/usr/sbin/chester-zapret status": [
+                    "exec"
+                ]
+            }
         },
         "write": {
             "ubus": {
                 "chester": [
                     "set_led_power",
                     "set_port_mode",
-                    "set_ttl"
+                    "set_ttl",
+                    "set_video_boost"
+                ]
+            },
+            "file": {
+                "/usr/sbin/chester-videotest ab-start": [
+                    "exec"
+                ],
+                "/usr/sbin/chester-zapret install": [
+                    "exec"
+                ],
+                "/usr/sbin/chester-zapret uninstall": [
+                    "exec"
                 ]
             }
         }

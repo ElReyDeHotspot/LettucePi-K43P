@@ -5,23 +5,47 @@
 
 /* Chester system update.
  *
- * Reads a manifest from GitHub, compares its sha256 against the one stamped
+ * Reads a manifest from GitHub, compares its build id against the one stamped
  * into /etc/chester-version at build time, and offers a one-click update that
  * keeps settings. All the work happens in /usr/sbin/chester-update; this view
- * only calls it, because the rpcd ACL permits exactly those two argument
- * forms and nothing else.
+ * only calls it, because the rpcd ACL permits exactly those two argument forms
+ * and nothing else.
+ *
+ * Presentation uses the Chester UI kit (chester-ui/kit.css), the same one the
+ * Tailscale page uses, so both pages stay identical as the kit evolves.
  */
 
+var KIT_CSS_ID = 'chester-ui-kit-css';
+var KIT_CSS_URL = L.resource('chester-ui/kit.css');
+
+function ensureKit() {
+	if (document.getElementById(KIT_CSS_ID))
+		return;
+	document.head.appendChild(E('link', {
+		id: KIT_CSS_ID, rel: 'stylesheet', type: 'text/css', href: KIT_CSS_URL
+	}));
+}
+
+function banner(kind, title, sub) {
+	var text = [ E('span', { 'class': 'ck-banner__title' }, [ title ]) ];
+	if (sub)
+		text.push(E('span', { 'class': 'ck-banner__sub' }, [ sub ]));
+	return E('div', { 'class': 'ck-banner ck-banner--' + kind }, [
+		E('span', { 'class': 'ck-banner__icon' }),
+		E('div', { 'class': 'ck-banner__text' }, text)
+	]);
+}
+
 function row(label, value, mono) {
-	return E('tr', { 'class': 'tr' }, [
-		E('td', { 'class': 'td left', 'width': '33%' }, [ label ]),
-		E('td', { 'class': 'td left', 'style': mono ? 'font-family:monospace;font-size:90%;word-break:break-all' : '' },
-			[ value || '-' ])
+	return E('div', { 'class': 'ck-row' }, [
+		E('div', { 'class': 'ck-row__k' }, [ label ]),
+		E('div', { 'class': 'ck-row__v' + (mono ? ' ck-row__v--mono' : '') }, [ value || '-' ])
 	]);
 }
 
 return view.extend({
 	load: function () {
+		ensureKit();
 		return fs.exec('/usr/sbin/chester-update', [ 'status' ]).then(function (res) {
 			try { return JSON.parse((res.stdout || '').trim()); }
 			catch (e) { return { ok: false, error: 'unreadable' }; }
@@ -75,51 +99,60 @@ return view.extend({
 	},
 
 	render: function (info) {
-		var body = [ E('h2', {}, _('System Update')) ];
+		var body = [ E('h2', { 'class': 'ck-title' }, _('System Update')) ];
 
 		if (!info || info.ok !== true) {
-			body.push(E('div', { 'class': 'alert-message warning' }, [
+			body.push(banner('warn',
 				info && info.error === 'offline'
-					? _('Could not reach the update server. Check the router\'s internet connection.')
-					: _('The update service is not available on this firmware.')
-			]));
+					? _('Could not reach the update server.')
+					: _('The update service is not available on this firmware.'),
+				info && info.error === 'offline'
+					? _('Check the router\'s internet connection and try again.')
+					: null));
 			if (info && info.installed_version)
-				body.push(E('table', { 'class': 'table' }, [
-					row(_('Installed version'), info.installed_version),
-					row(_('Built'), info.installed_built)
+				body.push(E('div', { 'class': 'ck-card' }, [
+					E('div', { 'class': 'ck-rows' }, [
+						row(_('Installed version'), info.installed_version),
+						row(_('Built'), info.installed_built)
+					])
 				]));
-			return E('div', {}, body);
+			return E('div', { 'class': 'ck-page ck-page--center' }, body);
 		}
 
 		var newer = (info.update_available === true || info.update_available === 'true');
 
-		body.push(E('div', { 'class': newer ? 'alert-message notice' : 'alert-message success' }, [
-			newer ? _('An update is available.') : _('This router is up to date.')
-		]));
+		body.push(newer
+			? banner('info', _('An update is available.'),
+				info.latest_version
+					? _('Version %s is ready to install.').format(info.latest_version)
+					: null)
+			: banner('ok', _('This router is up to date.'),
+				info.installed_version
+					? _('Version %s').format(info.installed_version)
+					: null));
 
-		body.push(E('table', { 'class': 'table' }, [
-			row(_('Installed version'), info.installed_version),
-			row(_('Installed build'), info.installed_built),
-			row(_('Latest version'), info.latest_version),
-			row(_('Latest build'), info.latest_built),
-			row(_('Latest checksum'), info.latest_sha, true)
+		body.push(E('div', { 'class': 'ck-card' }, [
+			E('div', { 'class': 'ck-rows' }, [
+				row(_('Installed version'), info.installed_version),
+				row(_('Installed build'), info.installed_build, true),
+				row(_('Latest version'), info.latest_version),
+				row(_('Latest build'), info.latest_built),
+				row(_('Latest checksum'), info.latest_sha, true)
+			])
 		]));
-
-		if (info.notes)
-			body.push(E('p', {}, [ E('em', {}, info.notes) ]));
 
 		if (newer) {
-			body.push(E('p', {}, [
+			body.push(E('div', { 'class': 'ck-actions' }, [
 				E('button', {
-					'class': 'btn cbi-button-action important',
+					'class': 'ck-btn ck-btn--primary',
 					'click': ui.createHandlerFn(this, 'handleInstall', info)
 				}, _('Install update'))
 			]));
-			body.push(E('p', {}, [ E('small', {},
-				_('Your settings are kept. Packages you installed yourself are not.')) ]));
+			body.push(E('p', { 'class': 'ck-note' },
+				_('Your settings are kept. Packages you installed yourself are not.')));
 		}
 
-		return E('div', {}, body);
+		return E('div', { 'class': 'ck-page ck-page--center' }, body);
 	},
 
 	handleSave: null,

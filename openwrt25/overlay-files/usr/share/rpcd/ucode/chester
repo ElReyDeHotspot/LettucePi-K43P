@@ -894,6 +894,59 @@ const methods = {
 
 			return { success: true, enabled: on };
 		}
+	},
+
+	// 4K/HD -- the DPI bypass engine. Carriers throttle video by
+	// recognising the stream, so the fix is to stop it being
+	// recognisable rather than to raise any limit. zapret's tpws does
+	// that in userspace, which is why it can run here at all: nfqws
+	// needs NFQUEUE and this kernel ships no nfnetlink_queue.
+	video_boost: {
+		call: function() {
+			let ctx = cursor();
+			let value = ctx ? ctx.get('chester', 'main', 'video_boost') : null;
+			let installed = stat('/opt/zapret/nfq/nfqws') ? true : false;
+			let running = false;
+			let ps = readCommandOutput('pgrep nfqws 2>/dev/null | head -1');
+			if (ps && length(trimSafe(ps)) > 0)
+				running = true;
+			return {
+				enabled: (value == '1') ? true : false,
+				installed: installed,
+				running: running
+			};
+		}
+	},
+
+	set_video_boost: {
+		args: {
+			enabled: 'String'
+		},
+		call: function(request) {
+			let want = trimSafe(request.args.enabled);
+			let on = !(want == '0' || lc(want) == 'false' || lc(want) == 'off');
+			let ctx = cursor();
+
+			if (!ctx)
+				return { success: false, message: 'failed to open uci cursor' };
+
+			// Refuse rather than pretend: without the engine this
+			// switch would be a placebo.
+			if (on && !stat('/opt/zapret/nfq/nfqws'))
+				return { success: false, enabled: false, installed: false,
+					message: 'the 4K/HD engine is not installed yet' };
+
+			ctx.set('chester', 'main', null, 'main');
+			ctx.set('chester', 'main', 'video_boost', on ? '1' : '0');
+			ctx.commit('chester');
+
+			if (on)
+				readCommandOutput('/etc/init.d/zapret restart >/dev/null 2>&1');
+			else
+				readCommandOutput('/etc/init.d/zapret stop >/dev/null 2>&1');
+
+			return { success: true, enabled: on, installed: true };
+		}
 	}
 };
 

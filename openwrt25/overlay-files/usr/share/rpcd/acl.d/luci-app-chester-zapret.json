@@ -1,0 +1,26 @@
+{
+	"luci-app-chester-zapret": {
+		"description": "Control the 4K/HD engine and run the streaming test",
+		"read": {
+			"ubus": {
+				"chester": [ "video_boost" ]
+			},
+			"file": {
+				"/usr/sbin/chester-zapret status": [ "exec" ],
+				"/usr/sbin/chester-videotest both": [ "exec" ],
+				"/usr/sbin/chester-videotest ab-status": [ "exec" ]
+			},
+			"uci": [ "zapret", "chester" ]
+		},
+		"write": {
+			"ubus": {
+				"chester": [ "set_video_boost" ]
+			},
+			"file": {
+				"/usr/sbin/chester-zapret install": [ "exec" ],
+				"/usr/sbin/chester-zapret uninstall": [ "exec" ],
+				"/usr/sbin/chester-videotest ab-start": [ "exec" ]
+			}
+		}
+	}
+}

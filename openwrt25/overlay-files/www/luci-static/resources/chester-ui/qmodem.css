@@ -1,0 +1,488 @@
+/* Chester UI kit -- QModem pages
+ * ==============================
+ *
+ * admin/modem/qmodem/* are Lua templates and CBI pages, not JS views, so they
+ * cannot be rebuilt with the kit's `ck-` classes the way the Tailscale and
+ * System Update pages were. This maps the same visual language onto the markup
+ * LuCI's CBI engine and the QModem templates actually emit.
+ *
+ * Scoped to body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] so no stock CBI page
+ * elsewhere in the UI is affected.
+ *
+ * Pages covered: modem_info, dial_overview, modem_debug, settings, and the
+ * dial_config / slot_config / modem_config sub-pages.
+ */
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] {
+	--ck-ink: #1d1d1f;
+	--ck-ink-soft: #6e6e73;
+	--ck-line: rgba(16, 35, 62, .09);
+	--ck-blue: #0A84FF;
+	--ck-indigo: #5E5CE6;
+	--ck-red: #FF3B30;
+	--ck-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+		Roboto, Helvetica, Arial, sans-serif;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] #maincontent,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-map {
+	font-family: var(--ck-font);
+	color: var(--ck-ink);
+}
+
+/* ------------------------------------------------------------------ titles */
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] h2,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-map > h2 {
+	margin: 0 0 18px;
+	color: var(--ck-ink);
+	font-size: 28px;
+	font-weight: 600;
+	line-height: 1.15;
+	letter-spacing: -.021em;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] legend,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-section > h3,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-section-node > h3 {
+	padding: 0;
+	color: var(--ck-ink);
+	font-size: 16px;
+	font-weight: 600;
+	letter-spacing: -.011em;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-map-descr,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-section-descr {
+	color: var(--ck-ink-soft);
+	font-size: 13.5px;
+	line-height: 1.45;
+}
+
+/* ------------------------------------------------------------------- cards */
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-section,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] fieldset.cbi-section,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-section-node {
+	margin: 0 0 20px;
+	padding: 18px 20px;
+	border: 1px solid var(--ck-line);
+	border-radius: 14px;
+	background: #fff;
+	box-shadow: 0 1px 1px rgba(16, 35, 62, .03), 0 8px 20px rgba(16, 35, 62, .05);
+}
+
+/* a section nested inside another must not draw a second card */
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-section .cbi-section-node,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-section .cbi-section {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: none;
+	box-shadow: none;
+}
+
+/* -------------------------------------------------------------------- rows */
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-value {
+	display: grid;
+	grid-template-columns: minmax(160px, 32%) minmax(0, 1fr);
+	gap: 14px;
+	align-items: center;
+	margin: 0;
+	padding: 12px 0;
+	border-bottom: 1px solid rgba(16, 35, 62, .06);
+	font-size: 14px;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-value:last-child { border-bottom: 0; }
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-value-title {
+	width: auto;
+	padding: 0;
+	color: var(--ck-ink-soft);
+	font-weight: 500;
+	text-align: left;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-value-field {
+	padding: 0;
+	color: var(--ck-ink);
+	font-weight: 500;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-value-description {
+	color: var(--ck-ink-soft);
+	font-size: 12.5px;
+}
+
+/* ------------------------------------------------------------------ tables */
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] table,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .table {
+	width: 100%;
+	margin: 0 0 18px;
+	border: 1px solid var(--ck-line);
+	border-radius: 14px;
+	border-collapse: separate;
+	border-spacing: 0;
+	background: #fff;
+	box-shadow: 0 1px 1px rgba(16, 35, 62, .03), 0 8px 20px rgba(16, 35, 62, .05);
+	overflow: hidden;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] th,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .th {
+	padding: 12px 16px;
+	border: 0;
+	border-bottom: 1px solid rgba(16, 35, 62, .08);
+	background: #fbfcfd;
+	color: var(--ck-ink-soft);
+	font-size: 13px;
+	font-weight: 600;
+	text-align: left;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] td,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .td {
+	padding: 12px 16px;
+	border: 0;
+	border-bottom: 1px solid rgba(16, 35, 62, .06);
+	font-size: 14px;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] tr:last-child td,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .tr:last-child .td { border-bottom: 0; }
+
+/* ------------------------------------------------------------------- pills */
+/* the section switcher on modem_debug, and the tabs on the CBI pages */
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-tabmenu {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin: 0 0 20px;
+	padding: 0;
+	border: 0;
+	list-style: none;
+	background: none;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-tabmenu::before,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-tabmenu::after { display: none; }
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-tabmenu > li {
+	float: none;
+	margin: 0;
+	padding: 9px 20px;
+	border: 1px solid rgba(10, 132, 255, .22);
+	border-radius: 999px;
+	background: linear-gradient(180deg, rgba(255, 255, 255, .96), rgba(237, 244, 255, .92));
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 1px 2px rgba(16, 35, 62, .06);
+	color: #0A5BD3;
+	font-size: 13.5px;
+	font-weight: 600;
+	white-space: nowrap;
+	cursor: pointer;
+	transition: transform .16s ease, box-shadow .16s ease;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-tabmenu > li > a {
+	display: block;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-decoration: none;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-tabmenu > li:hover {
+	transform: translateY(-1px);
+	border-color: rgba(10, 132, 255, .38);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 6px 18px rgba(10, 132, 255, .20);
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-tabmenu > li.cbi-tab,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-tabmenu > li.cbi-tab > a {
+	border-color: transparent;
+	background: linear-gradient(135deg, #0A84FF 0%, #5E5CE6 100%);
+	color: #fff;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, .28),
+		0 2px 6px rgba(10, 132, 255, .34),
+		0 10px 24px rgba(94, 92, 230, .26);
+}
+
+/* ----------------------------------------------------------------- buttons */
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .btn,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] input[type="button"],
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] input[type="submit"],
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] button {
+	margin: 0 8px 8px 0;
+	padding: 10px 22px;
+	border: 1px solid rgba(10, 132, 255, .22);
+	border-radius: 999px;
+	background: linear-gradient(180deg, rgba(255, 255, 255, .96), rgba(237, 244, 255, .92));
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 1px 2px rgba(16, 35, 62, .06);
+	color: #0A5BD3;
+	font-family: var(--ck-font);
+	font-size: 13.5px;
+	font-weight: 600;
+	line-height: 1.15;
+	text-shadow: none;
+	cursor: pointer;
+	transition: transform .16s ease, box-shadow .16s ease;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button:hover,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .btn:hover,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] input[type="button"]:hover,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] button:hover {
+	transform: translateY(-1px);
+	border-color: rgba(10, 132, 255, .38);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 6px 18px rgba(10, 132, 255, .20);
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button-apply,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button-save,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button-action,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] input[type="submit"] {
+	border-color: transparent;
+	background: linear-gradient(135deg, #0A84FF 0%, #5E5CE6 100%);
+	color: #fff;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, .28),
+		0 2px 6px rgba(10, 132, 255, .34),
+		0 10px 24px rgba(94, 92, 230, .26);
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button-remove,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button-reset {
+	border-color: rgba(255, 59, 48, .26);
+	background: linear-gradient(180deg, #ffffff, #fff4f3);
+	color: #C9302C;
+}
+
+/* ------------------------------------------------------------------ inputs */
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] input[type="text"],
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] input[type="password"],
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] input[type="number"],
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] select,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] textarea {
+	padding: 9px 12px;
+	border: 1px solid var(--ck-line);
+	border-radius: 10px;
+	background: #fff;
+	color: var(--ck-ink);
+	font-family: var(--ck-font);
+	font-size: 14px;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] textarea {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] input[type="text"]:focus,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] select:focus,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] textarea:focus {
+	outline: none;
+	border-color: rgba(10, 132, 255, .5);
+	box-shadow: 0 0 0 3px rgba(10, 132, 255, .14);
+}
+
+/* ----------------------------------------------------------------- banners */
+/* The theme pins an absolutely positioned "!" badge inside .alert-message and
+ * only keeps text clear of it when an <h4> is present. Both pseudo-elements are
+ * neutralised here and the banner is rebuilt as the kit draws it, so a bare
+ * string can never have the badge printed on top of it. */
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .alert-message::after { content: none; }
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .alert-message {
+	position: relative;
+	display: block;
+	margin: 0 0 20px;
+	padding: 18px 22px 18px 26px;
+	border: 1px solid var(--ck-line);
+	border-radius: 16px;
+	background: linear-gradient(180deg, #ffffff, #f7f8fa);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, .9),
+		0 1px 1px rgba(16, 35, 62, .04),
+		0 10px 26px rgba(16, 35, 62, .06);
+	color: var(--ck-ink);
+	font-size: 15px;
+	font-weight: 500;
+	line-height: 1.45;
+	text-align: left;
+	text-shadow: none;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .alert-message::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	right: auto;
+	bottom: 0;
+	left: 0;
+	width: 4px;
+	height: auto;
+	border-radius: 0;
+	background: linear-gradient(180deg, var(--ck-blue), var(--ck-indigo));
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .alert-message > h4 {
+	margin: 0 0 4px;
+	padding: 0;
+	color: var(--ck-ink);
+	font-size: 16px;
+	font-weight: 600;
+	letter-spacing: -.011em;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .alert-message.warning::before {
+	background: linear-gradient(180deg, #FF9F0A, #FF375F);
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .alert-message.success::before {
+	background: linear-gradient(180deg, #30D158, #0A84FF);
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .alert-message.danger::before,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .alert-message.error::before {
+	background: linear-gradient(180deg, var(--ck-red), #FF375F);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-tabmenu > li,
+	body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button,
+	body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] button { transition: none; }
+	body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-tabmenu > li:hover,
+	body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button:hover,
+	body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] button:hover { transform: none; }
+}
+
+@media (max-width: 620px) {
+	body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-value {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 6px;
+	}
+}
+
+/* The theme colours .cbi-button text white and paints the tab anchors red, both
+ * at a higher specificity than a plain attribute selector. These restate the
+ * kit's colours at matching weight -- without them the Submit button renders
+ * white-on-white and the section pills keep the stock red. */
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] input[type="button"],
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] button:not(.sidebar-footer-button) {
+	color: #0A5BD3;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button-apply,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button-save,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button-action,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] input[type="submit"] {
+	color: #fff;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button-remove,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button-reset {
+	color: #C9302C;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-tabmenu > li > a,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-tabmenu > li[class~="active"] > a,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-tabmenu > .cbi-tab-disabled > a {
+	border: 0;
+	background: none;
+	box-shadow: none;
+	color: #0A5BD3;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-tabmenu > li.cbi-tab,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-tabmenu > li[class~="active"] {
+	border-color: transparent;
+	background: linear-gradient(135deg, #0A84FF 0%, #5E5CE6 100%);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, .28),
+		0 2px 6px rgba(10, 132, 255, .34),
+		0 10px 24px rgba(94, 92, 230, .26);
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-tabmenu > li.cbi-tab > a,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-tabmenu > li[class~="active"] > a {
+	color: #fff;
+	background: none;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-tabmenu > .cbi-tab-disabled {
+	background: linear-gradient(180deg, rgba(255, 255, 255, .96), rgba(237, 244, 255, .92));
+}
+
+/* The theme sets `color: #fff !important` on .cbi-button[name="submit"] and
+ * friends, which is why Submit rendered white-on-white once the kit gave it a
+ * light background. !important is required to answer !important; it stays
+ * scoped to the qmodem pages.
+ * button colours, at !important */
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] input[type="button"],
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] input[type="submit"],
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] button:not(.sidebar-footer-button) {
+	color: #0A5BD3 !important;
+	text-shadow: none !important;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button-apply,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button-save,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button-action,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button[value$="Apply"],
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button[name="save"] {
+	color: #fff !important;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button-remove,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button-reset {
+	color: #C9302C !important;
+}
+
+/* variant colours win on compound selectors */
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button.cbi-button-apply,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] input.cbi-button-apply,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] button.cbi-button-apply,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] a.cbi-button-apply,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button.cbi-button-save,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] input.cbi-button-save,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] button.cbi-button-save,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] a.cbi-button-save,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button.cbi-button-action,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] input.cbi-button-action,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] button.cbi-button-action,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] a.cbi-button-action {
+	color: #fff !important;
+	background: linear-gradient(135deg, #0A84FF 0%, #5E5CE6 100%) !important;
+	border-color: transparent !important;
+}
+
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button.cbi-button-remove,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] input.cbi-button-remove,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] button.cbi-button-remove,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] a.cbi-button-remove,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] .cbi-button.cbi-button-reset,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] input.cbi-button-reset,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] button.cbi-button-reset,
+body.logged-in:not(.node-main-login)[data-page^="admin-modem-qmodem"] a.cbi-button-reset {
+	color: #C9302C !important;
+	background: linear-gradient(180deg, #ffffff, #fff4f3) !important;
+	border-color: rgba(255, 59, 48, .26) !important;
+}
