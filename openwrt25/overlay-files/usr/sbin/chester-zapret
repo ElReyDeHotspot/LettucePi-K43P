@@ -23,7 +23,12 @@ SHA_LUCI="6bdcc35f923b73f006f576e71a17b2b7076376a589bc7c2bd667d9a500a7a104"
 ENGINE=/opt/zapret/nfq/nfqws
 INIT=/etc/init.d/zapret
 LOG=/tmp/chester-zapret.log
+PROG=/tmp/chester-zapret.progress
+DONE=/tmp/chester-zapret.done
+PIDF=/tmp/chester-zapret.pid
 TMP=/tmp/chester-zapret-pkg
+
+progress() { echo "$1" > "$PROG" 2>/dev/null; }
 
 is_present() { [ -x "$ENGINE" ] && [ -x "$INIT" ]; }
 is_running() { pgrep nfqws >/dev/null 2>&1; }
@@ -61,16 +66,20 @@ install)
 
 	# The kernel side comes from the official feed; nfqws cannot work without
 	# NFQUEUE, and this image ships neither module.
+	progress "Refreshing the package list"
 	if ! apk update >>"$LOG" 2>&1; then
 		echo "FAIL: no package feed reachable - check the internet connection"; exit 1
 	fi
+	progress "Installing kernel modules"
 	if ! apk add kmod-nft-queue kmod-nfnetlink-queue >>"$LOG" 2>&1; then
 		echo "FAIL: could not install the kernel modules - see $LOG"; exit 1
 	fi
 
+	progress "Downloading the engine"
 	fetch "$PKG_MAIN" "$SHA_MAIN" || { echo "FAIL: could not download the engine"; exit 1; }
 	fetch "$PKG_LUCI" "$SHA_LUCI" || { echo "FAIL: could not download the settings page"; exit 1; }
 
+	progress "Installing"
 	if ! apk add --allow-untrusted "$TMP/$PKG_MAIN" >>"$LOG" 2>&1; then
 		echo "FAIL: could not install the engine - see $LOG"; exit 1
 	fi
@@ -125,6 +134,7 @@ akamaized.net
 HOSTS
 	fi
 
+	progress "Starting the engine"
 	"$INIT" enable >/dev/null 2>&1
 	"$INIT" restart >>"$LOG" 2>&1
 	sleep 3
@@ -146,6 +156,41 @@ uninstall)
 	echo "OK: removed"
 	;;
 
+install-start)
+	if [ -f "$PIDF" ] && kill -0 "$(cat "$PIDF" 2>/dev/null)" 2>/dev/null; then
+		echo '{"ok":true,"started":false,"running":true}'; exit 0
+	fi
+	rm -f "$DONE" "$PROG"
+	progress "Starting"
+	setsid "$0" install-run >/dev/null 2>&1 &
+	echo $! > "$PIDF"
+	echo '{"ok":true,"started":true,"running":true}'
+	;;
+
+install-run)
+	out=$("$0" install 2>&1)
+	printf '%s' "$out" > "$DONE"
+	rm -f "$PROG" "$PIDF"
+	;;
+
+install-status)
+	if [ -f "$DONE" ]; then
+		res=$(cat "$DONE")
+		case "$res" in
+			OK:*) printf '{"ok":true,"done":true,"success":true,"message":"%s"}
+' "${res#OK: }" ;;
+			*)    printf '{"ok":true,"done":true,"success":false,"message":"%s"}
+' "$(echo "$res" | tr -d '"' | tr '
+' ' ')" ;;
+		esac
+	elif [ -f "$PROG" ]; then
+		printf '{"ok":true,"done":false,"running":true,"stage":"%s"}
+' "$(cat "$PROG")"
+	else
+		echo '{"ok":true,"done":false,"running":false}'
+	fi
+	;;
+
 *)
-	echo "usage: chester-zapret status|install|uninstall" >&2; exit 2 ;;
+	echo "usage: chester-zapret status|install|install-start|install-status|uninstall" >&2; exit 2 ;;
 esac

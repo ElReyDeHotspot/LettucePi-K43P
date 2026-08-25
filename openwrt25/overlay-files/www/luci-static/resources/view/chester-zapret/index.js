@@ -64,6 +64,17 @@ function zap(args) {
 /* Report what actually went wrong. An earlier version answered 'denied' for
  * every exception, which sent me looking at ACLs when the real fault was
  * elsewhere -- the message is worth more than the guess. */
+function zapJson(args) {
+	return fs.exec('/usr/sbin/chester-zapret', args).then(function (r) {
+		var out = (r.stdout || '').trim();
+		if (!out) return { ok: false, error: 'no output' };
+		try { return JSON.parse(out); }
+		catch (e) { return { ok: false, error: out.slice(0, 120) }; }
+	}).catch(function (e) {
+		return { ok: false, error: String((e && e.message) ? e.message : e).slice(0, 160) };
+	});
+}
+
 function exec(args) {
 	return fs.exec('/usr/sbin/chester-videotest', args).then(function (r) {
 		var out = (r.stdout || '').trim();
@@ -83,19 +94,55 @@ return view.extend({
 		return L.resolveDefault(callVideoBoost(), {});
 	},
 
+	/* The install runs detached and this polls, because apk update plus the
+	 * kernel modules plus the download plus the service start take far longer
+	 * than a LuCI XHR will wait. Doing it synchronously reported "XHR request
+	 * timed out" while the install was in fact completing normally. */
 	install: function () {
 		var self = this;
+		var stage = E('p', { 'class': 'spinning' }, _('Starting...'));
 		ui.showModal(_('Install 4K/HD'), [
-			E('p', { 'class': 'spinning' }, _('Downloading and installing. This needs an internet connection.'))
+			E('p', {}, _('Downloading and installing. This needs an internet connection and takes a minute.')),
+			stage
 		]);
-		return zap([ 'install' ]).then(function (out) {
-			ui.hideModal();
-			if (out.indexOf('OK:') !== 0) {
-				ui.addNotification(null, E('p', {}, out || _('Install failed.')), 'danger');
-				return self.reload();
+
+		return zapJson([ 'install-start' ]).then(function (r) {
+			if (r && r.ok === false) {
+				ui.hideModal();
+				ui.addNotification(null, E('p', {}, r.error || _('Could not start the install.')), 'danger');
+				return;
 			}
-			ui.addNotification(null, E('p', {}, _('4K/HD installed and running.')), 'info');
-			return self.reload();
+			var tries = 0, misses = 0;
+			var poll = function () {
+				if (++tries > 60) {
+					ui.hideModal();
+					ui.addNotification(null, E('p', {}, _('The install did not finish in time.')), 'warning');
+					return self.reload();
+				}
+				zapJson([ 'install-status' ]).then(function (s) {
+					if (s && s.done) {
+						ui.hideModal();
+						ui.addNotification(null, E('p', {}, s.message ||
+							(s.success ? _('Installed.') : _('Install failed.'))),
+							s.success ? 'info' : 'danger');
+						return self.reload();
+					}
+					if (s && s.ok === false) {
+						if (++misses >= 5) {
+							ui.hideModal();
+							ui.addNotification(null, E('p', {},
+								_('Install failed: %s').format(s.error || '?')), 'danger');
+							return self.reload();
+						}
+						window.setTimeout(poll, 3000);
+						return;
+					}
+					misses = 0;
+					if (s && s.stage) stage.textContent = s.stage + '...';
+					window.setTimeout(poll, 3000);
+				});
+			};
+			window.setTimeout(poll, 3000);
 		});
 	},
 

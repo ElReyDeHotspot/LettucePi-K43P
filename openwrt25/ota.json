@@ -1,10 +1,10 @@
 {
   "family": "OpenWrt",
   "version": "25.12",
-  "built": "2026-08-24T23:36Z",
-  "build": "20260824233515",
-  "sha256": "4ba48ad762198bb7461190cc3787d6738e368edcc30925e7a381c42eeb2cc1ef",
+  "built": "2026-08-25T03:33Z",
+  "build": "20260825030907",
+  "sha256": "2037889c16410a2230b6927db82686da6c75969020bfff727d6fb160ff74ed26",
   "size": "17170432",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/firmware/chester-openwrt25-20260824233515-factory.bin",
-  "notes": "Over-the-air updates a Terminal page and a TTL/HL switch on the Overview."
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/firmware/chester-openwrt25-20260825030907-factory.bin",
+  "notes": "Adds 4K/HD video unthrottling a Terminal page and the streaming test."
 }
