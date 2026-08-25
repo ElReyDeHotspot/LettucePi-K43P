@@ -2265,3 +2265,82 @@
 	opacity: .82;
 	filter: none;
 }
+
+/* RJ45 silhouette.
+ *
+ * Drawn rather than approximated: the body has chamfered top corners, the
+ * latch leaves the body on a slope rather than a step, and the tab itself
+ * is chamfered at the bottom. A plain rectangle-plus-rectangle reads as a
+ * notched box; the slopes are what make it read as a connector.
+ *
+ * clip-path clips the border away, so the edge is carried by drop-shadow --
+ * filter: drop-shadow follows a clipped shape where box-shadow does not.
+ * Bottom padding is reserved so text never falls into the tab, which is
+ * narrower than the body and would clip it. */
+.misectel-dashboard-port-panel__port {
+	position: relative;
+	clip-path: polygon(
+		5% 0%, 95% 0%,
+		100% 8%,
+		100% 66%,
+		71% 66%,
+		67% 75%,
+		67% 93%,
+		62% 100%,
+		38% 100%,
+		33% 93%,
+		33% 75%,
+		29% 66%,
+		0% 66%,
+		0% 8%
+	);
+	border: 0;
+	border-radius: 0;
+	padding-bottom: 34px;
+	filter: drop-shadow(0 0 0.6px rgba(70, 92, 122, .95))
+		drop-shadow(0 2px 4px rgba(15, 39, 67, .18));
+}
+
+/* The eight contacts, hinted along the top edge. Eight stripes across the
+ * middle 60% -- enough to be recognised, faint enough not to compete with
+ * the port name underneath. */
+.misectel-dashboard-port-panel__port::before {
+	content: '';
+	position: absolute;
+	top: 5px;
+	left: 20%;
+	width: 60%;
+	height: 9px;
+	opacity: .5;
+	background-image: repeating-linear-gradient(
+		to right,
+		rgba(198, 160, 72, .95) 0 2px,
+		transparent 2px 7px
+	);
+	pointer-events: none;
+}
+
+/* Hover keeps the lift, but the shadow has to be redeclared here or the
+ * filter above wins and the card looks flat. */
+.misectel-dashboard-port-panel__port.is-switchable:hover {
+	box-shadow: none;
+	filter: drop-shadow(0 0 0.7px rgba(60, 121, 245, .95))
+		drop-shadow(0 4px 8px rgba(15, 39, 67, .26));
+}
+
+/* An outline would be drawn on the unclipped rectangle and cut in half, so
+ * the switchable affordance lives in the shadow colour above instead. */
+.misectel-dashboard-port-panel__port.is-switchable {
+	outline: none;
+}
+
+/* A section describing something that is not running. Used for WAN
+ * Status once the 2.5G socket has been switched to a LAN port: the
+ * interface is disabled, so its values are stale by definition. Greyed
+ * rather than hidden, because a panel that vanishes makes people think
+ * something broke. */
+.misectel-dashboard-interface-block.is-inactive {
+	opacity: .38;
+	filter: grayscale(100%);
+	transition: opacity .2s ease;
+}

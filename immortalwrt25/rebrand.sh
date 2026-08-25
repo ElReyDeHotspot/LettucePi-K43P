@@ -987,45 +987,23 @@ fi
 # three in reverse (port@3 was called "lan1").
 #
 # Two userspace pieces have to follow the tree or the new port stays unused:
-step "Fourth LAN port (lan4)"
-BD="$R/etc/board.d/02_network"
-[ -f "$BD" ] || die "board.d/02_network missing - image layout changed"
-# 1. First boot builds /etc/config/network from here, and the profile for this
-#    board still lists only three LAN ports.
-python3 - "$BD" <<'PYEOF'
-import sys
-p=sys.argv[1]
-s=open(p,encoding="utf-8").read()
-old='\tmisectel,m01k43|\\\n\tmisectel,m01k43-usb)\n\t\tucidef_set_interfaces_lan_wan "lan1 lan2 lan3" "wan"'
-new='\tmisectel,m01k43|\\\n\tmisectel,m01k43-usb)\n\t\tucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4" "wan"'
-if new in s:
-    print("  board.d already lists lan4")
-elif old in s:
-    open(p,"w",encoding="utf-8",newline=chr(10)).write(s.replace(old,new,1))
-    print("  board.d: LAN ports lan1-lan3 -> lan1-lan4")
-else:
-    sys.exit("board.d case for misectel,m01k43 not found verbatim")
-PYEOF
-
-# 2. An UPGRADE keeps /etc/config/network, so board.d never re-runs and the
-#    existing bridge would silently stay three ports wide. uci-defaults do run
-#    after a sysupgrade, so add the port there too - only if absent, so a
-#    deliberate customer change is not overwritten.
-cat > "$R/etc/uci-defaults/99-chester-lan4" <<'UCID'
-#!/bin/sh
-# Add the fourth LAN port to the bridge if it is not already a member.
-[ -e /sys/class/net/lan4 ] || exit 0
-ports=$(uci -q get network.@device[0].ports)
-case " $ports " in
-	*" lan4 "*) exit 0 ;;
-esac
-uci -q add_list network.@device[0].ports='lan4'
-uci -q commit network
-exit 0
-UCID
-chmod 0755 "$R/etc/uci-defaults/99-chester-lan4"
-grep -q 'lan1 lan2 lan3 lan4' "$BD" || die "board.d lan4 patch did not take"
-echo "  /etc/uci-defaults/99-chester-lan4 (adds lan4 to br-lan on upgrade)"
+# ------------------------------------------- 11b. NO fourth LAN port
+# There used to be a step here that declared a fourth LAN port. This board
+# does not have one. It has three 1G sockets (lan1-lan3) plus the 2.5G
+# socket, which is `wan` -- and that socket is made into a LAN port by
+# optional_wan_mode, not by inventing an interface.
+#
+# The step patched board.d to
+#     ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4" "wan"
+# unconditionally, so first boot wrote lan4 into /etc/config/network on
+# every unit. There is no lan4 netdev, so the kernel simply left it out of
+# the bridge: uci listed a port that could never carry a packet, and the
+# dashboard showed a socket that does not exist.
+#
+# Its uci-defaults companion was guarded with
+#     [ -e /sys/class/net/lan4 ] || exit 0
+# and therefore correctly did nothing -- which is exactly why the fault
+# was easy to miss: the guarded half behaved, the unguarded half did not.
 
 # What a customer sees on SSH and in Status -> Overview.
 #
