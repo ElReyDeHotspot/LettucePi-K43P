@@ -1,0 +1,9 @@
+#!/bin/sh
+# Stop and unhook before the files go, so the nft table does not outlive the
+# binary that answers on the port it redirects to.
+if [ -x /etc/init.d/chester-tpws ]; then
+	/etc/init.d/chester-tpws stop >/dev/null 2>&1
+	/etc/init.d/chester-tpws disable >/dev/null 2>&1
+fi
+nft delete table inet chester_tpws 2>/dev/null
+exit 0

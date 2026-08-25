@@ -1,0 +1,10 @@
+#!/bin/sh
+# The engine ships staged, not started: the 4K/HD page has an Install button
+# and the operator decides when to turn it on. All this does is make sure the
+# files are executable and that LuCI notices the new page.
+chmod 0755 /usr/sbin/tpws /usr/sbin/chester-zapret /usr/sbin/chester-videotest \
+	/etc/init.d/chester-tpws 2>/dev/null
+rm -f /tmp/luci-indexcache* 2>/dev/null
+rm -rf /tmp/luci-modulecache 2>/dev/null
+[ -x /etc/init.d/rpcd ] && /etc/init.d/rpcd reload >/dev/null 2>&1
+exit 0

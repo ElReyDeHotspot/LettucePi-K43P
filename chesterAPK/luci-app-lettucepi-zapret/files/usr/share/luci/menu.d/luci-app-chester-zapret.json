@@ -1,0 +1,14 @@
+{
+	"admin/apps/zapret": {
+		"title": "4K/HD Video",
+		"order": 30,
+		"action": {
+			"type": "view",
+			"path": "chester-zapret/index"
+		},
+		"depends": {
+			"acl": [ "luci-app-chester-zapret" ],
+			"fs": { "/usr/sbin/chester-videotest": "executable" }
+		}
+	}
+}

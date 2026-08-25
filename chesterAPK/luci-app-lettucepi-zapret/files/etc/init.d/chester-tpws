@@ -1,0 +1,100 @@
+#!/bin/sh /etc/rc.common
+# 4K/HD engine -- tpws.
+#
+# Carriers throttle video by recognising the TLS SNI. tpws is a transparent
+# proxy that splits the ClientHello so the hostname is never intact in a
+# single packet.
+#
+# The flags are carp4's, from QManager-RM520N-zepret-addon
+# (scripts/usr/lib/qmanager/dpi_state.sh, dpi_build_args):
+#
+#     --filter-l7=tls,http --split-pos=1,midsld,sniext+1 --disorder=tls
+#
+# --filter-l7 matters: without it tpws applies the desync to every protocol
+# it proxies, not just the two that carry the SNI.
+#
+# What differs from carp4 is only what has to: that addon runs on the modem
+# and redirects its LAN bridge with iptables --
+#
+#     iptables -t nat -I PREROUTING -i bridge0 -p tcp \
+#         -m multiport --dports 80,443 -j REDIRECT --to-ports 989
+#
+# -- whereas this is the router, so the bridge is br-lan and the ruleset is
+# nftables. The port (989) is kept the same.
+#
+# tpws is used rather than nfqws on purpose: nfqws needs NFQUEUE, and this
+# kernel (6.12.85) has no nfnetlink_queue and no matching kmod in the OpenWrt
+# feed (which builds for 6.12.94). tpws needs no kernel module at all.
+START=94
+STOP=11
+USE_PROCD=1
+
+PORT=989
+BIN=/usr/sbin/tpws
+HOSTS=/etc/chester-video-hosts
+TABLE=chester_tpws
+RUN_USER=daemon
+
+start_service() {
+	[ -x "$BIN" ] || return 0
+	[ -s "$HOSTS" ] || return 0
+
+	procd_open_instance tpws
+	procd_set_param command "$BIN" \
+		--port="$PORT" \
+		--user="$RUN_USER" \
+		--bind-addr=0.0.0.0 \
+		--filter-l7=tls,http \
+		--split-pos=1,midsld,sniext+1 \
+		--disorder=tls \
+		--hostlist="$HOSTS"
+	procd_set_param respawn 3600 5 0
+	procd_set_param stdout 0
+	procd_set_param stderr 1
+	procd_close_instance
+
+	fw_add
+}
+
+stop_service() {
+	fw_del
+}
+
+fw_add() {
+	fw_del
+
+	# A separate table so this can be torn down without touching fw4's own
+	# ruleset. dstnat priority puts it alongside the firewall's own nat.
+	#
+	# The output chain is not in carp4's design, which redirects LAN clients
+	# only. It is here because the router's own traffic is what the Streaming
+	# Test measures -- without it the test would bypass the engine and always
+	# report throttled. tpws's own uid is excluded so it cannot redirect to
+	# itself.
+	nft -f - <<-EOF 2>/dev/null
+		table inet $TABLE {
+			chain prerouting {
+				type nat hook prerouting priority dstnat - 5; policy accept;
+				iifname "br-lan" tcp dport { 80, 443 } redirect to :$PORT
+			}
+			chain output {
+				type nat hook output priority dstnat - 5; policy accept;
+				meta skuid != $RUN_USER tcp dport { 80, 443 } redirect to :$PORT
+			}
+		}
+	EOF
+}
+
+fw_del() {
+	nft delete table inet $TABLE 2>/dev/null
+	return 0
+}
+
+service_triggers() {
+	procd_add_reload_trigger "chester_tpws"
+}
+
+reload_service() {
+	stop
+	start
+}

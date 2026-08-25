@@ -1,0 +1,133 @@
+#!/bin/sh
+# 4K/HD engine control.
+#
+#   chester-zapret status          -> JSON: present/running/enabled/version
+#   chester-zapret install         -> enable + start (synchronous)
+#   chester-zapret install-start   -> same, detached
+#   chester-zapret install-status  -> progress of a detached install
+#   chester-zapret uninstall       -> stop + disable, rules removed
+#
+# The verbs are unchanged from the previous nfqws-based version because the
+# rpcd ACL permits exactly these argument forms and nothing else.
+#
+# What changed is the engine underneath. The old build tried:
+#
+#     apk add kmod-nft-queue kmod-nfnetlink-queue
+#
+# which cannot succeed on this firmware -- those kmods do not exist in the
+# feed at all (it builds for 6.12.94; this kernel is 6.12.85), so every
+# install failed at that line. nfqws needs NFQUEUE and therefore cannot run
+# here. tpws needs no kernel module, and is what carp4's addon uses too.
+#
+# The binary now ships inside this package, so "installing" is only a matter
+# of enabling the service -- there is nothing left to download and no
+# checksum to verify at run time.
+set -u
+
+BIN=/usr/sbin/tpws
+INIT=/etc/init.d/chester-tpws
+HOSTS=/etc/chester-video-hosts
+STATE=/tmp/chester-zapret.state
+LOG=/tmp/chester-zapret.log
+
+engine_present() { [ -x "$BIN" ] && [ -x "$INIT" ]; }
+# busybox `pgrep -x` matches the whole command line rather than the process
+# name, so it never matches here. pidof compares /proc/N/comm exactly and
+# skips itself.
+engine_running() { pidof tpws >/dev/null 2>&1; }
+engine_enabled() { [ -n "$(ls /etc/rc.d/ 2>/dev/null | grep '^S[0-9]*chester-tpws$')" ]; }
+
+engine_version() {
+	[ -x "$BIN" ] || { printf ''; return; }
+	"$BIN" --version 2>&1 | sed -n 's/.*version *\(v[0-9.]*\).*/\1/p' | head -1
+}
+
+json_status() {
+	printf '{"ok":true,"present":%s,"running":%s,"enabled":%s,"version":"%s","hosts":%s}\n' \
+		"$(engine_present && echo true || echo false)" \
+		"$(engine_running && echo true || echo false)" \
+		"$(engine_enabled && echo true || echo false)" \
+		"$(engine_version)" \
+		"$(grep -cvE '^[[:space:]]*(#|$)' "$HOSTS" 2>/dev/null || echo 0)"
+}
+
+do_install() {
+	: > "$LOG"
+	echo "stage:starting" > "$STATE"
+
+	if ! engine_present; then
+		echo "the engine binary is missing - reinstall the package" >> "$LOG"
+		echo "stage:failed" > "$STATE"
+		return 1
+	fi
+
+	if [ ! -s "$HOSTS" ]; then
+		echo "the domain list is missing or empty" >> "$LOG"
+		echo "stage:failed" > "$STATE"
+		return 1
+	fi
+
+	echo "stage:enabling" > "$STATE"
+	"$INIT" enable >> "$LOG" 2>&1
+
+	echo "stage:starting-service" > "$STATE"
+	"$INIT" start >> "$LOG" 2>&1
+
+	# procd forks; give it a moment before deciding whether it took.
+	i=0
+	while [ "$i" -lt 10 ]; do
+		engine_running && break
+		i=$((i + 1))
+		sleep 1
+	done
+
+	if engine_running; then
+		echo "stage:done" > "$STATE"
+		return 0
+	fi
+
+	echo "the service did not stay running - see logread" >> "$LOG"
+	echo "stage:failed" > "$STATE"
+	return 1
+}
+
+case "${1:-status}" in
+	status)
+		json_status
+		;;
+	install)
+		if do_install; then
+			json_status
+		else
+			printf '{"ok":false,"error":"%s"}\n' \
+				"$(tail -1 "$LOG" 2>/dev/null | sed 's/"/\\"/g')"
+		fi
+		;;
+	install-start)
+		# Detached: the caller is an XHR and the browser gives up long before
+		# a synchronous install would return.
+		( do_install >/dev/null 2>&1 & ) >/dev/null 2>&1
+		printf '{"ok":true,"started":true}\n'
+		;;
+	install-status)
+		stage=$(sed -n 's/^stage://p' "$STATE" 2>/dev/null | head -1)
+		[ -n "$stage" ] || stage=idle
+		if [ "$stage" = failed ]; then
+			printf '{"ok":false,"stage":"failed","error":"%s"}\n' \
+				"$(tail -1 "$LOG" 2>/dev/null | sed 's/"/\\"/g')"
+		else
+			printf '{"ok":true,"stage":"%s","running":%s}\n' \
+				"$stage" "$(engine_running && echo true || echo false)"
+		fi
+		;;
+	uninstall)
+		[ -x "$INIT" ] && { "$INIT" stop >/dev/null 2>&1; "$INIT" disable >/dev/null 2>&1; }
+		rm -f "$STATE"
+		json_status
+		;;
+	*)
+		printf '{"ok":false,"error":"unknown verb"}\n'
+		exit 1
+		;;
+esac
+exit 0
