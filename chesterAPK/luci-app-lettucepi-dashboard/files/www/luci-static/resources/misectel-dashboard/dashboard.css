@@ -2355,3 +2355,17 @@
 		drop-shadow(0 0 1px rgba(60, 121, 245, 1))
 		drop-shadow(0 0 18px rgba(60, 121, 245, .70));
 }
+
+/* A section describing something that is not running. Used for WAN
+ * Status once the 2.5G socket has been switched to a LAN port: the
+ * interface is disabled, so every value in it is stale by definition.
+ * Greyed rather than hidden, because a panel that vanishes makes people
+ * think something broke.
+ *
+ * !important because the block also carries --compact, and this has to
+ * win regardless of which of the two stylesheets' copies loads last. */
+.misectel-dashboard-interface-block.is-inactive {
+	opacity: .38 !important;
+	filter: grayscale(100%) !important;
+	transition: opacity .2s ease;
+}
