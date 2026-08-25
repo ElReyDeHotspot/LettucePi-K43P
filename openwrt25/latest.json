@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-08-25T23:01Z",
-  "build": "20260825230123",
-  "bin": "29",
-  "sha256": "40c07134f8db7a0e0f040cecced008a851f55fabfbb3df7e93cd62a02505dc56",
+  "built": "2026-08-25T23:35Z",
+  "build": "20260825233537",
+  "bin": "30",
+  "sha256": "6af0366f7c14f3ed43f0f0e331b684bcd2480a7f0dcec03a3b554611449f5fa8",
   "size": "25821184",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/29-2026-08-25-ChesterK43P-25.12.bin",
-  "notes": "System Update now shows which image you are on (bin number). Package feeds on ImmortalWrt, Terminal (ttyd) built in. Settings are NOT kept: this flashes with -n."
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/30-2026-08-25-ChesterK43P-25.12.bin",
+  "notes": "Terminal (ttyd) runs from first boot. System Update shows Installed Image and Latest Image. Settings are NOT kept: this flashes with -n."
 }

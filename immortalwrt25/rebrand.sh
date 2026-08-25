@@ -1207,13 +1207,30 @@ if [ -x /etc/init.d/chester-phy-led ]; then
 	/etc/init.d/chester-phy-led enable
 	/etc/init.d/chester-phy-led start
 fi
+# Terminal (ttyd). It is installed into the rootfs with --no-scripts, because
+# the build host is x86_64 and this rootfs is aarch64, so apk cannot chroot in
+# to run the package's own post-install. Nothing else enables it -- the files
+# and /etc/config/ttyd land correctly and the service simply never starts, so
+# the Terminal page loads and shows a sad face where the websocket should be.
+if [ -x /etc/init.d/ttyd ]; then
+	/etc/init.d/ttyd enable
+	/etc/init.d/ttyd start
+fi
 # Prime the modem temperature cache so the Overview shows a number on first
 # paint rather than a dash.
 [ -x /usr/sbin/chester-modem-temp ] && /usr/sbin/chester-modem-temp refresh >/dev/null 2>&1 &
 exit 0
 UCID
 chmod 0755 "$R/etc/uci-defaults/98-lettucepi-services"
-echo "  /etc/uci-defaults/98-lettucepi-services (phy-led enable, temp cache)"
+echo "  /etc/uci-defaults/98-lettucepi-services (phy-led + ttyd enable, temp cache)"
+
+# --no-scripts means nothing in the image enables the services these packages
+# ship. Fail the build if the first-boot script does not cover each one, rather
+# than shipping a Terminal page that loads and cannot connect.
+for svc in chester-phy-led ttyd; do
+	grep -q "/etc/init.d/$svc enable" "$R/etc/uci-defaults/98-lettucepi-services" \
+		|| die "$svc is installed but nothing enables it at first boot"
+done
 
 # ------------------------------------------------------------------ repack
 step "Repacking squashfs"
