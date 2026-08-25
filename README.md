@@ -35,6 +35,7 @@ upgrade in place, which need the one-liner, and what a firmware change erases.
 
 | | |
 |---|---|
+| [`OPENWRT21-UPGRADE.md`](OPENWRT21-UPGRADE.md) | **Factory OpenWrt 21 -> current.** One line, and why the obvious way fails |
 | [`UPGRADING.md`](UPGRADING.md) | Which upgrade path applies, and what it erases |
 | [`openwrt25/install.sh`](openwrt25/install.sh) | The one-liner. Installs OpenWrt 25 |
 | [`openwrt25/README.md`](openwrt25/README.md) | Longer guide for the OpenWrt 25 build |

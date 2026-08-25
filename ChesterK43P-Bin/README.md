@@ -26,7 +26,9 @@ folder.** This is an archive for reference and rollback.
 | 11 | 2026-08-23 | `11-...-ChesterK43P-25.12` | 22.5 MB | Superseded. Tailscale now reachable over the tailnet: tailscale0 is placed in a firewall zone automatically |
 | 12 | 2026-08-23 | `12-...-ChesterK43P-25.12` | 22.5 MB | Superseded. Fourth LAN port restored: device tree now declares switch ports 0-3 as lan1-lan4 |
 | 13 | 2026-08-23 | `13-...-ChesterK43P-25.12` | 22.5 MB | Superseded. Fourth LAN port (lan4) restored; identity and package feeds moved to OpenWrt 25 |
-| 14 | 2026-08-24 | `14-...-ChesterK43P-25.12` | 22.5 MB | ✅ **Current.** Final ImmortalWrt build. Stepping stone to OpenWrt 25: its updater no longer keeps settings and reads next.json, so latest.json can stay pinned here for older routers. |
+| 14 | 2026-08-24 | `14-...-ChesterK43P-25.12` | 22.5 MB | Superseded. Final ImmortalWrt build. Stepping stone to OpenWrt 25: its updater no longer keeps settings and reads next.json, so latest.json can stay pinned here for older routers. |
+| 15-25 | 2026-08-25 | `NN-...-ChesterK43P-25.12` | ~23-25 MB | Superseded. Same-day iterations: zapret/tpws, WAN-LAN switch, Developer menu, port fixes. |
+| 26 | 2026-08-25 | `26-...-ChesterK43P-25.12` | 23.9 MB | ✅ **Current.** 4K/HD engine (tpws), WAN/LAN switch on the WAN square, Developer menu, LTE+5G signal, modem temperature, phytool. Validated from factory OpenWrt 21 -- see [OPENWRT21-UPGRADE.md](../OPENWRT21-UPGRADE.md). |
 
 ## SHA-256
 

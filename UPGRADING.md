@@ -189,6 +189,24 @@ Two things change across the upgrade and are **not** faults:
 
 ---
 
+## Why there is a stepping stone
+
+There are two manifests, and they are not interchangeable:
+
+| Manifest | Read by | Flash |
+|---|---|---|
+| `openwrt25/latest.json` | every older build | `sysupgrade -k`, settings **kept** |
+| `openwrt25/next.json` | the stepping-stone build only | `sysupgrade -n`, settings **erased** |
+
+`latest.json` stays pinned at the stepping stone, so an older router only
+ever sees that one and reaches it with its settings intact. Only a router
+already on the stepping stone reads `next.json` and takes the erasing step.
+
+The split exists so a config can never be carried across a firmware family
+that cannot use it -- which is what strands a router. Pinning `latest.json`
+forward to skip the hop would hand older routers a `-n` flash they were not
+expecting.
+
 ## 8. If it goes wrong
 
 The unit has two banks and the bootloader falls back to the good one, so a
