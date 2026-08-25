@@ -112,13 +112,23 @@ case "${1:-status}" in
 	install-status)
 		stage=$(sed -n 's/^stage://p' "$STATE" 2>/dev/null | head -1)
 		[ -n "$stage" ] || stage=idle
-		if [ "$stage" = failed ]; then
-			printf '{"ok":false,"stage":"failed","error":"%s"}\n' \
-				"$(tail -1 "$LOG" 2>/dev/null | sed 's/"/\\"/g')"
-		else
-			printf '{"ok":true,"stage":"%s","running":%s}\n' \
-				"$stage" "$(engine_running && echo true || echo false)"
-		fi
+		# The page ends its poll on "done" and shows "message"; a bare
+		# stage string leaves it spinning until it times out, which reads
+		# as a failed install even when the engine came up fine.
+		case "$stage" in
+			done)
+				printf '{"ok":true,"done":true,"success":true,"stage":"done","running":%s,"message":"4K/HD is installed and running."}\n' \
+					"$(engine_running && echo true || echo false)"
+				;;
+			failed)
+				printf '{"ok":true,"done":true,"success":false,"stage":"failed","running":false,"message":"%s"}\n' \
+					"$(tail -1 "$LOG" 2>/dev/null | sed 's/"/\\"/g')"
+				;;
+			*)
+				printf '{"ok":true,"done":false,"stage":"%s","running":%s}\n' \
+					"$stage" "$(engine_running && echo true || echo false)"
+				;;
+		esac
 		;;
 	uninstall)
 		[ -x "$INIT" ] && { "$INIT" stop >/dev/null 2>&1; "$INIT" disable >/dev/null 2>&1; }

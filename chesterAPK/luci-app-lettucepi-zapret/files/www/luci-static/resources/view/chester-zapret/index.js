@@ -21,9 +21,9 @@
 var KIT_CSS_ID = 'chester-ui-kit-css';
 var KIT_CSS_URL = L.resource('chester-ui/kit.css');
 
-var callVideoBoost = rpc.declare({ object: 'chester', method: 'video_boost', expect: {} });
+var callVideoBoost = rpc.declare({ object: 'misectel', method: 'video_engine', expect: {} });
 var callSetVideoBoost = rpc.declare({
-	object: 'chester', method: 'set_video_boost', params: [ 'enabled' ], expect: {} });
+	object: 'misectel', method: 'set_video_engine', params: [ 'enabled' ], expect: {} });
 
 function ensureKit() {
 	if (document.getElementById(KIT_CSS_ID))
