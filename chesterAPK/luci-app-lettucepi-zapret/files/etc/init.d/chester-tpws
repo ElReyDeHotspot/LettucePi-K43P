@@ -71,14 +71,28 @@ fw_add() {
 	# Test measures -- without it the test would bypass the engine and always
 	# report throttled. tpws's own uid is excluded so it cannot redirect to
 	# itself.
+	# `fib daddr type local return` first, in BOTH chains, and it is not
+	# optional. Without it the redirect also catches traffic addressed to the
+	# router itself -- which on this box means the LuCI web UI on
+	# 192.168.100.1:80. Every page a LAN client loads then goes through tpws,
+	# and because the Streaming Test stops the engine on purpose mid-run, every
+	# connection through it dies at that moment. What the operator sees is
+	# "XHR request aborted by browser" and a web UI that drops out whenever the
+	# engine is toggled.
+	#
+	# carp4's version does not need this: it runs on the modem and redirects
+	# bridge0, where the management UI is not the redirect target. Here the
+	# router IS the thing listening on port 80 of the bridge being redirected.
 	nft -f - <<-EOF 2>/dev/null
 		table inet $TABLE {
 			chain prerouting {
 				type nat hook prerouting priority dstnat - 5; policy accept;
+				fib daddr type local return
 				iifname "br-lan" tcp dport { 80, 443 } redirect to :$PORT
 			}
 			chain output {
 				type nat hook output priority dstnat - 5; policy accept;
+				fib daddr type local return
 				meta skuid != $RUN_USER tcp dport { 80, 443 } redirect to :$PORT
 			}
 		}
