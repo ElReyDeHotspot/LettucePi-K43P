@@ -113,6 +113,7 @@ return view.extend({
 				body.push(E('div', { 'class': 'ck-card' }, [
 					E('div', { 'class': 'ck-rows' }, [
 						row(_('Installed version'), info.installed_version),
+						row(_('Image'), info.installed_bin ? ('bin ' + info.installed_bin) : _('unknown')),
 						row(_('Built'), info.installed_built)
 					])
 				]));
@@ -134,8 +135,10 @@ return view.extend({
 		body.push(E('div', { 'class': 'ck-card' }, [
 			E('div', { 'class': 'ck-rows' }, [
 				row(_('Installed version'), info.installed_version),
+				row(_('Installed image'), info.installed_bin ? ('bin ' + info.installed_bin) : _('unknown')),
 				row(_('Installed build'), info.installed_build, true),
 				row(_('Latest version'), info.latest_version),
+				row(_('Latest image'), info.latest_bin ? ('bin ' + info.latest_bin) : _('unknown')),
 				row(_('Latest build'), info.latest_built),
 				row(_('Latest checksum'), info.latest_sha, true)
 			])

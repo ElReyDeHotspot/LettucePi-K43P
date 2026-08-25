@@ -40,6 +40,9 @@ log()  { printf '%s %s\n' "$(date '+%H:%M:%S')" "$*" >> "$LOG" 2>/dev/null; }
 installed_id()  { sed -n 's/^build=//p'   "$VERSION_FILE" 2>/dev/null | head -1; }
 installed_ver() { sed -n 's/^version=//p' "$VERSION_FILE" 2>/dev/null | head -1; }
 installed_date(){ sed -n 's/^built=//p'   "$VERSION_FILE" 2>/dev/null | head -1; }
+# Older images have no bin= line at all, so this is empty rather than
+# wrong on anything built before the stamp existed.
+installed_bin() { sed -n 's/^bin=//p'     "$VERSION_FILE" 2>/dev/null | head -1; }
 
 case "${1:-status}" in
 status)
@@ -55,11 +58,12 @@ status)
 	ls=$(printf '%s' "$m" | jget sha256)
 	lz=$(printf '%s' "$m" | jget size)
 	ln=$(printf '%s' "$m" | jget notes)
+	lN=$(printf '%s' "$m" | jget bin)
 	cur=$(installed_id)
 	upd=false
 	[ -n "$li" ] && [ "$li" != "$cur" ] && upd=true
-	printf '{"ok":true,"installed_version":"%s","installed_built":"%s","installed_build":"%s","latest_version":"%s","latest_built":"%s","latest_sha":"%s","size":"%s","notes":"%s","update_available":%s}\n' \
-		"$(installed_ver)" "$(installed_date)" "$cur" "$lv" "$lb" "$ls" "$lz" "$ln" "$upd"
+	printf '{"ok":true,"installed_version":"%s","installed_built":"%s","installed_build":"%s","installed_bin":"%s","latest_version":"%s","latest_built":"%s","latest_sha":"%s","size":"%s","latest_bin":"%s","notes":"%s","update_available":%s}\n' \
+		"$(installed_ver)" "$(installed_date)" "$cur" "$(installed_bin)" "$lv" "$lb" "$ls" "$lz" "$lN" "$ln" "$upd"
 	;;
 install)
 	: > "$LOG"

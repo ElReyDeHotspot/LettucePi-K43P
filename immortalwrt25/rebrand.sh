@@ -418,8 +418,14 @@ step "Installing the System Update page"
 LU="$HERE/luci-chester-update"
 if [ -d "$LU" ]; then
 	BUILD_ID="${BUILD_ID:-$(date -u +%Y%m%d%H%M%S)}"
-	printf 'version=%s\nbuilt=%s\nbuild=%s\n' \
-		"$VERSION" "$(date -u +%Y-%m-%dT%H:%MZ)" "$BUILD_ID" > "$R/etc/chester-version"
+	# bin= is the image's sequence number in ChesterK43P-Bin. It is passed in
+	# by build-bin.sh, which has to decide it before calling this script.
+	# Unknown is stamped rather than omitted, so the update page shows an
+	# honest gap instead of a blank where a number should be.
+	BIN_NUMBER="${BIN_NUMBER:-unknown}"
+	printf 'version=%s\nbuilt=%s\nbuild=%s\nbin=%s\n' \
+		"$VERSION" "$(date -u +%Y-%m-%dT%H:%MZ)" "$BUILD_ID" "$BIN_NUMBER" \
+		> "$R/etc/chester-version"
 	chmod 0644 "$R/etc/chester-version"
 
 	install -m 0755 "$LU/chester-update" "$R/usr/sbin/chester-update"

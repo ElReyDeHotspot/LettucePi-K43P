@@ -125,17 +125,23 @@ printf '  %-22s %s bytes\n' "rootfs.raw" "$(stat -c%s "$STAGE/rootfs.raw")"
 step "Rebranding"
 # Point the package source at this checkout, so a package built minutes ago is
 # picked up without having to publish it first.
-APKSRC="$REPO/chesterAPK" bash "$STAGE/rebrand.sh" "$BRAND" "$VERSION"
+# Work out the sequence number NOW, not at publish time. rebrand.sh writes
+# /etc/chester-version, so the number has to exist before it runs or it
+# cannot be stamped into the image -- and a router that cannot read its own
+# bin number cannot show it on the update page.
+N=$(ls "$OUTDIR" 2>/dev/null | sed -n 's/^\([0-9]\{2\}\)-.*/\1/p' | sort -n | tail -1)
+N=$(printf '%02d' $(( 10#${N:-0} + 1 )))
+echo "  this build will be bin $N"
+
+APKSRC="$REPO/chesterAPK" BIN_NUMBER="$N" bash "$STAGE/rebrand.sh" "$BRAND" "$VERSION"
 
 BIN=$(ls -t "$STAGE/out"/*.bin 2>/dev/null | head -1)
 [ -n "$BIN" ] || die "rebrand.sh produced no image"
 
 step "Publishing the image"
 mkdir -p "$OUTDIR"
-# Numbered in sequence with the images already there, so the newest is obvious
-# and nothing is silently overwritten.
-N=$(ls "$OUTDIR" 2>/dev/null | sed -n 's/^\([0-9]\{2\}\)-.*/\1/p' | sort -n | tail -1)
-N=$(printf '%02d' $(( 10#${N:-0} + 1 )))
+# $N was fixed before the build so it could be stamped into the image;
+# recomputing it here would risk the filename disagreeing with the stamp.
 OUT="$OUTDIR/$N-$(date +%Y-%m-%d)-ChesterK43P-$VERSION.bin"
 cp "$BIN" "$OUT"
 
