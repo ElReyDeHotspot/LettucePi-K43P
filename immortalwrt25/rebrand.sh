@@ -341,73 +341,33 @@ else
 	die "could not install ttyd from the feed"
 fi
 
-# ------------------------------------------------- 5b. IPv6 on the LAN
-# ImmortalWrt ships /etc/config/dhcp WITHOUT the IPv6 server options:
+# ------------------------------- 5b. IPv6 on the LAN: nothing to do here
+# There was a step here that added `ra`, `dhcpv6` and `ra_slaac` to the lan
+# stanza of /etc/config/dhcp, on the theory that ImmortalWrt shipped that
+# section without them and OpenWrt 25 shipped it with them. The file
+# difference is real; the conclusion drawn from it was not.
 #
-#     config dhcp lan
-#         option interface lan
-#         option start 100 / limit 150 / leasetime 12h
+# /rom/etc/uci-defaults/15_odhcpd runs on first boot and sets them
+# unconditionally, whatever the file says:
 #
-# and nothing else. odhcpd therefore advertises nothing on the LAN, so no
-# client ever learns an IPv6 address no matter what the modem has upstream.
-# The OpenWrt 25 build we trialled shipped `ra server` and `dhcpv6 server`
-# in that same section, which is the entire reason IPv6 worked instantly
-# there and not here. Verified by extracting both images and diffing the
-# file -- everything else about IPv6 is identical between the two.
+#     set dhcp.lan.dhcpv4=$V4MODE
+#     set dhcp.lan.dhcpv6=disabled
+#     set dhcp.lan.ra=$V6MODE
+#     set dhcp.lan.ra_slaac=1
 #
-# This is NOT the NAT6 toggle on the Cellular > IPv6 page. That one is for
-# the separate case where the carrier hands over a single address and no
-# delegated prefix, so there is no real subnet to advertise and a ULA has to
-# be masqueraded instead. These three lines only make odhcpd speak at all.
-step "IPv6 on the LAN (ra + dhcpv6 server)"
-python3 - "$R/etc/config/dhcp" <<'PYEOF'
-import sys
-p = sys.argv[1]
-lines = open(p, encoding='utf-8').read().split(chr(10))
-
-# Find the lan dhcp section. The vendor file writes it unquoted
-# (`config dhcp lan`); stock OpenWrt quotes it. Accept either.
-start = None
-for i, l in enumerate(lines):
-    t = l.strip().replace("'", '')
-    if t == 'config dhcp lan':
-        start = i
-        break
-if start is None:
-    sys.exit('no `config dhcp lan` section in /etc/config/dhcp')
-
-end = len(lines)
-for i in range(start + 1, len(lines)):
-    if lines[i].startswith('config '):
-        end = i
-        break
-
-body = lines[start:end]
-have = ' '.join(x.strip().split()[1] for x in body if x.strip().startswith('option '))
-add = [k for k in ('ra', 'dhcpv6', 'ra_slaac') if k not in have.split()]
-if not add:
-    print('  already present - nothing to add')
-    sys.exit(0)
-
-# Insert after the last option line of THIS section, so the block stays
-# together and the following `config` stanza is untouched.
-last = start
-for i in range(start, end):
-    if lines[i].strip().startswith('option '):
-        last = i
-vals = {'ra': 'server', 'dhcpv6': 'server', 'ra_slaac': '1'}
-ins = [chr(9) + 'option ' + k + chr(9) + vals[k] for k in add]
-lines[last + 1:last + 1] = ins
-open(p, 'w', encoding='utf-8', newline=chr(10)).write(chr(10).join(lines))
-print('  added: ' + ', '.join(add))
-PYEOF
-
-# Prove it landed in the section that matters, not appended to the file.
-sed -n '/config dhcp lan/,/^config /p' "$R/etc/config/dhcp" | grep -q "option ra" \
-	|| die "ra was not added to the lan section"
-sed -n '/config dhcp lan/,/^config /p' "$R/etc/config/dhcp" | grep -q "option dhcpv6" \
-	|| die "dhcpv6 was not added to the lan section"
-echo "  odhcpd will advertise on the LAN from first boot"
+# So editing the shipped file achieves nothing -- it is overwritten before
+# anything reads it, and `dhcpv6=server` is actively undone.
+#
+# Measured on a bench unit running bin 18, which predates all of this and
+# has never had the NAT6 tool applied (delegate, sourcefilter, ip6class and
+# masq6 all unset): br-lan holds a global carrier prefix and LAN clients
+# hold global addresses from Router Advertisement. IPv6 already works out of
+# the box on this firmware wherever the carrier delegates a prefix.
+#
+# The Cellular > IPv6 tool is for the other case -- a carrier that hands over
+# one address and NO delegated prefix, leaving no subnet to advertise, where
+# a ULA has to be masqueraded instead. That is a real scenario and a real
+# toggle; it is just not what a missing line in /etc/config/dhcp causes.
 
 # ------------------------------------------------------ 6. root password
 # A sysupgrade -n leaves /etc/shadow with an EMPTY root password, which the
