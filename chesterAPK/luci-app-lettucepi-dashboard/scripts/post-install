@@ -1,0 +1,35 @@
+#!/bin/sh
+# The dashboard files replace the vendor's own, so LuCI has to be made to
+# forget what it cached about them, and rpcd has to re-read the ucode backend
+# and the ACLs. Without the rpcd reload the new ubus methods exist on disk but
+# are not served, and every panel that calls them reads blank.
+chmod 0755 /usr/share/rpcd/ucode/misectel \
+	/usr/sbin/chester-modem-temp \
+	/usr/sbin/chester-phy-led \
+	/etc/init.d/chester-phy-led 2>/dev/null
+
+# The WAN socket LED watchdog. It only writes a PHY register when that register
+# is actually wrong, so enabling it cannot fight a firmware that already sets
+# them correctly -- it just re-asserts after a PHY reset clears them.
+if [ -x /etc/init.d/chester-phy-led ]; then
+	/etc/init.d/chester-phy-led enable >/dev/null 2>&1
+	/etc/init.d/chester-phy-led start >/dev/null 2>&1
+fi
+
+# Prime the modem temperature so the Overview shows a number on first paint
+# rather than a dash that fills in 30s later.
+[ -x /usr/sbin/chester-modem-temp ] && /usr/sbin/chester-modem-temp refresh >/dev/null 2>&1 &
+
+rm -f /tmp/luci-indexcache* 2>/dev/null
+rm -rf /tmp/luci-modulecache 2>/dev/null
+[ -x /etc/init.d/rpcd ] && /etc/init.d/rpcd restart >/dev/null 2>&1
+
+# Sessions carry the ACL set they were granted at login. After changing acl.d
+# an existing session keeps the OLD grants, so the new ubus methods come back
+# "access denied" and the page looks broken until the user happens to re-login.
+# Dropping the sessions forces a fresh one with the correct grants.
+for s in $(ubus call session list 2>/dev/null | sed -n 's/.*"ubus_rpc_session": *"\([a-f0-9]*\)".*/\1/p'); do
+	[ "$s" = "00000000000000000000000000000000" ] && continue
+	ubus call session destroy "{\"ubus_rpc_session\":\"$s\"}" >/dev/null 2>&1
+done
+exit 0

@@ -1,0 +1,71 @@
+#!/bin/sh
+# Modem temperature, cached.
+#
+# The value comes from qmodem's own base_info -- the same source the Cellular
+# pages read -- so there is one truth for it and nothing here speaks AT
+# directly. qmodem owns the modem's serial port.
+#
+# It is cached rather than read on demand for two reasons:
+#
+#   1. qmodem is served by rpcd, so an rpcd method that calls `ubus call
+#      qmodem ...` inline deadlocks rpcd against itself and the request times
+#      out. The dashboard method must never block on it.
+#   2. base_info issues real AT commands. The dashboard polls every few
+#      seconds; without a cache that would hammer the AT port.
+#
+# The cache doubles as last-known-value memory: a refresh that fails leaves the
+# previous reading in place rather than blanking the card.
+CACHE=/tmp/chester-modem-temp
+LOCK=/tmp/chester-modem-temp.lock
+MAXAGE=30
+
+cache_age() {
+	[ -f "$CACHE" ] || { echo 999999; return; }
+	now=$(date +%s 2>/dev/null || echo 0)
+	mt=$(stat -c %Y "$CACHE" 2>/dev/null || echo 0)
+	echo $(( now - mt ))
+}
+
+read_temp() {
+	SEC=$(uci show qmodem 2>/dev/null |
+		sed -n 's/^qmodem\.\([^.]*\)=modem-device$/\1/p' | head -1)
+	[ -n "$SEC" ] || return 1
+
+	# base_info is pretty-printed, so the value sits a couple of lines below
+	# its key rather than on the same line.
+	ubus call qmodem base_info "{\"config_section\":\"$SEC\"}" 2>/dev/null |
+		grep -A3 '"key"[[:space:]]*:[[:space:]]*"temperature"' |
+		sed -n 's/.*"value"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' |
+		head -1
+}
+
+refresh() {
+	[ "$(cache_age)" -lt "$MAXAGE" ] && return 0
+
+	# One refresher at a time. A stale lock (older than a minute) is cleared:
+	# a killed refresher must not wedge the value forever.
+	if [ -d "$LOCK" ]; then
+		lockage=$(( $(date +%s 2>/dev/null || echo 0) - $(stat -c %Y "$LOCK" 2>/dev/null || echo 0) ))
+		[ "$lockage" -lt 60 ] && return 0
+		rmdir "$LOCK" 2>/dev/null
+	fi
+	mkdir "$LOCK" 2>/dev/null || return 0
+	trap 'rmdir "$LOCK" 2>/dev/null' EXIT INT TERM
+
+	V=$(read_temp)
+	# Only overwrite on success, so a transient failure keeps the last reading.
+	if [ -n "$V" ]; then
+		printf '%s' "$V" > "$CACHE.tmp" 2>/dev/null &&
+			mv "$CACHE.tmp" "$CACHE" 2>/dev/null
+	fi
+	rmdir "$LOCK" 2>/dev/null
+	trap - EXIT INT TERM
+}
+
+case "${1:-get}" in
+	refresh) refresh ;;
+	get)     cat "$CACHE" 2>/dev/null ;;
+	sync)    rm -f "$CACHE"; refresh; cat "$CACHE" 2>/dev/null ;;
+	*)       echo "usage: $0 [get|refresh|sync]" >&2; exit 1 ;;
+esac
+exit 0

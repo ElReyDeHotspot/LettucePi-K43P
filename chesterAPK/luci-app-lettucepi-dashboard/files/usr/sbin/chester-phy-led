@@ -1,0 +1,95 @@
+#!/bin/sh
+# Keep the 2.5G WAN socket lit.
+#
+# That socket is driven by an external Realtek RTL8221B rather than by the
+# MT7531, so the switch driver does not configure its LEDs the way it does
+# for the four LAN sockets. ImmortalWrt sets them from the device tree via
+# realtek,led-link-select and realtek,led-act-select; upstream OpenWrt's
+# realtek driver implements neither property, so the socket stays dark.
+#
+# The register addresses were not guessed. The same PHY was dumped under
+# both firmwares and the dumps diffed: exactly these came back holding the
+# constants the vendor device tree specifies.
+#
+#   0xd032 0xd034 0xd036 = 0x00a7   realtek,led-link-select = <0xa7 0xa7 0xa7>
+#   0xd040               = 0x3515   realtek,led-act-select  = <0x3515>
+#
+# 0xd030 differs too (0xcccc vs 0x5555) but will not accept a write and the
+# LEDs work without it, so it is left alone.
+#
+# This runs as a watchdog rather than once at boot. The values survive an
+# ordinary link or interface cycle, but a PHY reset clears them and the
+# socket goes dark with nothing to notice or restore it. Re-checking costs
+# four MDIO reads and touches no AT command, so it is cheap to do forever.
+
+PHY_IFACE="${1:-wan}"
+PHY_ADDR=6
+TRIES="${2:-60}"
+INTERVAL="${3:-30}"
+WRITE_TRIES=8
+
+command -v phytool >/dev/null 2>&1 || exit 0
+
+phy_get() { phytool read "$PHY_IFACE/$PHY_ADDR:31/$1" 2>/dev/null; }
+
+phy_ready() {
+	[ -d "/sys/class/net/$PHY_IFACE" ] || return 1
+	# Only touch a PHY we recognise: Realtek OUI 0x001c, model 0xc849.
+	[ "$(phytool read "$PHY_IFACE/$PHY_ADDR:1/0x0002" 2>/dev/null)" = "0x001c" ] || return 1
+	[ "$(phytool read "$PHY_IFACE/$PHY_ADDR:1/0x0003" 2>/dev/null)" = "0xc849" ] || return 1
+	return 0
+}
+
+phy_set() {
+	reg="$1"; val="$2"; n=0
+	while [ "$n" -lt "$WRITE_TRIES" ]; do
+		[ "$(phy_get "$reg")" = "$val" ] && return 0
+		phytool write "$PHY_IFACE/$PHY_ADDR:31/$reg" "$val" 2>/dev/null
+		n=$((n+1))
+		sleep 1
+	done
+	[ "$(phy_get "$reg")" = "$val" ]
+}
+
+apply_leds() {
+	bad=0
+	phy_set 0xd032 0x00a7 || bad=1
+	phy_set 0xd034 0x00a7 || bad=1
+	phy_set 0xd036 0x00a7 || bad=1
+	phy_set 0xd040 0x3515 || bad=1
+	return $bad
+}
+
+leds_ok() {
+	[ "$(phy_get 0xd032)" = "0x00a7" ] || return 1
+	[ "$(phy_get 0xd034)" = "0x00a7" ] || return 1
+	[ "$(phy_get 0xd036)" = "0x00a7" ] || return 1
+	[ "$(phy_get 0xd040)" = "0x3515" ] || return 1
+	return 0
+}
+
+# The PHY is not attached yet at this point in the boot -- the switch reports
+# "configuring for phy/2500base-x" several seconds later -- so wait for it.
+n=0
+while [ "$n" -lt "$TRIES" ]; do
+	if phy_ready; then
+		apply_leds
+		logger -t chester-phy-led "RTL8221B LEDs configured on $PHY_IFACE after ${n}s"
+		break
+	fi
+	n=$((n+1))
+	sleep 1
+done
+
+if [ "$n" -ge "$TRIES" ]; then
+	logger -t chester-phy-led "gave up: no RTL8221B on $PHY_IFACE after ${TRIES}s"
+	exit 0
+fi
+
+# Watch, and restore if a PHY reset clears them.
+while sleep "$INTERVAL"; do
+	phy_ready || continue
+	leds_ok && continue
+	logger -t chester-phy-led "RTL8221B LED config lost, restoring"
+	apply_leds
+done

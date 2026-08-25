@@ -1,0 +1,2206 @@
+.misectel-dashboard-shell {
+	display: flex;
+	flex-direction: column;
+	gap: var(--misectel-gap-md);
+	font-family: var(--misectel-font-family);
+	font-size: var(--misectel-font-size-body);
+	line-height: 1.5;
+}
+
+.misectel-dashboard-hero {
+	position: relative;
+	overflow: hidden;
+	padding: 12px;
+	border: 1px solid rgba(16, 35, 62, .08);
+	border-radius: 12px;
+	background: linear-gradient(180deg, rgba(255, 255, 255, .98), rgba(245, 248, 252, .96));
+	box-shadow: 0 8px 18px rgba(16, 35, 62, .06);
+}
+
+.misectel-dashboard-hero__title {
+	margin: 0;
+	font-size: 20px;
+	line-height: 1.2;
+	font-weight: 700;
+	color: #fff;
+}
+
+.misectel-dashboard-hero__meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin-top: 18px;
+}
+
+.misectel-dashboard-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, .12);
+	color: rgba(255, 255, 255, .84);
+	font-size: var(--misectel-font-size-meta);
+}
+
+.misectel-dashboard-pill strong {
+	color: #fff;
+	font-weight: 600;
+}
+
+.misectel-dashboard-setup {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 18px;
+	padding: 22px 24px;
+	border: 1px solid rgba(24, 117, 255, .12);
+	border-radius: 22px;
+	background:
+		radial-gradient(circle at top right, rgba(255, 255, 255, .6), transparent 32%),
+		linear-gradient(135deg, rgba(245, 249, 255, .98), rgba(233, 243, 255, .96));
+	box-shadow: 0 18px 34px rgba(32, 88, 154, .08);
+}
+
+.misectel-dashboard-setup__main {
+	min-width: 0;
+}
+
+.misectel-dashboard-setup__eyebrow {
+	display: inline-flex;
+	align-items: center;
+	padding: 6px 10px;
+	border-radius: 999px;
+	background: rgba(9, 109, 217, .1);
+	color: #096dd9;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+}
+
+.misectel-dashboard-setup__title {
+	display: block;
+	margin-top: 12px;
+	font-size: 20px;
+	line-height: 1.3;
+	color: #555;
+}
+
+.misectel-dashboard-setup__text {
+	margin-top: 8px;
+	font-size: var(--misectel-font-size-meta);
+	line-height: 1.6;
+	color: var(--misectel-dashboard-text-soft);
+}
+
+.misectel-dashboard-setup__steps {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: 16px;
+}
+
+.misectel-dashboard-setup__step {
+	display: inline-flex;
+	align-items: center;
+	padding: 8px 12px;
+	border-radius: 999px;
+	background: rgba(16, 35, 62, .05);
+	color: var(--misectel-dashboard-text-main);
+	font-size: var(--misectel-font-size-meta);
+	font-weight: 600;
+}
+
+.misectel-dashboard-setup__actions {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	justify-content: center;
+}
+
+.misectel-dashboard-setup__action {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 11px 16px;
+	border: 1px solid rgba(9, 109, 217, .15);
+	border-radius: 999px;
+	background: rgba(255, 255, 255, .82);
+	color: #096dd9;
+	font-size: var(--misectel-font-size-meta);
+	font-weight: 700;
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.misectel-dashboard-setup__action--primary {
+	background: linear-gradient(135deg, #0a67d2 0%, #2391ff 100%);
+	border-color: transparent;
+	color: #fff;
+}
+
+.misectel-dashboard-quick-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 14px;
+}
+
+.misectel-dashboard-stats-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+}
+
+.misectel-dashboard-quick-card {
+	--misectel-dashboard-quick-bg: #3c79f5;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-height: 92px;
+	padding: 12px 16px;
+	border-radius: 6px;
+	background: var(--misectel-dashboard-quick-bg);
+	box-shadow: 0 6px 16px rgba(15, 39, 67, .10);
+	color: #fff;
+	text-decoration: none;
+}
+
+.misectel-dashboard-quick-card--clickable {
+	transition: transform .16s ease, box-shadow .16s ease;
+}
+
+.misectel-dashboard-quick-card--clickable:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 22px 38px rgba(15, 39, 67, .18);
+}
+
+.misectel-dashboard-quick-card--internet {
+	--misectel-dashboard-quick-bg: #1677ff;
+}
+
+.misectel-dashboard-quick-card--modem {
+	--misectel-dashboard-quick-bg: #6b7cff;
+}
+
+.misectel-dashboard-quick-card--device {
+	--misectel-dashboard-quick-bg: #18b65f;
+}
+
+.misectel-dashboard-quick-card--wifi {
+	--misectel-dashboard-quick-bg: #15afbe;
+}
+
+.misectel-dashboard-quick-card--warn {
+	--misectel-dashboard-quick-bg: #e18b22;
+}
+
+.misectel-dashboard-quick-card--neutral {
+	--misectel-dashboard-quick-bg: #5d6b83;
+}
+
+.misectel-dashboard-quick-card__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.misectel-dashboard-quick-card__label {
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0;
+	color: rgba(255, 255, 255, .92);
+}
+
+.misectel-dashboard-quick-card__badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 3px 8px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, .18);
+	font-size: 11px;
+	color: #fff;
+	white-space: nowrap;
+}
+
+.misectel-dashboard-quick-card__value {
+	margin-top: auto;
+	font-size: 17px;
+	line-height: 1.1;
+	font-weight: 700;
+}
+
+.misectel-dashboard-quick-card__foot {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-top: auto;
+}
+
+.misectel-dashboard-quick-card__hint {
+	font-size: 11px;
+	line-height: 1.4;
+	color: rgba(255, 255, 255, .85);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.misectel-dashboard-quick-card__switch {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: flex-end;
+	min-width: 52px;
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, .18);
+	font-size: 11px;
+	font-weight: 700;
+	color: #fff;
+	white-space: nowrap;
+}
+
+.misectel-dashboard-quick-card__switch::before {
+	content: "";
+	position: absolute;
+	left: 4px;
+	top: 50%;
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, .95);
+	transform: translateY(-50%);
+}
+
+.misectel-dashboard-stat {
+	--misectel-dashboard-stat-color: var(--misectel-dashboard-blue);
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	min-height: 152px;
+	padding: 16px;
+	border: 1px solid rgba(16, 35, 62, .08);
+	border-radius: 18px;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, .98), rgba(247, 250, 253, .98)),
+		var(--misectel-dashboard-surface);
+	box-shadow: var(--misectel-dashboard-card-shadow);
+	color: inherit;
+	text-decoration: none;
+}
+
+.misectel-dashboard-stat--clickable {
+	transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+
+.misectel-dashboard-stat--clickable:hover {
+	transform: translateY(-2px);
+	border-color: rgba(198, 31, 51, .16);
+	box-shadow: 0 18px 30px rgba(105, 18, 30, .12);
+}
+
+.misectel-dashboard-stat--low {
+	--misectel-dashboard-stat-color: #1fa866;
+}
+
+.misectel-dashboard-stat--medium {
+	--misectel-dashboard-stat-color: #3577ff;
+}
+
+.misectel-dashboard-stat--high {
+	--misectel-dashboard-stat-color: #dc4e46;
+}
+
+.misectel-dashboard-stat--device {
+	--misectel-dashboard-stat-color: #7c55ea;
+}
+
+.misectel-dashboard-stat--neutral {
+	--misectel-dashboard-stat-color: #5d6b83;
+}
+
+.misectel-dashboard-stat__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.misectel-dashboard-stat__label {
+	display: block;
+	overflow-wrap: anywhere;
+	white-space: normal;
+	font-size: var(--misectel-font-size-meta);
+	font-weight: 700;
+	letter-spacing: .04em;
+	color: var(--misectel-dashboard-text-muted);
+}
+
+.misectel-dashboard-stat__badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 5px 9px;
+	border-radius: 999px;
+	background: rgba(16, 35, 62, .06);
+	font-size: var(--misectel-font-size-meta);
+	color: var(--misectel-dashboard-text-soft);
+	white-space: nowrap;
+}
+
+.misectel-dashboard-stat__value {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	margin-top: 10px;
+	font-size: var(--misectel-font-size-display);
+	font-weight: 700;
+	line-height: 1;
+	color: var(--misectel-dashboard-text-main);
+}
+
+.misectel-dashboard-stat__hint {
+	overflow-wrap: anywhere;
+	margin-top: 8px;
+	font-size: var(--misectel-font-size-meta);
+	color: var(--misectel-dashboard-text-soft);
+	word-break: break-word;
+}
+
+.misectel-dashboard-progress {
+	margin-top: 12px;
+	height: 7px;
+	border-radius: 999px;
+	background: rgba(16, 35, 62, .08);
+	overflow: hidden;
+}
+
+.misectel-dashboard-progress > span {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: linear-gradient(90deg, var(--misectel-dashboard-stat-color), rgba(255, 255, 255, .65));
+}
+
+.misectel-dashboard-stat__footer {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	margin-top: 12px;
+}
+
+.misectel-dashboard-stat__meta {
+	padding: 9px 11px;
+	border-radius: 12px;
+	background: rgba(16, 35, 62, .04);
+}
+
+.misectel-dashboard-stat__meta-label {
+	display: block;
+	font-size: var(--misectel-font-size-meta);
+	color: var(--misectel-dashboard-text-muted);
+}
+
+.misectel-dashboard-stat__meta-value {
+	display: block;
+	margin-top: 4px;
+	font-size: var(--misectel-font-size-subtle);
+	color: var(--misectel-dashboard-text-main);
+}
+
+.misectel-dashboard-sparkline {
+	flex: 0 0 auto;
+	width: 82px;
+	height: 28px;
+}
+
+.misectel-dashboard-sparkline polyline {
+	fill: none;
+	stroke: var(--misectel-dashboard-stat-color);
+	stroke-width: 3.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.misectel-dashboard-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1.28fr) minmax(380px, .92fr);
+	gap: 18px;
+	align-items: stretch;
+}
+
+.misectel-dashboard-main,
+.misectel-dashboard-side {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	min-width: 0;
+}
+
+.misectel-dashboard-card--modem-main,
+.misectel-dashboard-main > .misectel-dashboard-card {
+	height: 100%;
+}
+
+.misectel-dashboard-card--ports-main {
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+@media screen and (max-width: 1280px) {
+	.misectel-dashboard-layout {
+		grid-template-columns: minmax(0, 1.18fr) minmax(320px, .92fr);
+	}
+}
+
+.misectel-dashboard-card__select {
+	min-width: 220px;
+}
+
+.misectel-dashboard-card--wan-compact .misectel-card__head,
+.misectel-dashboard-card--wan-compact .misectel-dashboard-card__head,
+.misectel-dashboard-card--wan-compact .misectel-ui-card__head {
+	margin-bottom: 2px;
+}
+
+.misectel-dashboard-card--wan-compact .misectel-card__title,
+.misectel-dashboard-card--wan-compact .misectel-dashboard-card__title,
+.misectel-dashboard-card--wan-compact .misectel-ui-card__title {
+	font-size: var(--misectel-font-size-title);
+}
+
+.misectel-dashboard-modem-grid,
+.misectel-dashboard-wan-list {
+	display: grid;
+	gap: 12px;
+}
+
+.misectel-dashboard-modem {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: 18px;
+	border: 1px solid rgba(16, 35, 62, .08);
+	border-radius: 18px;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, .96), rgba(248, 250, 252, .96)),
+		linear-gradient(135deg, rgba(198, 31, 51, .03), rgba(53, 119, 255, .03));
+}
+
+.misectel-dashboard-modem__head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.misectel-dashboard-modem__name {
+	margin: 0;
+	font-size: var(--misectel-font-size-title);
+	font-weight: 700;
+	color: var(--misectel-dashboard-text-main);
+}
+
+.misectel-dashboard-modem__meta {
+	margin-top: 6px;
+	font-size: var(--misectel-font-size-meta);
+	color: var(--misectel-dashboard-text-muted);
+}
+
+.misectel-dashboard-modem__overview {
+	display: grid;
+	grid-template-columns: 124px minmax(0, 1fr);
+	gap: 16px;
+	align-items: center;
+}
+
+.misectel-dashboard-signal {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 14px 12px;
+	border-radius: 16px;
+	background: rgba(16, 35, 62, .04);
+}
+
+.misectel-dashboard-signal__bars {
+	display: flex;
+	align-items: flex-end;
+	gap: 5px;
+	height: 40px;
+}
+
+.misectel-dashboard-signal__bar {
+	width: 9px;
+	border-radius: 999px 999px 2px 2px;
+	background: rgba(16, 35, 62, .12);
+}
+
+.misectel-dashboard-signal__bar:nth-child(1) {
+	height: 12px;
+}
+
+.misectel-dashboard-signal__bar:nth-child(2) {
+	height: 20px;
+}
+
+.misectel-dashboard-signal__bar:nth-child(3) {
+	height: 28px;
+}
+
+.misectel-dashboard-signal__bar:nth-child(4) {
+	height: 36px;
+}
+
+.misectel-dashboard-signal__bar.is-active.is-strong,
+.misectel-dashboard-signal__bar.is-active.is-good {
+	background: #1fa866;
+}
+
+.misectel-dashboard-signal__bar.is-active.is-fair {
+	background: #f0a53a;
+}
+
+.misectel-dashboard-signal__bar.is-active.is-weak {
+	background: #dc4e46;
+}
+
+.misectel-dashboard-signal__label {
+	font-size: var(--misectel-font-size-meta);
+	font-weight: 700;
+	letter-spacing: .04em;
+	color: var(--misectel-dashboard-text-muted);
+	text-transform: uppercase;
+}
+
+.misectel-dashboard-chip-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.misectel-dashboard-signal-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 10px;
+}
+
+.misectel-dashboard-signal-card {
+	padding: 12px 14px;
+	border-radius: 14px;
+	background: rgba(16, 35, 62, .04);
+	border: 1px solid rgba(16, 35, 62, .05);
+}
+
+.misectel-dashboard-signal-card__label {
+	display: block;
+	font-size: var(--misectel-font-size-meta);
+	color: var(--misectel-dashboard-text-muted);
+	letter-spacing: .04em;
+	text-transform: uppercase;
+}
+
+.misectel-dashboard-signal-card__value {
+	display: block;
+	margin-top: 6px;
+	font-size: var(--misectel-font-size-body);
+	color: var(--misectel-dashboard-text-main);
+}
+
+.misectel-dashboard-description-list {
+	display: grid;
+	grid-template-columns: 110px minmax(0, 1fr);
+	row-gap: 10px;
+	column-gap: 14px;
+	margin: 0;
+	padding: 14px 16px;
+	border-radius: 16px;
+	background: rgba(16, 35, 62, .03);
+}
+
+.misectel-dashboard-description-list dt {
+	margin: 0;
+	font-size: var(--misectel-font-size-meta);
+	color: var(--misectel-dashboard-text-muted);
+}
+
+.misectel-dashboard-description-list dd {
+	margin: 0;
+	font-size: var(--misectel-font-size-subtle);
+	font-weight: 600;
+	color: var(--misectel-dashboard-text-main);
+	word-break: break-word;
+}
+
+.misectel-dashboard-wan {
+	padding: 12px 14px;
+	border: 1px solid rgba(16, 35, 62, .08);
+	border-radius: 16px;
+	background: rgba(255, 255, 255, .92);
+}
+
+.misectel-dashboard-wan__head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.misectel-dashboard-wan__name {
+	margin: 0;
+	font-size: var(--misectel-font-size-body);
+	color: var(--misectel-dashboard-text-main);
+}
+
+.misectel-dashboard-wan__meta {
+	margin-top: 2px;
+	font-size: var(--misectel-font-size-meta);
+	color: var(--misectel-dashboard-text-muted);
+}
+
+.misectel-dashboard-wan__grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	margin-top: 10px;
+}
+
+.misectel-dashboard-detail {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 10px 12px;
+	border-radius: 12px;
+	background: rgba(16, 35, 62, .04);
+	border: 1px solid rgba(16, 35, 62, .05);
+}
+
+.misectel-dashboard-card--wan-compact .misectel-dashboard-detail {
+	gap: 3px;
+	padding: 8px 10px;
+	border-radius: 10px;
+}
+
+.misectel-dashboard-card--wan-compact .misectel-dashboard-detail__label {
+	font-size: 10px;
+}
+
+.misectel-dashboard-card--wan-compact .misectel-dashboard-detail__value {
+	font-size: var(--misectel-font-size-meta);
+	line-height: 1.35;
+}
+
+.misectel-dashboard-detail__label {
+	font-size: 11px;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+	color: var(--misectel-dashboard-text-muted);
+}
+
+.misectel-dashboard-detail__value {
+	font-size: var(--misectel-font-size-meta);
+	font-weight: 600;
+	line-height: 1.5;
+	color: var(--misectel-dashboard-text-main);
+	word-break: break-word;
+}
+
+.misectel-dashboard-interface-stack {
+	display: grid;
+	gap: 18px;
+}
+
+.misectel-dashboard-interface-block {
+	display: grid;
+	gap: 12px;
+}
+
+.misectel-dashboard-interface-block--compact {
+	align-content: start;
+	gap: 10px;
+}
+
+.misectel-dashboard-section-title {
+	font-size: var(--misectel-font-size-meta);
+	font-weight: 700;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+	color: var(--misectel-dashboard-text-muted);
+}
+
+.misectel-dashboard-port-panel {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
+	gap: 10px;
+}
+
+.misectel-dashboard-port-panel__port {
+	padding: 13px 14px;
+	border-radius: 16px;
+	border: 1px solid rgba(16, 35, 62, .08);
+	background: linear-gradient(180deg, rgba(250, 251, 253, .98), rgba(245, 247, 250, .98));
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, .65);
+}
+
+.misectel-dashboard-port-panel__port.is-gigabit.is-online {
+	border-color: rgba(31, 168, 102, .24);
+	background: linear-gradient(180deg, rgba(241, 252, 247, .98), rgba(234, 248, 240, .98));
+}
+
+.misectel-dashboard-port-panel__port.is-fast.is-online {
+	border-color: rgba(240, 165, 58, .26);
+	background: linear-gradient(180deg, rgba(255, 249, 239, .98), rgba(255, 244, 223, .98));
+}
+
+.misectel-dashboard-port-panel__port.is-slow.is-online {
+	border-color: rgba(220, 78, 70, .24);
+	background: linear-gradient(180deg, rgba(254, 244, 244, .98), rgba(252, 237, 237, .98));
+}
+
+.misectel-dashboard-port-panel__port.is-offline,
+.misectel-dashboard-port-panel__port.is-warn {
+	border-style: dashed;
+}
+
+.misectel-dashboard-port-panel__top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+}
+
+.misectel-dashboard-port-panel__role,
+.misectel-dashboard-port-panel__status {
+	font-size: var(--misectel-font-size-meta);
+	color: var(--misectel-dashboard-text-muted);
+}
+
+.misectel-dashboard-port-panel__name {
+	display: block;
+	margin-top: 10px;
+	font-size: var(--misectel-font-size-heading);
+	color: var(--misectel-dashboard-text-main);
+}
+
+.misectel-dashboard-port-panel__speed {
+	margin-top: 6px;
+	font-size: var(--misectel-font-size-meta);
+	font-weight: 600;
+	color: var(--misectel-dashboard-text-soft);
+}
+
+.misectel-dashboard-bottom-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+}
+
+.misectel-dashboard-info-list {
+	display: grid;
+	gap: 10px;
+}
+
+.misectel-dashboard-info-list .misectel-kv {
+	padding: 12px 14px;
+	border-color: rgba(16, 35, 62, .05);
+	border-radius: 14px;
+	background: rgba(247, 250, 253, .88);
+}
+
+.misectel-dashboard-info-list .misectel-kv__label {
+	margin-bottom: 5px;
+	font-size: 11px;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+	color: var(--misectel-dashboard-text-muted);
+}
+
+.misectel-dashboard-info-list .misectel-kv__value {
+	font-size: var(--misectel-font-size-meta);
+	line-height: 1.45;
+}
+
+.misectel-dashboard-wan-list--compact {
+	gap: 10px;
+}
+
+.misectel-dashboard-wan--compact {
+	padding: 10px 12px;
+	border-radius: 14px;
+}
+
+.misectel-dashboard-wan__grid--compact {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	margin-top: 8px;
+}
+
+.misectel-dashboard-interface-table-wrap {
+	overflow-x: auto;
+}
+
+.misectel-dashboard-interface-table {
+	width: 100%;
+	border-collapse: collapse;
+	border-spacing: 0;
+	font-size: var(--misectel-font-size-meta);
+}
+
+.misectel-dashboard-interface-table th,
+.misectel-dashboard-interface-table td {
+	padding: 12px 10px;
+	border-bottom: 1px solid rgba(16, 35, 62, .08);
+	text-align: left;
+	vertical-align: top;
+}
+
+.misectel-dashboard-interface-table th {
+	font-size: var(--misectel-font-size-meta);
+	font-weight: 700;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+	color: var(--misectel-dashboard-text-muted);
+	white-space: nowrap;
+}
+
+.misectel-dashboard-interface-table td {
+	color: var(--misectel-dashboard-text-main);
+	word-break: break-word;
+}
+
+.misectel-dashboard-interface-table tbody tr.is-online {
+	background: rgba(31, 168, 102, .03);
+}
+
+.misectel-dashboard-interface-table tbody tr.is-warn {
+	background: rgba(240, 165, 58, .04);
+}
+
+.misectel-dashboard-interface-table tbody tr.is-offline {
+	background: rgba(16, 35, 62, .02);
+}
+
+.misectel-dashboard-loading {
+	padding: 8px 2px 0;
+	font-size: var(--misectel-font-size-meta);
+	color: var(--misectel-dashboard-text-muted);
+}
+
+@media screen and (max-width: 1180px) {
+	.misectel-dashboard-layout {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media screen and (max-width: 768px) {
+	.misectel-dashboard-hero {
+		padding: 24px 20px;
+	}
+
+	.misectel-dashboard-hero__title {
+		font-size: 18px;
+	}
+
+	.misectel-dashboard-setup {
+		grid-template-columns: 1fr;
+	}
+
+	.misectel-dashboard-setup__actions {
+		align-items: stretch;
+	}
+
+	.misectel-dashboard-card__head,
+	.misectel-ui-card__head {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.misectel-dashboard-card__select {
+		width: 100%;
+		min-width: 0;
+	}
+
+	.misectel-dashboard-quick-grid,
+	.misectel-dashboard-summary,
+	.misectel-dashboard-bottom-grid,
+	.misectel-dashboard-modem__overview,
+	.misectel-dashboard-signal-grid,
+	.misectel-dashboard-wan__grid,
+	.misectel-dashboard-stat__footer {
+		grid-template-columns: 1fr;
+	}
+
+	.misectel-dashboard-description-list {
+		grid-template-columns: 1fr;
+	}
+
+	.misectel-dashboard-description-list dt {
+		font-weight: 600;
+	}
+
+	.misectel-dashboard-interface-table,
+	.misectel-dashboard-interface-table thead,
+	.misectel-dashboard-interface-table tbody,
+	.misectel-dashboard-interface-table th,
+	.misectel-dashboard-interface-table td,
+	.misectel-dashboard-interface-table tr {
+		display: block;
+	}
+
+	.misectel-dashboard-interface-table thead {
+		display: none;
+	}
+
+	.misectel-dashboard-interface-table tbody tr {
+		padding: 12px 0;
+		border-bottom: 1px solid rgba(16, 35, 62, .08);
+	}
+
+	.misectel-dashboard-interface-table td {
+		display: flex;
+		justify-content: space-between;
+		gap: 12px;
+		padding: 8px 0;
+		border: none;
+	}
+
+	.misectel-dashboard-interface-table td::before {
+		content: attr(data-label);
+		flex: 0 0 110px;
+		font-weight: 600;
+		color: var(--misectel-dashboard-text-muted);
+	}
+}
+
+@media screen and (max-width: 560px) {
+	.misectel-dashboard-quick-grid,
+	.misectel-dashboard-stats-grid,
+	.misectel-dashboard-summary {
+		grid-template-columns: 1fr;
+	}
+
+	.misectel-dashboard-stat {
+		min-height: 0;
+	}
+
+	.misectel-dashboard-stat__value {
+		font-size: 22px;
+	}
+
+	.misectel-dashboard-quick-card {
+		min-height: 0;
+	}
+
+	.misectel-dashboard-quick-card__value {
+		font-size: 22px;
+	}
+}
+
+/* Front-panel light switch, sat above the summary grid. */
+.misectel-dashboard-led-toggle-wrap {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-bottom: 10px;
+}
+
+.misectel-dashboard-led-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 7px 14px;
+	border-radius: 999px;
+	border: 1px solid rgba(16, 35, 62, .12);
+	background: linear-gradient(180deg, #ffffff, #f2f5f9);
+	box-shadow: 0 1px 2px rgba(9, 20, 38, .10), inset 0 1px 0 rgba(255, 255, 255, .9);
+	color: #16324f;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: transform .16s ease, box-shadow .16s ease;
+}
+
+.misectel-dashboard-led-toggle:hover { transform: translateY(-1px); }
+.misectel-dashboard-led-toggle:disabled { opacity: .6; cursor: progress; }
+
+.misectel-dashboard-led-toggle__icon {
+	font-size: 15px;
+	line-height: 1;
+	color: #0f9d58;
+}
+
+/* Off state: the switch itself dims, so it reads at a glance. */
+.misectel-dashboard-led-toggle.is-off {
+	background: linear-gradient(180deg, #eceff3, #e2e6ec);
+	color: #6b7a8d;
+}
+
+.misectel-dashboard-led-toggle.is-off .misectel-dashboard-led-toggle__icon { color: #98a4b3; }
+
+
+/* ---------------------------------------------------------------- */
+/* Chester dashboard styling, ported from the OpenWrt 25 build.      */
+/* Appended rather than substituted: their base keeps the handful of */
+/* classes only it defines (select, select-wrap, wan__title), and    */
+/* these win on cascade order where the two overlap.                 */
+/* ---------------------------------------------------------------- */
+
+.misectel-dashboard-shell {
+	display: flex;
+	flex-direction: column;
+	gap: var(--chester-gap-md);
+	font-family: var(--chester-font-family);
+	font-size: var(--chester-font-size-body);
+	line-height: 1.5;
+}
+
+.misectel-dashboard-hero {
+	position: relative;
+	overflow: hidden;
+	padding: 12px;
+	border: 1px solid rgba(16, 35, 62, .08);
+	border-radius: 12px;
+	background: linear-gradient(180deg, rgba(255, 255, 255, .98), rgba(245, 248, 252, .96));
+	box-shadow: 0 8px 18px rgba(16, 35, 62, .06);
+}
+
+.misectel-dashboard-hero__title {
+	margin: 0;
+	font-size: 20px;
+	line-height: 1.2;
+	font-weight: 700;
+	color: #fff;
+}
+
+.misectel-dashboard-hero__meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin-top: 18px;
+}
+
+.misectel-dashboard-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, .12);
+	color: rgba(255, 255, 255, .84);
+	font-size: var(--chester-font-size-meta);
+}
+
+.misectel-dashboard-pill strong {
+	color: #fff;
+	font-weight: 600;
+}
+
+.misectel-dashboard-setup {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 18px;
+	padding: 22px 24px;
+	border: 1px solid rgba(24, 117, 255, .12);
+	border-radius: 22px;
+	background:
+		radial-gradient(circle at top right, rgba(255, 255, 255, .6), transparent 32%),
+		linear-gradient(135deg, rgba(245, 249, 255, .98), rgba(233, 243, 255, .96));
+	box-shadow: 0 18px 34px rgba(32, 88, 154, .08);
+}
+
+.misectel-dashboard-setup__main {
+	min-width: 0;
+}
+
+.misectel-dashboard-setup__eyebrow {
+	display: inline-flex;
+	align-items: center;
+	padding: 6px 10px;
+	border-radius: 999px;
+	background: rgba(9, 109, 217, .1);
+	color: #096dd9;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+}
+
+.misectel-dashboard-setup__title {
+	display: block;
+	margin-top: 12px;
+	font-size: 20px;
+	line-height: 1.3;
+	color: #555;
+}
+
+.misectel-dashboard-setup__text {
+	margin-top: 8px;
+	font-size: var(--chester-font-size-meta);
+	line-height: 1.6;
+	color: var(--misectel-dashboard-text-soft);
+}
+
+.misectel-dashboard-setup__steps {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: 16px;
+}
+
+.misectel-dashboard-setup__step {
+	display: inline-flex;
+	align-items: center;
+	padding: 8px 12px;
+	border-radius: 999px;
+	background: rgba(16, 35, 62, .05);
+	color: var(--misectel-dashboard-text-main);
+	font-size: var(--chester-font-size-meta);
+	font-weight: 600;
+}
+
+.misectel-dashboard-setup__actions {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	justify-content: center;
+}
+
+.misectel-dashboard-setup__action {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 11px 16px;
+	border: 1px solid rgba(9, 109, 217, .15);
+	border-radius: 999px;
+	background: rgba(255, 255, 255, .82);
+	color: #096dd9;
+	font-size: var(--chester-font-size-meta);
+	font-weight: 700;
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.misectel-dashboard-setup__action--primary {
+	background: linear-gradient(135deg, #0a67d2 0%, #2391ff 100%);
+	border-color: transparent;
+	color: #fff;
+}
+
+.misectel-dashboard-quick-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 14px;
+}
+
+.misectel-dashboard-stats-grid {
+	display: grid;
+	/* Four across: CPU, Memory, Uptime, Modem Temp on one row. */
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 14px;
+}
+
+.misectel-dashboard-quick-card {
+	--misectel-dashboard-quick-bg: #3c79f5;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-height: 96px;
+	padding: 14px 16px;
+	border-radius: 14px;
+	/* A flat fill reads as a coloured box. The sheen plus the two inset
+	   lines give a lit top edge and a shaded bottom one, which is what
+	   makes a macOS control look moulded rather than printed. */
+	background:
+		linear-gradient(165deg, rgba(255, 255, 255, .22) 0%, rgba(255, 255, 255, .05) 42%, rgba(0, 0, 0, .12) 100%),
+		var(--misectel-dashboard-quick-bg);
+	border: 1px solid rgba(255, 255, 255, .16);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, .30),
+		inset 0 -1px 0 rgba(0, 0, 0, .16),
+		0 1px 2px rgba(9, 20, 38, .18),
+		0 12px 28px -10px rgba(9, 20, 38, .48);
+	color: #fff;
+	text-decoration: none;
+	overflow: hidden;
+	transition: transform .18s cubic-bezier(.2, .7, .3, 1),
+		box-shadow .18s cubic-bezier(.2, .7, .3, 1);
+}
+
+/* Specular highlight along the top, the way a glass control catches light.
+   Click-through, and the card content is lifted above it below. */
+.misectel-dashboard-quick-card::before {
+	content: '';
+	position: absolute;
+	left: -30%;
+	right: -30%;
+	top: -70%;
+	height: 130%;
+	background: radial-gradient(58% 58% at 50% 100%, rgba(255, 255, 255, .30), rgba(255, 255, 255, 0) 70%);
+	pointer-events: none;
+}
+
+.misectel-dashboard-quick-card > * {
+	position: relative;
+}
+
+.misectel-dashboard-quick-card--clickable:hover {
+	transform: translateY(-2px);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, .34),
+		inset 0 -1px 0 rgba(0, 0, 0, .16),
+		0 2px 4px rgba(9, 20, 38, .20),
+		0 20px 38px -12px rgba(9, 20, 38, .58);
+}
+
+.misectel-dashboard-quick-card--clickable:active {
+	transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.misectel-dashboard-quick-card {
+		transition: none;
+	}
+	.misectel-dashboard-quick-card--clickable:hover {
+		transform: none;
+	}
+}
+
+.misectel-dashboard-quick-card--clickable {
+	transition: transform .16s ease, box-shadow .16s ease;
+}
+
+.misectel-dashboard-quick-card--clickable:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 22px 38px rgba(15, 39, 67, .18);
+}
+
+.misectel-dashboard-quick-card--internet {
+	--misectel-dashboard-quick-bg: #0053de;
+}
+
+.misectel-dashboard-quick-card--modem {
+	--misectel-dashboard-quick-bg: #183a97;
+}
+
+.misectel-dashboard-quick-card--device {
+	--misectel-dashboard-quick-bg: #017022;
+}
+
+.misectel-dashboard-quick-card--wifi {
+	--misectel-dashboard-quick-bg: #01536d;
+}
+
+.misectel-dashboard-quick-card--warn {
+	--misectel-dashboard-quick-bg: #e18b22;
+}
+
+.misectel-dashboard-quick-card--neutral {
+	--misectel-dashboard-quick-bg: #5d6b83;
+}
+
+.misectel-dashboard-quick-card__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.misectel-dashboard-quick-card__label {
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0;
+	color: rgba(255, 255, 255, .92);
+}
+
+.misectel-dashboard-quick-card__badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 3px 8px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, .18);
+	font-size: 11px;
+	color: #fff;
+	white-space: nowrap;
+}
+
+.misectel-dashboard-quick-card__value {
+	margin-top: auto;
+	font-size: 19px;
+	line-height: 1.1;
+	font-weight: 700;
+	letter-spacing: -.012em;
+	text-shadow: 0 1px 2px rgba(0, 0, 0, .20);
+}
+
+.misectel-dashboard-quick-card__foot {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-top: auto;
+}
+
+.misectel-dashboard-quick-card__hint {
+	font-size: 11px;
+	line-height: 1.4;
+	color: rgba(255, 255, 255, .85);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.misectel-dashboard-quick-card__switch {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: flex-end;
+	min-width: 52px;
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, .18);
+	font-size: 11px;
+	font-weight: 700;
+	color: #fff;
+	white-space: nowrap;
+}
+
+.misectel-dashboard-quick-card__switch::before {
+	content: "";
+	position: absolute;
+	left: 4px;
+	top: 50%;
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, .95);
+	transform: translateY(-50%);
+}
+
+.misectel-dashboard-stat {
+	--misectel-dashboard-stat-color: var(--misectel-dashboard-blue);
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	min-height: 152px;
+	padding: 16px;
+	border: 1px solid rgba(16, 35, 62, .08);
+	border-radius: 18px;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, .98), rgba(247, 250, 253, .98)),
+		var(--misectel-dashboard-surface);
+	box-shadow: var(--misectel-dashboard-card-shadow);
+	color: inherit;
+	text-decoration: none;
+}
+
+.misectel-dashboard-stat--clickable {
+	transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+
+.misectel-dashboard-stat--clickable:hover {
+	transform: translateY(-2px);
+	border-color: rgba(198, 31, 51, .16);
+	box-shadow: 0 18px 30px rgba(105, 18, 30, .12);
+}
+
+.misectel-dashboard-stat--low {
+	--misectel-dashboard-stat-color: #1fa866;
+}
+
+.misectel-dashboard-stat--medium {
+	--misectel-dashboard-stat-color: #3577ff;
+}
+
+.misectel-dashboard-stat--high {
+	--misectel-dashboard-stat-color: #dc4e46;
+}
+
+.misectel-dashboard-stat--device {
+	--misectel-dashboard-stat-color: #7c55ea;
+}
+
+.misectel-dashboard-stat--neutral {
+	--misectel-dashboard-stat-color: #5d6b83;
+}
+
+.misectel-dashboard-stat__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.misectel-dashboard-stat__label {
+	display: block;
+	overflow-wrap: anywhere;
+	white-space: normal;
+	font-size: var(--chester-font-size-meta);
+	font-weight: 700;
+	letter-spacing: .04em;
+	color: var(--misectel-dashboard-text-muted);
+}
+
+.misectel-dashboard-stat__badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 5px 9px;
+	border-radius: 999px;
+	background: rgba(16, 35, 62, .06);
+	font-size: var(--chester-font-size-meta);
+	color: var(--misectel-dashboard-text-soft);
+	white-space: nowrap;
+}
+
+.misectel-dashboard-stat__value {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	margin-top: 10px;
+	font-size: var(--chester-font-size-display);
+	font-weight: 700;
+	line-height: 1;
+	color: var(--misectel-dashboard-text-main);
+}
+
+.misectel-dashboard-stat__hint {
+	margin-top: 8px;
+	font-size: var(--chester-font-size-meta);
+	color: var(--misectel-dashboard-text-soft);
+	word-break: break-word;
+}
+
+.misectel-dashboard-progress {
+	margin-top: 12px;
+	height: 7px;
+	border-radius: 999px;
+	background: rgba(16, 35, 62, .08);
+	overflow: hidden;
+}
+
+.misectel-dashboard-progress > span {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: linear-gradient(90deg, var(--misectel-dashboard-stat-color), rgba(255, 255, 255, .65));
+}
+
+.misectel-dashboard-stat__footer {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	margin-top: 12px;
+}
+
+.misectel-dashboard-stat__meta {
+	padding: 9px 11px;
+	border-radius: 12px;
+	background: rgba(16, 35, 62, .04);
+}
+
+.misectel-dashboard-stat__meta-label {
+	display: block;
+	font-size: var(--chester-font-size-meta);
+	color: var(--misectel-dashboard-text-muted);
+}
+
+.misectel-dashboard-stat__meta-value {
+	display: block;
+	margin-top: 4px;
+	font-size: var(--chester-font-size-subtle);
+	color: var(--misectel-dashboard-text-main);
+}
+
+.misectel-dashboard-sparkline {
+	flex: 0 0 auto;
+	width: 82px;
+	height: 28px;
+}
+
+.misectel-dashboard-sparkline polyline {
+	fill: none;
+	stroke: var(--misectel-dashboard-stat-color);
+	stroke-width: 3.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.misectel-dashboard-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1.28fr) minmax(380px, .92fr);
+	gap: 18px;
+	align-items: stretch;
+}
+
+.misectel-dashboard-main,
+.misectel-dashboard-side {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	min-width: 0;
+}
+
+.misectel-dashboard-card--modem-main,
+.misectel-dashboard-main > .misectel-dashboard-card {
+	height: 100%;
+}
+
+.misectel-dashboard-card--ports-main {
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+@media screen and (max-width: 1280px) {
+	.misectel-dashboard-layout {
+		grid-template-columns: minmax(0, 1.18fr) minmax(320px, .92fr);
+	}
+}
+
+.misectel-dashboard-card__select {
+	min-width: 220px;
+}
+
+.misectel-dashboard-card--wan-compact .chester-card__head,
+.misectel-dashboard-card--wan-compact .misectel-dashboard-card__head,
+.misectel-dashboard-card--wan-compact .chester-ui-card__head {
+	margin-bottom: 2px;
+}
+
+.misectel-dashboard-card--wan-compact .chester-card__title,
+.misectel-dashboard-card--wan-compact .misectel-dashboard-card__title,
+.misectel-dashboard-card--wan-compact .chester-ui-card__title {
+	font-size: var(--chester-font-size-title);
+}
+
+.misectel-dashboard-modem-grid,
+.misectel-dashboard-wan-list {
+	display: grid;
+	gap: 12px;
+}
+
+.misectel-dashboard-modem {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: 18px;
+	border: 1px solid rgba(16, 35, 62, .08);
+	border-radius: 18px;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, .96), rgba(248, 250, 252, .96)),
+		linear-gradient(135deg, rgba(198, 31, 51, .03), rgba(53, 119, 255, .03));
+}
+
+.misectel-dashboard-modem__head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.misectel-dashboard-modem__name {
+	margin: 0;
+	font-size: var(--chester-font-size-title);
+	font-weight: 700;
+	color: var(--misectel-dashboard-text-main);
+}
+
+.misectel-dashboard-modem__meta {
+	margin-top: 6px;
+	font-size: var(--chester-font-size-meta);
+	color: var(--misectel-dashboard-text-muted);
+}
+
+.misectel-dashboard-modem__overview {
+	display: grid;
+	grid-template-columns: 124px minmax(0, 1fr);
+	gap: 16px;
+	align-items: center;
+}
+
+.misectel-dashboard-signal {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 14px 12px;
+	border-radius: 16px;
+	background: rgba(16, 35, 62, .04);
+}
+
+.misectel-dashboard-signal__bars {
+	display: flex;
+	align-items: flex-end;
+	gap: 5px;
+	height: 40px;
+}
+
+.misectel-dashboard-signal__bar {
+	width: 9px;
+	border-radius: 999px 999px 2px 2px;
+	background: rgba(16, 35, 62, .12);
+}
+
+.misectel-dashboard-signal__bar:nth-child(1) {
+	height: 12px;
+}
+
+.misectel-dashboard-signal__bar:nth-child(2) {
+	height: 20px;
+}
+
+.misectel-dashboard-signal__bar:nth-child(3) {
+	height: 28px;
+}
+
+.misectel-dashboard-signal__bar:nth-child(4) {
+	height: 36px;
+}
+
+.misectel-dashboard-signal__bar.is-active.is-strong,
+.misectel-dashboard-signal__bar.is-active.is-good {
+	background: #1fa866;
+}
+
+.misectel-dashboard-signal__bar.is-active.is-fair {
+	background: #f0a53a;
+}
+
+.misectel-dashboard-signal__bar.is-active.is-weak {
+	background: #dc4e46;
+}
+
+.misectel-dashboard-signal__label {
+	font-size: var(--chester-font-size-meta);
+	font-weight: 700;
+	letter-spacing: .04em;
+	color: var(--misectel-dashboard-text-muted);
+	text-transform: uppercase;
+}
+
+.misectel-dashboard-chip-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.misectel-dashboard-signal-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 10px;
+}
+
+.misectel-dashboard-signal-card {
+	padding: 12px 14px;
+	border-radius: 14px;
+	background: rgba(16, 35, 62, .04);
+	border: 1px solid rgba(16, 35, 62, .05);
+}
+
+.misectel-dashboard-signal-card__label {
+	display: block;
+	font-size: var(--chester-font-size-meta);
+	color: var(--misectel-dashboard-text-muted);
+	letter-spacing: .04em;
+	text-transform: uppercase;
+}
+
+.misectel-dashboard-signal-card__value {
+	display: block;
+	margin-top: 6px;
+	font-size: var(--chester-font-size-body);
+	color: var(--misectel-dashboard-text-main);
+}
+
+.misectel-dashboard-description-list {
+	display: grid;
+	grid-template-columns: 110px minmax(0, 1fr);
+	row-gap: 10px;
+	column-gap: 14px;
+	margin: 0;
+	padding: 14px 16px;
+	border-radius: 16px;
+	background: rgba(16, 35, 62, .03);
+}
+
+.misectel-dashboard-description-list dt {
+	margin: 0;
+	font-size: var(--chester-font-size-meta);
+	color: var(--misectel-dashboard-text-muted);
+}
+
+.misectel-dashboard-description-list dd {
+	margin: 0;
+	font-size: var(--chester-font-size-subtle);
+	font-weight: 600;
+	color: var(--misectel-dashboard-text-main);
+	word-break: break-word;
+}
+
+.misectel-dashboard-wan {
+	padding: 12px 14px;
+	border: 1px solid rgba(16, 35, 62, .08);
+	border-radius: 16px;
+	background: rgba(255, 255, 255, .92);
+}
+
+.misectel-dashboard-wan__head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.misectel-dashboard-wan__name {
+	margin: 0;
+	font-size: var(--chester-font-size-body);
+	color: var(--misectel-dashboard-text-main);
+}
+
+.misectel-dashboard-wan__meta {
+	margin-top: 2px;
+	font-size: var(--chester-font-size-meta);
+	color: var(--misectel-dashboard-text-muted);
+}
+
+.misectel-dashboard-wan__grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	margin-top: 10px;
+}
+
+.misectel-dashboard-detail {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 10px 12px;
+	border-radius: 12px;
+	background: rgba(16, 35, 62, .04);
+	border: 1px solid rgba(16, 35, 62, .05);
+}
+
+.misectel-dashboard-card--wan-compact .misectel-dashboard-detail {
+	gap: 3px;
+	padding: 8px 10px;
+	border-radius: 10px;
+}
+
+.misectel-dashboard-card--wan-compact .misectel-dashboard-detail__label {
+	font-size: 10px;
+}
+
+.misectel-dashboard-card--wan-compact .misectel-dashboard-detail__value {
+	font-size: var(--chester-font-size-meta);
+	line-height: 1.35;
+}
+
+.misectel-dashboard-detail__label {
+	font-size: 11px;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+	color: var(--misectel-dashboard-text-muted);
+}
+
+.misectel-dashboard-detail__value {
+	font-size: var(--chester-font-size-meta);
+	font-weight: 600;
+	line-height: 1.5;
+	color: var(--misectel-dashboard-text-main);
+	word-break: break-word;
+}
+
+.misectel-dashboard-interface-stack {
+	display: grid;
+	gap: 18px;
+}
+
+.misectel-dashboard-interface-block {
+	display: grid;
+	gap: 12px;
+}
+
+.misectel-dashboard-interface-block--compact {
+	align-content: start;
+	gap: 10px;
+}
+
+.misectel-dashboard-section-title {
+	font-size: var(--chester-font-size-meta);
+	font-weight: 700;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+	color: var(--misectel-dashboard-text-muted);
+}
+
+.misectel-dashboard-port-panel {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: minmax(0, 1fr);
+	gap: 10px;
+}
+
+.misectel-dashboard-port-panel__port {
+	padding: 13px 14px;
+	border-radius: 16px;
+	border: 1px solid rgba(16, 35, 62, .08);
+	background: linear-gradient(180deg, rgba(250, 251, 253, .98), rgba(245, 247, 250, .98));
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, .65);
+}
+
+.misectel-dashboard-port-panel__port.is-gigabit.is-online {
+	border-color: rgba(31, 168, 102, .24);
+	background: linear-gradient(180deg, rgba(241, 252, 247, .98), rgba(234, 248, 240, .98));
+}
+
+.misectel-dashboard-port-panel__port.is-fast.is-online {
+	border-color: rgba(240, 165, 58, .26);
+	background: linear-gradient(180deg, rgba(255, 249, 239, .98), rgba(255, 244, 223, .98));
+}
+
+.misectel-dashboard-port-panel__port.is-slow.is-online {
+	border-color: rgba(220, 78, 70, .24);
+	background: linear-gradient(180deg, rgba(254, 244, 244, .98), rgba(252, 237, 237, .98));
+}
+
+.misectel-dashboard-port-panel__port.is-offline,
+.misectel-dashboard-port-panel__port.is-warn {
+	border-style: dashed;
+}
+
+.misectel-dashboard-port-panel__top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+}
+
+.misectel-dashboard-port-panel__role,
+.misectel-dashboard-port-panel__status {
+	font-size: var(--chester-font-size-meta);
+	color: var(--misectel-dashboard-text-muted);
+}
+
+.misectel-dashboard-port-panel__name {
+	display: block;
+	margin-top: 10px;
+	font-size: var(--chester-font-size-heading);
+	color: var(--misectel-dashboard-text-main);
+}
+
+.misectel-dashboard-port-panel__speed {
+	margin-top: 6px;
+	font-size: var(--chester-font-size-meta);
+	font-weight: 600;
+	color: var(--misectel-dashboard-text-soft);
+}
+
+.misectel-dashboard-bottom-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+}
+
+.misectel-dashboard-info-list {
+	display: grid;
+	gap: 10px;
+}
+
+.misectel-dashboard-info-list .chester-kv {
+	padding: 12px 14px;
+	border-color: rgba(16, 35, 62, .05);
+	border-radius: 14px;
+	background: rgba(247, 250, 253, .88);
+}
+
+.misectel-dashboard-info-list .chester-kv__label {
+	margin-bottom: 5px;
+	font-size: 11px;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+	color: var(--misectel-dashboard-text-muted);
+}
+
+.misectel-dashboard-info-list .chester-kv__value {
+	font-size: var(--chester-font-size-meta);
+	line-height: 1.45;
+}
+
+.misectel-dashboard-wan-list--compact {
+	gap: 10px;
+}
+
+.misectel-dashboard-wan--compact {
+	padding: 10px 12px;
+	border-radius: 14px;
+}
+
+.misectel-dashboard-wan__grid--compact {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	margin-top: 8px;
+}
+
+.misectel-dashboard-interface-table-wrap {
+	overflow-x: auto;
+}
+
+.misectel-dashboard-interface-table {
+	width: 100%;
+	border-collapse: collapse;
+	border-spacing: 0;
+	font-size: var(--chester-font-size-meta);
+}
+
+.misectel-dashboard-interface-table th,
+.misectel-dashboard-interface-table td {
+	padding: 12px 10px;
+	border-bottom: 1px solid rgba(16, 35, 62, .08);
+	text-align: left;
+	vertical-align: top;
+}
+
+.misectel-dashboard-interface-table th {
+	font-size: var(--chester-font-size-meta);
+	font-weight: 700;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+	color: var(--misectel-dashboard-text-muted);
+	white-space: nowrap;
+}
+
+.misectel-dashboard-interface-table td {
+	color: var(--misectel-dashboard-text-main);
+	word-break: break-word;
+}
+
+.misectel-dashboard-interface-table tbody tr.is-online {
+	background: rgba(31, 168, 102, .03);
+}
+
+.misectel-dashboard-interface-table tbody tr.is-warn {
+	background: rgba(240, 165, 58, .04);
+}
+
+.misectel-dashboard-interface-table tbody tr.is-offline {
+	background: rgba(16, 35, 62, .02);
+}
+
+.misectel-dashboard-loading {
+	padding: 8px 2px 0;
+	font-size: var(--chester-font-size-meta);
+	color: var(--misectel-dashboard-text-muted);
+}
+
+@media screen and (max-width: 1180px) {
+	.misectel-dashboard-layout {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media screen and (max-width: 768px) {
+	.misectel-dashboard-hero {
+		padding: 24px 20px;
+	}
+
+	.misectel-dashboard-hero__title {
+		font-size: 18px;
+	}
+
+	.misectel-dashboard-setup {
+		grid-template-columns: 1fr;
+	}
+
+	.misectel-dashboard-setup__actions {
+		align-items: stretch;
+	}
+
+	.misectel-dashboard-card__head,
+	.chester-ui-card__head {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.misectel-dashboard-card__select {
+		width: 100%;
+		min-width: 0;
+	}
+
+	.misectel-dashboard-quick-grid,
+	.misectel-dashboard-summary,
+	.misectel-dashboard-bottom-grid,
+	.misectel-dashboard-modem__overview,
+	.misectel-dashboard-signal-grid,
+	.misectel-dashboard-wan__grid,
+	.misectel-dashboard-stat__footer {
+		grid-template-columns: 1fr;
+	}
+
+	.misectel-dashboard-description-list {
+		grid-template-columns: 1fr;
+	}
+
+	.misectel-dashboard-description-list dt {
+		font-weight: 600;
+	}
+
+	.misectel-dashboard-interface-table,
+	.misectel-dashboard-interface-table thead,
+	.misectel-dashboard-interface-table tbody,
+	.misectel-dashboard-interface-table th,
+	.misectel-dashboard-interface-table td,
+	.misectel-dashboard-interface-table tr {
+		display: block;
+	}
+
+	.misectel-dashboard-interface-table thead {
+		display: none;
+	}
+
+	.misectel-dashboard-interface-table tbody tr {
+		padding: 12px 0;
+		border-bottom: 1px solid rgba(16, 35, 62, .08);
+	}
+
+	.misectel-dashboard-interface-table td {
+		display: flex;
+		justify-content: space-between;
+		gap: 12px;
+		padding: 8px 0;
+		border: none;
+	}
+
+	.misectel-dashboard-interface-table td::before {
+		content: attr(data-label);
+		flex: 0 0 110px;
+		font-weight: 600;
+		color: var(--misectel-dashboard-text-muted);
+	}
+}
+
+@media screen and (max-width: 560px) {
+	.misectel-dashboard-quick-grid,
+	.misectel-dashboard-stats-grid,
+	.misectel-dashboard-summary {
+		grid-template-columns: 1fr;
+	}
+
+	.misectel-dashboard-stat {
+		min-height: 0;
+	}
+
+	.misectel-dashboard-stat__value {
+		font-size: 22px;
+	}
+
+	.misectel-dashboard-quick-card {
+		min-height: 0;
+	}
+
+	.misectel-dashboard-quick-card__value {
+		font-size: 22px;
+	}
+}
+
+/* Frosted pill and label, matching the card treatment above. Appended so
+   they win over the earlier rules without editing them in place. */
+.misectel-dashboard-quick-card__badge {
+	background: rgba(255, 255, 255, .20);
+	border: 1px solid rgba(255, 255, 255, .26);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, .26);
+	backdrop-filter: saturate(150%) blur(8px);
+	-webkit-backdrop-filter: saturate(150%) blur(8px);
+	font-weight: 600;
+}
+
+.misectel-dashboard-quick-card__label {
+	letter-spacing: .015em;
+	text-shadow: 0 1px 1px rgba(0, 0, 0, .12);
+}
+
+/* A grid item will not shrink below its content by default (min-width is
+   auto), which is what pushed the port names outside their boxes on a
+   narrow screen. Let them shrink, and clip rather than overflow. */
+.misectel-dashboard-port-panel__port {
+	min-width: 0;
+}
+
+.misectel-dashboard-port-panel__name,
+.misectel-dashboard-port-panel__role,
+.misectel-dashboard-port-panel__speed,
+.misectel-dashboard-port-panel__status {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Keep the stat cards to a single line each: the labels and the memory
+   figure are the ones long enough to wrap at a third of the width. */
+.misectel-dashboard-stat__label,
+.misectel-dashboard-stat__hint,
+.misectel-dashboard-stat__value {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+@media screen and (max-width: 560px) {
+	/* Four ports across a phone leaves no room for a name. Give each one a
+	   readable floor and let the row scroll instead of crushing them. */
+	.misectel-dashboard-port-panel {
+		grid-auto-columns: minmax(96px, 1fr);
+		overflow-x: auto;
+		padding-bottom: 4px;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	/* Three stat cards side by side are too narrow on a phone. */
+	.misectel-dashboard-stats-grid {
+		grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+	}
+}
+
+/* Front panel light switch, sat above the quick cards. */
+.misectel-dashboard-led-toggle-wrap {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-bottom: 10px;
+}
+
+.misectel-dashboard-led-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 7px 14px;
+	border-radius: 999px;
+	border: 1px solid rgba(16, 35, 62, .12);
+	background: linear-gradient(180deg, #ffffff, #f2f5f9);
+	box-shadow: 0 1px 2px rgba(9, 20, 38, .10), inset 0 1px 0 rgba(255, 255, 255, .9);
+	color: var(--misectel-dashboard-text-main, #16324f);
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+}
+
+.misectel-dashboard-led-toggle:hover { transform: translateY(-1px); }
+.misectel-dashboard-led-toggle:disabled { opacity: .6; cursor: progress; }
+
+.misectel-dashboard-led-toggle__icon {
+	font-size: 15px;
+	line-height: 1;
+	color: #0f9d58;
+}
+
+/* Off state: the switch itself goes dim, so it reads at a glance. */
+.misectel-dashboard-led-toggle.is-off {
+	background: linear-gradient(180deg, #eceff3, #e2e6ec);
+	color: #6b7a8d;
+}
+.misectel-dashboard-led-toggle.is-off .misectel-dashboard-led-toggle__icon { color: #98a4b3; }

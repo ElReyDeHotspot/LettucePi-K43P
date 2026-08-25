@@ -1,0 +1,79 @@
+{
+    "luci-app-misectel-dashboard": {
+        "description": "Grant access to the Chester dashboard",
+        "read": {
+            "ubus": {
+                "system": [
+                    "board",
+                    "info"
+                ],
+                "luci": [
+                    "getCPUInfo",
+                    "getCPUUsage",
+                    "getTempInfo",
+                    "getBuiltinEthernetPorts"
+                ],
+                "network.device": [
+                    "status"
+                ],
+                "network.interface": [
+                    "dump"
+                ],
+                "network.wireless": [
+                    "status"
+                ],
+                "qmodem": [
+                    "base_info",
+                    "network_info",
+                    "cell_info",
+                    "sim_info",
+                    "get_connect_status"
+                ],
+                "misectel": [
+                    "internet_status",
+                    "led_power",
+                    "modem_temp",
+                    "neighbors",
+                    "oem_model_name",
+                    "system_time",
+                    "tcp_connections",
+                    "temp_status",
+                    "ttl_status",
+                    "video_engine"
+                ],
+                "iwinfo": [
+                    "info",
+                    "countrylist",
+                    "freqlist",
+                    "phyname",
+                    "assoclist"
+                ],
+                "luci-rpc": [
+                    "getHostHints",
+                    "getWirelessDevices"
+                ],
+                "uci": [
+                    "get"
+                ]
+            },
+            "uci": [
+                "dhcp",
+                "firewall",
+                "misectel",
+                "network",
+                "qmodem",
+                "qmodem_ttl",
+                "wireless"
+            ]
+        },
+        "write": {
+            "ubus": {
+                "misectel": [
+                    "set_led_power",
+                    "set_ttl",
+                    "set_video_engine"
+                ]
+            }
+        }
+    }
+}

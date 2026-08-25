@@ -1,0 +1,6 @@
+#!/bin/sh
+if [ -x /etc/init.d/chester-phy-led ]; then
+	/etc/init.d/chester-phy-led stop >/dev/null 2>&1
+	/etc/init.d/chester-phy-led disable >/dev/null 2>&1
+fi
+exit 0
