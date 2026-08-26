@@ -841,6 +841,105 @@ const methods = {
 			};
 		}
 	},
+	update_settings: {
+		call: function() {
+			let ctx = cursor();
+			let auto = ctx ? ctx.get('chester', 'update', 'auto') : null;
+			let time = ctx ? ctx.get('chester', 'update', 'time') : null;
+			let keep = ctx ? ctx.get('chester', 'update', 'keep_settings') : null;
+
+			// Which clock the scheduled time is on. cron runs on the router's
+			// local time, and these ship set to UTC, so "03:00" means 03:00 UTC
+			// until someone picks a timezone -- which is 10pm or 11pm the night
+			// before on the US east coast. Naming it stops that being a
+			// surprise. zonename is the readable form (America/New_York); the
+			// POSIX string is the fallback for a box that only has that.
+			let zone = ctx ? ctx.get('system', '@system[0]', 'zonename') : null;
+			if (!zone)
+				zone = ctx ? ctx.get('system', '@system[0]', 'timezone') : null;
+
+			return {
+				timezone: zone ? zone : 'UTC',
+				// Off unless switched on. Nothing should start reflashing a
+				// customer's router on a schedule they did not ask for.
+				auto: (auto == '1') ? true : false,
+				time: time ? time : '03:00',
+				// Absent means KEEP. A router that loses its Wi-Fi name, its APN
+				// and its admin password because the option had simply never
+				// been written yet is a far worse outcome than one that carries
+				// a stale config forward, so only an explicit '0' wipes.
+				keep_settings: (keep == '0') ? false : true
+			};
+		}
+	},
+
+	set_update_settings: {
+		args: { auto: 'String', time: 'String', keep_settings: 'String' },
+		call: function(request) {
+			let wantAuto = trimSafe(request.args.auto);
+			let wantKeep = trimSafe(request.args.keep_settings);
+			let on = (wantAuto == '1' || lc(wantAuto) == 'true' || lc(wantAuto) == 'on');
+			let keep = !(wantKeep == '0' || lc(wantKeep) == 'false' || lc(wantKeep) == 'off');
+
+			// Validate before storing, because this string becomes a cron field.
+			// A malformed time would otherwise produce a crontab line that
+			// busybox silently refuses, leaving auto-update switched on in the
+			// UI and never firing.
+			let time = trimSafe(request.args.time);
+			let m = match(time, /^([0-9]{1,2}):([0-9]{2})$/);
+			let hh = m ? +m[1] : -1;
+			let mm = m ? +m[2] : -1;
+			if (!(hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59)) {
+				hh = 3; mm = 0;
+				time = '03:00';
+			} else {
+				time = sprintf('%02d:%02d', hh, mm);
+			}
+
+			// The uci CLI, not the ucode cursor, and deliberately so. The
+			// cursor's 4-argument set() cannot create a package that does not
+			// exist yet: against a missing /etc/config/chester it reported
+			// success and wrote nothing, so the schedule appeared to save and
+			// the setting read back as its default forever. This is the same
+			// pattern skip_setup_wizard already uses.
+			let cmd = 'touch /etc/config/chester' +
+				' && uci -q set chester.update=update' +
+				' && uci -q set chester.update.auto=' + quoteArg(on ? '1' : '0') +
+				' && uci -q set chester.update.time=' + quoteArg(time) +
+				' && uci -q set chester.update.keep_settings=' + quoteArg(keep ? '1' : '0') +
+				' && uci -q commit chester';
+
+			// Rebuild the crontab from a copy in /tmp, keyed on a marker
+			// comment, so repeated saves cannot stack duplicate lines.
+			//
+			// Not sed -i: it writes its temporary file into the directory it is
+			// editing, and crond scans that whole directory, so /etc/crontabs
+			// briefly gains a file named after no user at all --
+			//   crond: ignoring file 'rootPGLOpO' (no such user)
+			let line = sprintf('%d %d * * * /usr/sbin/chester-update auto-run >/dev/null 2>&1 # chester-auto-update', mm, hh);
+			cmd += '; touch /etc/crontabs/root' +
+				'; grep -v chester-auto-update /etc/crontabs/root > /tmp/.ck-cron 2>/dev/null';
+			if (on)
+				cmd += '; echo ' + quoteArg(line) + ' >> /tmp/.ck-cron';
+			cmd += '; cp /tmp/.ck-cron /etc/crontabs/root; rm -f /tmp/.ck-cron';
+
+			// crond is enabled but NOT running after a boot, so enabling alone
+			// leaves the schedule written and nothing reading it. restart is
+			// backed by start because restart on a stopped service was observed
+			// to leave it stopped.
+			cmd += '; /etc/init.d/cron enable; /etc/init.d/cron restart; pidof crond >/dev/null || /etc/init.d/cron start';
+			let result = runCommand('( ' + cmd + ' ) >/dev/null 2>&1');
+
+			return {
+				success: result.result,
+				auto: on,
+				time: time,
+				keep_settings: keep,
+				message: result.result ? null : 'saved, but the schedule could not be applied'
+			};
+		}
+	},
+
 	skip_setup_wizard: {
 		call: function() {
 			let result = runCommand(

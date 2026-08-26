@@ -44,6 +44,18 @@ installed_date(){ sed -n 's/^built=//p'   "$VERSION_FILE" 2>/dev/null | head -1;
 # wrong on anything built before the stamp existed.
 installed_bin() { sed -n 's/^bin=//p'     "$VERSION_FILE" 2>/dev/null | head -1; }
 
+# 1 = keep the customer's settings across the flash, 0 = wipe.
+#
+# Unset means KEEP. This is the safe direction: an unwritten option must never
+# be the reason a router comes back with its Wi-Fi name, APN and admin password
+# gone, and every unit already in the field has this unset.
+keep_settings() {
+	case "$(uci -q get chester.update.keep_settings)" in
+		0) echo 0 ;;
+		*) echo 1 ;;
+	esac
+}
+
 case "${1:-status}" in
 status)
 	m=$(curl -fsSL --max-time 25 "$(cachebust "$MANIFEST_URL")" 2>/dev/null)
@@ -94,19 +106,47 @@ install)
 	sync
 
 	echo "OK: installing, the router will restart"
-	# -n: do NOT keep settings.
+
+	# -F, because our images are raw UBI with no OpenWrt metadata and the
+	# stock check rejects them ("Image metadata not present"). -F forces past
+	# that check ONLY; it has nothing to do with keeping settings.
 	#
-	# This is the last ImmortalWrt build; the update after it moves the router
-	# to OpenWrt 25. The two use different config layouts -- ImmortalWrt names
-	# the modem interface pcie0, OpenWrt names it after the PCI slot -- so a
-	# preserved /etc/config produces a router that boots to no network. The
-	# earlier -k could not express that, which is why this build exists: it is
-	# the stepping stone that teaches the fleet to wipe on the way across.
+	# Whether settings survive is -n, and that is now the customer's choice,
+	# defaulting to KEEP.
 	#
-	# The image carries its own /etc/shadow (root/admin), so a wipe still
-	# leaves a usable login. Detached so the HTTP response is not cut off.
-	( sleep 2; sysupgrade -n "$IMG" >>"$LOG" 2>&1 ) >/dev/null 2>&1 &
+	# It used to be an unconditional -n, justified by the crossing from
+	# ImmortalWrt to a genuine OpenWrt 25 build: the two named the modem
+	# interface differently, so a preserved /etc/config booted to no network.
+	# That build was abandoned and removed -- there is one firmware family now
+	# and nothing to cross to -- so the wipe no longer buys anything, while
+	# still costing the customer their Wi-Fi name, APN and admin password. The
+	# page had been promising "Your settings are kept" over the top of it the
+	# whole time.
+	#
+	# Proven on the bench across bin 29 -> 31: hostname, LAN address, TTL
+	# setting and a planted marker all survived.
+	if [ "$(keep_settings)" = 0 ]; then
+		log "installing WITHOUT settings (-n)"
+		( sleep 2; sysupgrade -F -n "$IMG" >>"$LOG" 2>&1 ) >/dev/null 2>&1 &
+	else
+		log "installing and keeping settings"
+		( sleep 2; sysupgrade -F "$IMG" >>"$LOG" 2>&1 ) >/dev/null 2>&1 &
+	fi
+	;;
+auto-run)
+	# The scheduled path, called by cron. Deliberately silent and deliberately
+	# conservative: it installs only when the manifest names a build different
+	# from the installed one, so a router that is already current never
+	# reflashes itself on a timer.
+	[ "$(uci -q get chester.update.auto)" = 1 ] || { log "auto-run: not enabled"; exit 0; }
+	s=$("$0" status 2>/dev/null)
+	case "$s" in
+		*'"update_available":true'*) ;;
+		*) log "auto-run: already up to date"; exit 0 ;;
+	esac
+	log "auto-run: update available, installing"
+	"$0" install >>"$LOG" 2>&1
 	;;
 *)
-	echo "usage: chester-update status|install" >&2; exit 2 ;;
+	echo "usage: chester-update status|install|auto-run" >&2; exit 2 ;;
 esac

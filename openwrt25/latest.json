@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-08-26T00:04Z",
-  "build": "20260826000448",
-  "bin": "31",
-  "sha256": "efd8a89da4f7138757b40e151e41b54ede87d40c68b0c046333755e108afc82e",
+  "built": "2026-08-26T01:12Z",
+  "build": "20260826011213",
+  "bin": "32",
+  "sha256": "8a5cf44d89fcaba3dc70d45702f9abc370c3eebc409fc39d60923d0447db46b0",
   "size": "25821184",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/31-2026-08-25-ChesterK43P-25.12.bin",
-  "notes": "Fixes IPv6 on the LAN when the TTL tool is on: it was rewriting the hop limit of neighbour discovery, which clients must discard. Also fixes the IPv6 page reporting a working connection as failed. Settings are NOT kept: this flashes with -n."
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/32-2026-08-25-ChesterK43P-25.12.bin",
+  "notes": "System Update keeps your settings by default and can install on a schedule. Setup Wizard is reachable again under Overview. Login shows the LettucePi mark."
 }

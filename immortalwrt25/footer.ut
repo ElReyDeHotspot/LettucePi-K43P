@@ -38,7 +38,12 @@
 		if (container && !container.querySelector('.login-shell-card-title')) {
 			const title = document.createElement('div');
 			title.className = 'login-shell-card-title';
-			title.innerHTML = '<span>5G Wireless Data Terminal</span>';
+			/* The leaf and the product name, not the generic vendor string.
+			   logo.svg is the same asset the dashboard header uses, so the
+			   login and the page behind it show the same mark. The sizing
+			   lives in cascade.css as .login-leaf-img. */
+			title.innerHTML = '<img class="login-leaf-img" src="/luci-static/misectel/logo.svg" alt="">'
+				+ '<span class="login-wordmark">LettucePi</span>';
 			container.insertBefore(title, container.firstChild);
 		}
 
