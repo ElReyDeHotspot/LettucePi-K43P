@@ -399,6 +399,48 @@ grep -q 'meta l4proto != ipv6-icmp' "$TTLINIT" \
 	|| die "expected exactly 2 IPv6 hop-limit rules after the split, got $(grep -c 'ip6 hoplimit set' "$TTLINIT")"
 echo "  NDP and MLD excluded from the hop-limit rewrite"
 
+# ------------------- 5d. Setup Wizard: timezone, APN, and the password
+# The vendor wizard configures internet, Wi-Fi and the admin password. Three
+# things are added here, all in vendor files, so all of them are applied as
+# anchored patches that DIE if their anchor moves -- a silently skipped patch
+# would ship a wizard that looks right and quietly does nothing.
+#
+#   1. an APN dropdown and a Time Zone dropdown on the Internet step
+#   2. the first screen shows the product and its mark, not "5G Wireless
+#      Data Terminal", and no longer prints a stray "null" under the title
+#      (createShell hands E() a null child when a step has no subtitle)
+#   3. skipping the password step now CLEARS the root password
+#
+# On (3): the image ships root with a real hash, so skipping previously left
+# every unit on the same published default -- the one printed in the upgrade
+# guide. An obviously-unset password is better than a shared secret that looks
+# set. It is bounded to the LAN by the firewall, not by luck: dropbear binds
+# to the lan address only and the wan zone input policy is REJECT.
+#
+# On the dropdown data: it is served through the wizard's OWN context method,
+# not misectel/luci. The wizard runs unauthenticated -- it exists to be used
+# before a password is set -- and misectel-unauthenticated grants only the six
+# misectel_setup_wizard methods, so calling apn_presets_get or getTimezones
+# from the page would work while logged in and be denied at first boot, which
+# is the only time the wizard actually runs.
+step "Setup Wizard: timezone + APN + password"
+WIZBE="$R/usr/share/rpcd/ucode/misectel_setup_wizard"
+WIZFE="$R/www/luci-static/resources/view/misectel-dashboard/setup-wizard.js"
+[ -f "$WIZBE" ] || die "setup wizard backend missing - the wizard moved"
+[ -f "$WIZFE" ] || die "setup wizard view missing - the wizard moved"
+command -v python3 >/dev/null 2>&1 || die "python3 is needed to patch the setup wizard"
+
+python3 "$HERE/wizard-patches/patch-wizard-backend.py" "$WIZBE" | sed 's/^/  /' 	|| die "the setup wizard backend patch did not apply"
+python3 "$HERE/wizard-patches/patch-wizard-view.py" "$WIZFE" | sed 's/^/  /' 	|| die "the setup wizard view patch did not apply"
+
+grep -q 'function applyChesterExtras' "$WIZBE" || die "wizard backend: applyChesterExtras missing"
+grep -q 'passwd -d root'              "$WIZBE" || die "wizard backend: skip does not clear the password"
+grep -q 'buildChesterContext'         "$WIZBE" || die "wizard backend: dropdown context missing"
+grep -q 'buildChesterExtras'          "$WIZFE" || die "wizard view: dropdowns missing"
+grep -q 'LettucePi'                   "$WIZFE" || die "wizard view: start screen not branded"
+grep -q '5G Wireless Data Terminal'   "$WIZFE" && die "wizard view: vendor string still on the start screen"
+echo "  APN + Time Zone dropdowns, branded start screen, skip clears the password"
+
 # ------------------------------------------------------ 6. root password
 # A sysupgrade -n leaves /etc/shadow with an EMPTY root password, which the
 # login banner warns about and which contradicts the guide (root/admin).

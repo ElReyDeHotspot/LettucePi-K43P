@@ -81,6 +81,7 @@ chester-ui:$HERE/chester-ui
 lettucepi-theme:$HERE/lettucepi-theme
 chester-apk.pem:$REPO/chesterAPK/chester-apk.pem
 luci-chester-update:$REPO/luci-chester-update
+wizard-patches:$HERE/wizard-patches
 "
 
 missing=""
