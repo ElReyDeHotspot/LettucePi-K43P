@@ -41,7 +41,7 @@
 <meta name="msapplication-TileColor" content="#b81425">
 <meta name="application-name" content="{{ appname }}">
 <meta name="apple-mobile-web-app-title" content="{{ appname }}">
-<link rel="stylesheet" href="{{ media }}/cascade.css?v=26.235.ipv6d">
+<link rel="stylesheet" href="{{ media }}/cascade.css?v=26.235.0825234159">
 <link rel="icon" href="{{ media }}/favicon.ico" sizes="48x48">
 {% if (node?.css): %}
 <link rel="stylesheet" href="{{ resource }}/{{ node.css }}">
@@ -77,9 +77,20 @@
 						<span class="account-avatar"></span>
 					</a>
 					<span class="account-name">{{ authuser }}</span>
-					{% if (dispatcher.lookup("admin/logout")): %}
-					<a class="account-logout" href="{{ dispatcher.build_url("admin/logout") }}">{{ _('Logout') }}</a>
-					{% endif %}
+					<div class="account-menu" data-account-menu>
+						<button type="button" class="account-menu__button" aria-haspopup="true" aria-expanded="false" aria-label="{{ _('Menu') }}">
+							<span class="account-menu__dots" aria-hidden="true"></span>
+						</button>
+						<div class="account-menu__panel" hidden>
+							<a class="account-menu__item" href="{{ password_url }}">{{ _('Change Password') }}</a>
+							{% if (dispatcher.lookup("admin/system/reboot")): %}
+							<a class="account-menu__item" href="{{ dispatcher.build_url("admin/system/reboot") }}">{{ _('Reboot') }}</a>
+							{% endif %}
+							{% if (dispatcher.lookup("admin/logout")): %}
+							<a class="account-menu__item account-menu__item--danger" href="{{ dispatcher.build_url("admin/logout") }}">{{ _('Logout') }}</a>
+							{% endif %}
+						</div>
+					</div>
 				</div>
 				{% endif %}
 			</div>

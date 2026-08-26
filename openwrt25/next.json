@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-08-26T02:10Z",
-  "build": "20260826021035",
-  "bin": "34",
-  "sha256": "e7a2a63ac3d8d17b3634bad9ad71170ae83393310f1f4ac35bbec7e7bbfd1316",
+  "built": "2026-08-26T03:58Z",
+  "build": "20260826035811",
+  "bin": "35",
+  "sha256": "f0d56cc6b4926b0bb4de590a0ea9766d86729835846e7db6050478ec18197f57",
   "size": "25821184",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/34-2026-08-25-ChesterK43P-25.12.bin",
-  "notes": "Setup Wizard fixes: the chosen port mode is kept, the chosen time zone now takes effect immediately, and skipping the password step leaves no password."
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/35-2026-08-25-ChesterK43P-25.12.bin",
+  "notes": "Overview reworked: eNB/gNB, carrier aggregation as PCC/SCC, carrier names, network mode selector, and a top-right menu. Settings are kept unless you turn that off."
 }

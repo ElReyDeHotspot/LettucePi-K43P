@@ -1028,12 +1028,17 @@ UI="$HERE/chester-ui"
 
 # Checksums from section 4 of the handoff. These two carry the branding, so a
 # silent substitution is worth failing the build over.
+#
+# Re-pinned 2026-08-26: header.ut gained the top-right account menu and the
+# LettucePi login mark, and cascade.css the styles for those plus the band
+# and network-mode panels. The guard caught both, which is the point of it --
+# update these hashes only alongside a deliberate edit to those files.
 verify_sha() {
 	got=$(sha256sum "$1" | awk '{print toupper($1)}')
 	[ "$got" = "$2" ] || die "$(basename "$1") sha256 mismatch: got $got want $2"
 }
 verify_sha "$UI/usr/share/ucode/luci/template/themes/misectel/header.ut" \
-	93952D3BE9FC635E83E9196E5BED39D5EA102827AB7D61A707C12C8D8AB46787
+	0646027C947FC13FEE9306229A57F60D7FE1F79C948FE3A348D4AA68FF90099E
 verify_sha "$UI/www/luci-static/misectel/cascade.css" \
 	9A1E311AAF61A74838B0F10E4B3A6401CBEE4E216710C060A8A3C72D5243CC39
 

@@ -76,6 +76,9 @@
                     "set_update_settings",
                     "set_video_engine",
                     "set_wan_to_lan"
+                ],
+                "qmodem": [
+                    "send_at"
                 ]
             }
         }

@@ -23,8 +23,8 @@ set -u
 # because this board boots the bank the stock writer ignores.
 FW_FAMILY="Immortal-Chester-25"
 FW_NAME="ImmortalWrt (current)"
-FW_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/34-2026-08-25-ChesterK43P-25.12.bin"
-FW_SHA="e7a2a63ac3d8d17b3634bad9ad71170ae83393310f1f4ac35bbec7e7bbfd1316"
+FW_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/35-2026-08-25-ChesterK43P-25.12.bin"
+FW_SHA="f0d56cc6b4926b0bb4de590a0ea9766d86729835846e7db6050478ec18197f57"
 FW_SIZE=25821184
 
 PLATFORM_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/platform.sh"

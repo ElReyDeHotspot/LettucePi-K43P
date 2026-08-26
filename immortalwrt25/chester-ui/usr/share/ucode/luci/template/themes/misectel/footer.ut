@@ -12,6 +12,50 @@
 
 	<script>L.require('menu-misectel')</script>
 	<script>
+/* Top-right account menu (the three dots).
+ *
+ * Deliberately its own script block: the block below returns immediately
+ * unless document.body has node-main-login, because it exists to decorate the
+ * login page. Anything for the logged-in UI placed inside it never runs.
+ *
+ * Delegated from document so it keeps working after LuCI re-renders the
+ * topbar, and guarded so a re-run cannot bind the handlers twice. */
+(function () {
+	if (document.body.hasAttribute('data-account-menu-wired'))
+		return;
+	document.body.setAttribute('data-account-menu-wired', '1');
+
+	function closeAccountMenus(except) {
+		document.querySelectorAll('[data-account-menu]').forEach(function (menu) {
+			if (menu === except) return;
+			var panel = menu.querySelector('.account-menu__panel');
+			var button = menu.querySelector('.account-menu__button');
+			if (panel) panel.hidden = true;
+			if (button) button.setAttribute('aria-expanded', 'false');
+			menu.classList.remove('is-open');
+		});
+	}
+
+	document.addEventListener('click', function (ev) {
+		var button = ev.target && ev.target.closest ? ev.target.closest('.account-menu__button') : null;
+		if (!button) { closeAccountMenus(null); return; }
+		ev.preventDefault();
+		var menu = button.closest('[data-account-menu]');
+		var panel = menu ? menu.querySelector('.account-menu__panel') : null;
+		if (!panel) return;
+		var open = panel.hidden;
+		closeAccountMenus(menu);
+		panel.hidden = !open;
+		button.setAttribute('aria-expanded', open ? 'true' : 'false');
+		if (menu) menu.classList.toggle('is-open', open);
+	});
+
+	document.addEventListener('keydown', function (ev) {
+		if (ev.key === 'Escape') closeAccountMenus(null);
+	});
+})();
+</script>
+	<script>
 	(function() {
 		if (!document.body.classList.contains('node-main-login'))
 			return;
@@ -34,6 +78,7 @@
 
 			main.appendChild(bubbles);
 		}
+
 
 		if (container && !container.querySelector('.login-shell-card-title')) {
 			const title = document.createElement('div');

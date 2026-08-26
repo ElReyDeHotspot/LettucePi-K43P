@@ -8821,3 +8821,316 @@ body.logged-in:not(.node-main-login) .nav > li[data-menu-name="developer"],
 body.logged-in:not(.node-main-login) .nav > .slide[data-menu-name="developer"] {
 	--top-menu-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m8 6-6 6 6 6M16 6l6 6-6 6M14 3l-4 18'/%3E%3C/svg%3E");
 }
+
+/* Top-right account menu (the three dots). Replaces the bare Logout link, so
+   Logout, Reboot and Change Password sit together instead of one of them
+   being a link and the others buried in the tree. */
+.account-menu { position: relative; display: inline-flex; }
+
+.account-menu__button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	padding: 0;
+	border: 0;
+	border-radius: 8px;
+	background: transparent;
+	cursor: pointer;
+	transition: background .15s ease;
+}
+.account-menu__button:hover { background: rgba(16, 35, 62, .07); }
+.account-menu.is-open .account-menu__button { background: rgba(16, 35, 62, .10); }
+
+/* Three dots drawn from one element: the middle dot is the box, the outer two
+   are its pseudo-elements, so there is no extra markup to keep aligned. */
+.account-menu__dots,
+.account-menu__dots::before,
+.account-menu__dots::after {
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background: currentColor;
+}
+.account-menu__dots { position: relative; display: block; }
+.account-menu__dots::before,
+.account-menu__dots::after { content: ""; position: absolute; left: 0; }
+.account-menu__dots::before { top: -7px; }
+.account-menu__dots::after  { top: 7px; }
+
+.account-menu__panel {
+	position: absolute;
+	top: calc(100% + 8px);
+	right: 0;
+	z-index: 1200;
+	min-width: 186px;
+	padding: 6px;
+	border: 1px solid rgba(16, 35, 62, .10);
+	border-radius: 12px;
+	background: #fff;
+	box-shadow: 0 12px 32px rgba(16, 35, 62, .16), 0 2px 6px rgba(16, 35, 62, .06);
+}
+.account-menu__panel[hidden] { display: none; }
+
+.account-menu__item {
+	display: block;
+	padding: 9px 12px;
+	border-radius: 8px;
+	color: #1d1d1f;
+	font-size: 13.5px;
+	font-weight: 550;
+	text-decoration: none;
+	white-space: nowrap;
+}
+.account-menu__item:hover { background: rgba(16, 35, 62, .06); text-decoration: none; }
+.account-menu__item--danger { color: #C9302C; }
+.account-menu__item--danger:hover { background: rgba(217, 52, 66, .08); }
+
+/* Terminal gets an icon even though it is a sub-item. The theme's icons come
+   from misectel-iconfont and only exist at depth 1, so rather than guess a
+   codepoint this masks an inline SVG and tints it with currentColor, which
+   keeps it in step with the hover and active states. */
+body.logged-in:not(.node-main-login) .main > .main-left > .nav .menu-icon--terminal::before {
+	content: "";
+	width: 15px;
+	height: 15px;
+	color: rgba(255, 255, 255, .72);
+	background-color: currentColor;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 8 4 4-4 4M13 16h6'/%3E%3C/svg%3E") center / contain no-repeat;
+	        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 8 4 4-4 4M13 16h6'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* Keep Terminal's label on the same left edge as its siblings.
+   Sub-item links are padded .4rem 2rem, and no other sub-item has an icon
+   element at all, so an in-flow icon (18px + 12px margin) pushed only this
+   one row's text to the right. Lifting it out of flow into the existing 2rem
+   gutter aligns the text with the rest instead of indenting every other item
+   to match this one. */
+body.logged-in:not(.node-main-login) .main > .main-left > .nav > .slide > .slide-menu > li > a {
+	position: relative;
+}
+
+body.logged-in:not(.node-main-login) .main > .main-left > .nav > .slide > .slide-menu > li > a > .menu-icon--terminal {
+	position: absolute;
+	top: 50%;
+	left: .74rem;
+	width: 15px;
+	height: 15px;
+	margin: 0;
+	flex: 0 0 auto;
+	transform: translateY(-50%);
+}
+
+/* Carrier aggregation cards: same card as a signal tile, but one per row and
+   sitting under the signal grid rather than beside it, so each aggregated
+   carrier reads as its own line. */
+.misectel-dashboard-carrier-grid {
+	grid-template-columns: minmax(0, 1fr) !important;
+	margin-top: 10px;
+}
+.misectel-dashboard-carrier-grid .misectel-dashboard-signal-card__value {
+	font-variant-numeric: tabular-nums;
+	letter-spacing: .01em;
+}
+
+/* Details on the left, band info on the right. Two lists rather than one long
+   one, so the radio picture is not buried under IMEI and IP addresses. */
+.misectel-dashboard-detail-split {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px 22px;
+	align-items: start;
+}
+@media (max-width: 760px) {
+	.misectel-dashboard-detail-split { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Band fields. Sized to stay readable at 6 aggregated carriers (24 fields),
+   which is the most these modems report, so the column count grows with the
+   width instead of the list growing downward. */
+.misectel-dashboard-band-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+	gap: 8px 14px;
+	align-content: start;
+}
+.misectel-dashboard-band-item { min-width: 0; }
+.misectel-dashboard-band-item__label {
+	display: block;
+	color: var(--misectel-muted, #6d7788);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+}
+.misectel-dashboard-band-item__value {
+	display: block;
+	margin-top: 2px;
+	font-size: 13px;
+	font-weight: 680;
+	font-variant-numeric: tabular-nums;
+	overflow-wrap: anywhere;
+}
+
+/* Network Mode selector, sitting under the signal bars. The halo is the
+   active state -- a ring that reads at a glance without relying on fill
+   colour alone. */
+.chester-mode { margin-top: 14px; }
+.chester-mode__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 8px;
+}
+.chester-mode__label {
+	color: var(--misectel-muted, #6d7788);
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+}
+.chester-mode__status { color: var(--misectel-muted, #6d7788); font-size: 11.5px; }
+.chester-mode__status.is-bad { color: #d93442; font-weight: 640; }
+
+.chester-mode__row {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 10px;
+}
+.chester-mode__btn {
+	padding: 9px 6px;
+	border: 1px solid rgba(92, 108, 132, .20);
+	border-radius: 12px;
+	background: rgba(255, 255, 255, .92);
+	color: #172033;
+	font-family: inherit;
+	font-size: 12.5px;
+	font-weight: 700;
+	letter-spacing: .03em;
+	cursor: pointer;
+	transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease;
+}
+.chester-mode__btn:hover {
+	border-color: rgba(22, 119, 255, .38);
+	box-shadow: 0 0 0 4px rgba(22, 119, 255, .10);
+	transform: translateY(-1px);
+}
+.chester-mode__btn.is-active {
+	border-color: rgba(22, 119, 255, .55);
+	color: #0a63d6;
+	box-shadow: 0 0 0 4px rgba(22, 119, 255, .16), 0 6px 16px rgba(22, 119, 255, .18);
+}
+.chester-mode__btn:disabled { opacity: .55; cursor: progress; transform: none; }
+
+/* One column per aggregated carrier. At 6 carriers the groups wrap instead of
+   stretching, and each group keeps its own PCC/SCC label with its ARFCN,
+   PCID and BW. */
+.misectel-dashboard-band-grid {
+	grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)) !important;
+	gap: 10px 14px !important;
+}
+.misectel-dashboard-band-group {
+	display: grid;
+	gap: 6px;
+	align-content: start;
+	min-width: 0;
+}
+
+/* Band cells as boxes matching the signal tiles above them: same padding,
+   radius, fill and hairline, with the text centred. */
+.misectel-dashboard-band-item {
+	padding: 12px 10px;
+	border-radius: 14px;
+	background: rgba(16, 35, 62, .04);
+	border: 1px solid rgba(16, 35, 62, .05);
+	text-align: center;
+	min-width: 0;
+}
+.misectel-dashboard-band-item__label {
+	display: block;
+	color: var(--misectel-dashboard-text-muted, #6d7788);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+}
+.misectel-dashboard-band-item__value {
+	display: block;
+	margin-top: 6px;
+	color: var(--misectel-dashboard-text-main, #172033);
+	font-size: 13px;
+	font-weight: 680;
+	font-variant-numeric: tabular-nums;
+	overflow-wrap: anywhere;
+}
+.misectel-dashboard-band-group { gap: 8px; }
+
+/* Give the details list the wider share. It carries IPv6 addresses, which are
+   long enough to wrap onto a second line at an even 50/50 split, while the
+   band cells are short and fixed-width. */
+.misectel-dashboard-detail-split {
+	grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr) !important;
+}
+@media (max-width: 760px) {
+	.misectel-dashboard-detail-split { grid-template-columns: minmax(0, 1fr) !important; }
+}
+/* Narrower cells so the band side still fits its columns in the smaller share. */
+.misectel-dashboard-band-grid {
+	grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)) !important;
+}
+
+/* Squarer mode buttons: less corner rounding and a taller box, so they read as
+   tiles like the signal and band cells rather than pills. */
+.chester-mode__btn {
+	padding: 14px 6px !important;
+	border-radius: 8px !important;
+}
+
+/* Four equal squares sitting under the Network / Carrier chips. aspect-ratio
+   keeps them square at any width; the fixed track stops them stretching into
+   rectangles across a wide card. */
+.chester-mode { margin-top: 10px; }
+.chester-mode__head { margin-bottom: 6px; min-height: 14px; }
+.chester-mode__row {
+	grid-template-columns: repeat(4, 78px) !important;
+	justify-content: start;
+	gap: 8px !important;
+}
+.chester-mode__btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	aspect-ratio: 1 / 1;
+	padding: 0 !important;
+	border-radius: 10px !important;
+}
+
+/* The tile has to fill its grid track: without an explicit width the button
+   sizes to its label (37px) and aspect-ratio then squares THAT, so the 78px
+   track stayed mostly empty. */
+.chester-mode__btn {
+	width: 100% !important;
+	height: auto !important;
+	line-height: 1.1 !important;
+	font-size: 12px !important;
+}
+
+/* Chips and the mode tiles share the column to the right of the signal box,
+   filling the space that was empty under the chips instead of pushing the
+   tiles below the whole block. */
+.chester-modeside {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+.chester-modeside .misectel-dashboard-chip-row { margin: 0; }
+.chester-modeside .chester-mode { margin-top: 0; }
+
+/* Hide the upstream credit block on the QModem page (Vendor / Author /
+   Maintainer). Done in CSS rather than by patching the vendor view, so a
+   qmodem package update cannot silently undo it or fail a patch anchor. */
+.copyright-section { display: none !important; }
