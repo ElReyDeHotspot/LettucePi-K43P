@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-08-25T23:35Z",
-  "build": "20260825233537",
-  "bin": "30",
-  "sha256": "6af0366f7c14f3ed43f0f0e331b684bcd2480a7f0dcec03a3b554611449f5fa8",
+  "built": "2026-08-26T00:04Z",
+  "build": "20260826000448",
+  "bin": "31",
+  "sha256": "efd8a89da4f7138757b40e151e41b54ede87d40c68b0c046333755e108afc82e",
   "size": "25821184",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/30-2026-08-25-ChesterK43P-25.12.bin",
-  "notes": "Terminal (ttyd) runs from first boot. System Update shows Installed Image and Latest Image. Settings are NOT kept: this flashes with -n."
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/31-2026-08-25-ChesterK43P-25.12.bin",
+  "notes": "Fixes IPv6 on the LAN when the TTL tool is on: it was rewriting the hop limit of neighbour discovery, which clients must discard. Also fixes the IPv6 page reporting a working connection as failed. Settings are NOT kept: this flashes with -n."
 }

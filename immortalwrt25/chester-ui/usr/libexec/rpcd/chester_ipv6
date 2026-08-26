@@ -23,7 +23,8 @@ lan_zone_index() {
 
 print_status() {
 	local upstream lan wan_index lan_index upstream_up upstream_address upstream_prefix lan_address
-	local ra dhcpv6 masq6 delegate sourcefilter control_safe enabled
+	local ra dhcpv6 ra_slaac masq6 delegate sourcefilter control_safe enabled
+	local lan_global address_method
 	upstream="$(ubus call network.interface.pcie0v6 status 2>/dev/null)"
 	lan="$(ubus call network.interface.lan status 2>/dev/null)"
 	wan_index="$(wan_zone_index)"
@@ -31,21 +32,50 @@ print_status() {
 	upstream_up="$(printf '%s' "$upstream" | jq -r '.up // false')"
 	upstream_address="$(printf '%s' "$upstream" | jq -r '."ipv6-address"[0].address // ""')"
 	upstream_prefix="$(printf '%s' "$upstream" | jq -r '."ipv6-prefix"[0] | if . then (.address + "/" + (.mask|tostring)) else "" end')"
-	lan_address="$(printf '%s' "$lan" | jq -r '."ipv6-prefix-assignment"[]? | select(.address | startswith("fd")) | ."local-address".address' | head -1)"
+	# The GLOBAL address, preferring it over the ULA. br-lan normally carries
+	# both, and the global one is what clients actually use as their gateway,
+	# so reporting the ULA describes an address nothing is routed through.
+	lan_global="$(ip -6 addr show dev br-lan scope global 2>/dev/null | awk '/inet6/{print $2}' | cut -d/ -f1 | grep -v '^f[cd]' | head -1)"
+	lan_address="$lan_global"
+	[ -n "$lan_address" ] || lan_address="$(printf '%s' "$lan" | jq -r '."ipv6-prefix-assignment"[]? | select(.address | startswith("fd")) | ."local-address".address' | head -1)"
 	ra="$(uci -q get dhcp.lan.ra)"
 	dhcpv6="$(uci -q get dhcp.lan.dhcpv6)"
+	ra_slaac="$(uci -q get dhcp.lan.ra_slaac)"
 	masq6="$(uci -q get "firewall.@zone[$wan_index].masq6")"
 	delegate="$(uci -q get network.pcie0v6.delegate)"
 	sourcefilter="$(uci -q get network.pcie0v6.sourcefilter)"
 	control_safe=false
 	grep -q 'meta l4proto != ipv6-icmp' /etc/nftables.d/99-reset-ttl-from-br-lan.nft 2>/dev/null && control_safe=true
+
+	# How addresses actually reach clients. DHCPv6 being off is not a fault and
+	# must not be shown as one: the shipped default hands out addresses by
+	# SLAAC from the router advertisement, and nothing ever listens on udp/547.
+	# Reporting only "DHCPv6: Off" on a router whose IPv6 works perfectly reads
+	# as breakage, so state the mechanism that is really in use.
+	address_method="None"
+	if [ "$ra" = server ]; then
+		if [ "$dhcpv6" = server ] && [ "$ra_slaac" = 1 ]; then
+			address_method="SLAAC and DHCPv6"
+		elif [ "$dhcpv6" = server ]; then
+			address_method="DHCPv6"
+		elif [ "$ra_slaac" = 1 ]; then
+			address_method="SLAAC"
+		fi
+	fi
+
+	# Enabled means observed reality -- the LAN holds a routable address and
+	# the router is advertising it -- not a fingerprint of one specific
+	# configuration. The previous test additionally demanded DHCPv6, masq6,
+	# delegate and sourcefilter, none of which the shipped default sets, so a
+	# fully working router reported IPv6 as off.
 	enabled=false
-	[ "$ra" = server ] && [ "$dhcpv6" = server ] && [ "$masq6" = 1 ] && [ "$delegate" = 0 ] && [ "$sourcefilter" = 0 ] && enabled=true
+	[ "$ra" = server ] && [ -n "$lan_global" ] && enabled=true
 	jq -n --argjson enabled "$enabled" --argjson upstream_up "$upstream_up" \
 		--arg upstream_address "$upstream_address" --arg upstream_prefix "$upstream_prefix" \
 		--arg lan_address "$lan_address" --arg ra "$ra" --arg dhcpv6 "$dhcpv6" \
+		--arg address_method "$address_method" \
 		--argjson control_safe "$control_safe" \
-		'{enabled:$enabled,upstream_up:$upstream_up,upstream_address:$upstream_address,upstream_prefix:$upstream_prefix,lan_address:$lan_address,ra:$ra,dhcpv6:$dhcpv6,control_safe:$control_safe}'
+		'{enabled:$enabled,upstream_up:$upstream_up,upstream_address:$upstream_address,upstream_prefix:$upstream_prefix,lan_address:$lan_address,ra:$ra,dhcpv6:$dhcpv6,address_method:$address_method,control_safe:$control_safe}'
 }
 
 set_enabled() {
@@ -80,8 +110,22 @@ set_enabled() {
 
 run_test() {
 	local source output ok latency
-	source="$(ip -6 addr show dev br-lan scope global | awk '/inet6 fd/{print $2}' | cut -d/ -f1 | head -1)"
-	[ -n "$source" ] && output="$(ping -6 -I "$source" -c 1 -W 3 2606:4700:4700::1111 2>&1)" || output=""
+	# Source selection is the whole test. br-lan holds both a delegated global
+	# address and a ULA, and this used to pick the ULA on purpose (/inet6 fd/).
+	# A ULA cannot reach the internet -- it is not globally routable, and it
+	# does not match the carrier's source-restricted default route -- so the
+	# ping failed every single time and the page reported "No IPv6 Connection"
+	# on routers whose IPv6 was working perfectly. Measured on the bench: from
+	# the ULA, nothing; from the global address, a reply in 39 ms.
+	#
+	# So: prefer a global address, and if there genuinely is not one, let the
+	# kernel choose rather than forcing a source that cannot work.
+	source="$(ip -6 addr show dev br-lan scope global 2>/dev/null | awk '/inet6/{print $2}' | cut -d/ -f1 | grep -v '^f[cd]' | head -1)"
+	if [ -n "$source" ]; then
+		output="$(ping -6 -I "$source" -c 1 -W 3 2606:4700:4700::1111 2>&1)"
+	else
+		output="$(ping -6 -c 1 -W 3 2606:4700:4700::1111 2>&1)"
+	fi
 	ok=false
 	printf '%s' "$output" | grep -q '1 packets received' && ok=true
 	latency="$(printf '%s' "$output" | sed -n 's/.*time=\([0-9.]*\) ms.*/\1/p' | head -1)"

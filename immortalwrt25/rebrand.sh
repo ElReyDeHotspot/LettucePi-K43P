@@ -369,6 +369,36 @@ fi
 # a ULA has to be masqueraded instead. That is a real scenario and a real
 # toggle; it is just not what a missing line in /etc/config/dhcp causes.
 
+# ------------------------- 5c. the TTL tool must not rewrite NDP or MLD
+# The TTL tool (Cellular > TTL) normalises the hop count of LAN traffic so the
+# carrier cannot spot tethering. It did that to EVERY IPv6 packet leaving
+# br-lan, including neighbour discovery -- and NDP carries hop limit 255
+# precisely so it cannot be spoofed from off-link. RFC 4861 s7.1.2: a receiver
+# MUST silently discard a neighbour advertisement that arrives with any other
+# value.
+#
+# So with the TTL tool on, every client threw away this router's advertisements
+# and re-solicited forever. Measured on the bench: solicitations arrived with
+# hlim 255, advertisements went back out with hlim 64, the client re-asked
+# roughly once a second, and IPv6 was unusable on the LAN -- while the router
+# itself pinged the v6 internet fine and nothing appeared in any log, because
+# the discard happens on the client.
+#
+# MLD is excluded for the same reason: it is defined to use hop limit 1.
+#
+# Everything else is still normalised, which is all the carrier can see anyway.
+step "TTL tool: exclude neighbour discovery"
+TTLINIT="$R/etc/init.d/qmodem_ttl"
+[ -f "$TTLINIT" ] || die "qmodem_ttl init script missing - the TTL tool moved"
+grep -q 'ip6 hoplimit set $ttl' "$TTLINIT" \
+	|| die "the TTL tool no longer emits the rule this patch rewrites - recheck it by hand"
+sed -i 's|^\( *\)iifname "br-lan" ip6 hoplimit set \$ttl comment "Reset Hop Limit for br-lan IPv6"$|\1iifname "br-lan" meta l4proto != ipv6-icmp ip6 hoplimit set $ttl comment "Reset Hop Limit for br-lan IPv6"\n\1iifname "br-lan" icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem, echo-request, echo-reply } ip6 hoplimit set $ttl comment "Reset Hop Limit for br-lan ICMPv6 (NDP/MLD excluded, RFC 4861)"|' "$TTLINIT"
+grep -q 'meta l4proto != ipv6-icmp' "$TTLINIT" \
+	|| die "the NDP exclusion did not apply to qmodem_ttl"
+[ "$(grep -c 'ip6 hoplimit set' "$TTLINIT")" = 2 ] \
+	|| die "expected exactly 2 IPv6 hop-limit rules after the split, got $(grep -c 'ip6 hoplimit set' "$TTLINIT")"
+echo "  NDP and MLD excluded from the hop-limit rewrite"
+
 # ------------------------------------------------------ 6. root password
 # A sysupgrade -n leaves /etc/shadow with an EMPTY root password, which the
 # login banner warns about and which contradicts the guide (root/admin).

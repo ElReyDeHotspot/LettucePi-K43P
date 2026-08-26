@@ -84,7 +84,13 @@ return view.extend({
 				group('Local Network', 'IPv6 distributed to connected devices', [
 					row('Router Address', text(data.lan_address), { address: true }),
 					row('Router Advertisements', data.ra === 'server' ? 'On' : 'Off', { good: data.ra === 'server', bad: data.ra !== 'server' }),
-					row('DHCPv6', data.dhcpv6 === 'server' ? 'On' : 'Off', { good: data.dhcpv6 === 'server', bad: data.dhcpv6 !== 'server' })
+					/* DHCPv6 being off is the shipped default, not a fault -- addresses
+					 * come from SLAAC via the router advertisement, and nothing ever
+					 * listens on udp/547. Painting it red made a perfectly healthy
+					 * router look broken, so the mechanism actually in use is named
+					 * and the DHCPv6 row is left neutral. */
+					row('Addresses From', text(data.address_method), { good: !!data.address_method && data.address_method !== 'None', bad: data.address_method === 'None' }),
+					row('DHCPv6', data.dhcpv6 === 'server' ? 'On' : 'Off')
 				])
 			]),
 			E('footer', { 'class': 'v6-footer' }, [
