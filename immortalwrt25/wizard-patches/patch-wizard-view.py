@@ -100,3 +100,22 @@ print("  start title branded:  ", s2.count("'LettucePi'"))
 print("  logo.svg referenced:  ", s2.count('logo.svg'))
 print("  vendor string gone:   ", s2.count('5G Wireless Data Terminal'))
 print("  null subtitle guarded:", s2.count('compactNodes([E(\'div\',{\'class\':\'misectel-setup-card__title\'}'))
+
+# ---- Port Mode was chosen and not applied
+s5 = io.open(p, encoding='utf-8', errors='surrogateescape').read()
+
+# state.wan.mode is read to decide which option is `selected` and never written
+# back, so the choice lives only in the DOM element. Any re-render of the step
+# silently reverts it to the value the router booted with -- which is what made
+# a wizard run that selected LAN come back still on WAN.
+a = "this.networkControls.mode.addEventListener('change',()=>this.renderProtocolFields());"
+b = ("this.networkControls.mode.addEventListener('change',()=>{"
+     "this.state.wan.mode=this.networkControls.mode.value;"
+     "this.renderProtocolFields();});")
+if a in s5:
+    s5 = s5.replace(a, b, 1)
+    io.open(p, 'w', encoding='utf-8', errors='surrogateescape', newline='\n').write(s5)
+    print("  port mode written back to state:", s5.count('this.state.wan.mode=this.networkControls.mode.value'))
+else:
+    print("  [FAIL] port mode change handler not found")
+    sys.exit(1)

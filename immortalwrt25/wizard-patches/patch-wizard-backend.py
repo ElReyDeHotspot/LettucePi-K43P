@@ -228,3 +228,65 @@ s3 = s3.replace(a, b, 1)
 io.open(p, 'w', encoding='utf-8', errors='surrogateescape', newline='\n').write(s3)
 print("  buildChesterContext added:", s3.count('function buildChesterContext'))
 print("  served in context:        ", s3.count('chester: buildChesterContext()'))
+
+# ---- two things the first real first-boot run exposed
+s4 = io.open(p, encoding='utf-8', errors='surrogateescape').read()
+f4 = []
+
+# 1. The timezone was stored and never took effect. /etc/TZ is what busybox
+#    actually reads, and only /etc/init.d/system reload regenerates it, so the
+#    clock stayed on GMT until the next reboot. Measured: uci said
+#    America/New_York while date still printed GMT.
+a = """\t\tif (!tzResult.result) {
+\t\t\treturn {
+\t\t\t\tresult: false,
+\t\t\t\tcode: tzResult.code,
+\t\t\t\tmessage: 'failed to set the timezone'
+\t\t\t};
+\t\t}
+\t}"""
+b = """\t\tif (!tzResult.result) {
+\t\t\treturn {
+\t\t\t\tresult: false,
+\t\t\t\tcode: tzResult.code,
+\t\t\t\tmessage: 'failed to set the timezone'
+\t\t\t};
+\t\t}
+
+\t\t// Storing it is not applying it: /etc/TZ is what busybox reads, and only
+\t\t// this regenerates it. Detached so the wizard's reply is not held up.
+\t\trunCommand('(sleep 1; /etc/init.d/system reload >/dev/null 2>&1 || true) >/dev/null 2>&1 & true');
+\t}"""
+if a in s4: s4 = s4.replace(a, b, 1)
+else: f4.append("timezone commit block not found")
+
+# 2. Skipping the password step did nothing, because applyAdminConfig is only
+#    reached when the step was NOT skipped -- the skip branch inside it was
+#    unreachable. The clear has to happen from the caller.
+a = """\tif (!skippedAdmin) {
+\t\tlet adminResult = applyAdminConfig(admin);
+\t\tif (!adminResult.result)
+\t\t\treturn adminResult;
+\t}"""
+b = """\tif (!skippedAdmin) {
+\t\tlet adminResult = applyAdminConfig(admin);
+\t\tif (!adminResult.result)
+\t\t\treturn adminResult;
+\t}
+\telse {
+\t\t// Skipping leaves no password. applyAdminConfig's own skip branch is
+\t\t// unreachable from here -- this if only runs when the step was NOT
+\t\t// skipped -- so the clear is driven explicitly.
+\t\tlet clearedResult = applyAdminConfig({ skipped: true });
+\t\tif (!clearedResult.result)
+\t\t\treturn clearedResult;
+\t}"""
+if a in s4: s4 = s4.replace(a, b, 1)
+else: f4.append("skippedAdmin caller branch not found")
+
+if f4:
+    for f in f4: print("  [FAIL]", f)
+    sys.exit(1)
+io.open(p, 'w', encoding='utf-8', errors='surrogateescape', newline='\n').write(s4)
+print("  timezone now applied (system reload):", s4.count('/etc/init.d/system reload'))
+print("  skip actually clears the password:   ", s4.count('applyAdminConfig({ skipped: true })'))
