@@ -46,123 +46,7 @@ us once already.
 
 ---
 
-## 3. Why the obvious way fails
-
-The natural thing to try is to copy the `.bin` over and run `sysupgrade`. It
-does not work, and it fails in a way that looks like success.
-
-### First failure: the vendor image check
-
-```
-Image metadata not present
-wt: board name failed(UBI#/M01K43P)
-Image check failed.
-```
-
-Our images are raw UBI with no OpenWrt metadata and no vendor header, so the
-stock `wt` (wtcheck) validator reads the first bytes, expects a board name and
-finds `UBI#`.
-
-### Second failure: `-F` gets past the check and still does not flash
-
-Forcing it (`sysupgrade -F -n`) gets past the check. The unit reboots and comes
-back **still on OpenWrt 21** — in our test it came back on `2.5.2` when it had
-been on `2.6.0`, because it had flipped to the other bank and found an older
-factory image sitting there. Nothing announced a failure.
-
-The reason is in the stock writer:
-
-```sh
-snand_do_upgrade() {
-	local mtdname="ubi2"
-	dd if=$1 of=/tmp/snand-ubi.bin bs=64k skip=1     # <-- strips 64 KiB
-	ubiformat /dev/${mtdpart} -y -f /tmp/snand-ubi.bin
-	wtoem -r
-}
-```
-
-**`skip=1` throws away the first 64 KiB.** Vendor images carry a 64 KiB signed
-header in front of the UBI, so the vendor writer strips it. Ours *is* the UBI,
-starting at byte 0 — so that `dd` cuts 64 KiB out of the middle of real data
-and `ubiformat` writes a corrupt volume. `wtoem -r` then flips the boot bank
-into the corruption, the bootloader falls back, and you land on whatever stale
-image was in the other bank.
-
-It is a good failure mode in one respect: **the dual banks mean a botched
-flash does not brick the unit.** We did it twice and recovered both times.
-
-### The fix
-
-Replace the writer before flashing. Ours:
-
-* does **not** skip 64 KiB — it writes the image as given
-* verifies the `UBI#` magic **before erasing anything**, so a truncated
-  download stops early instead of half-way through
-* looks partitions up **by name**, never by number
-* writes **both** `ubi` and `ubi2`, so there is no stale bank to fall back to
-
-```sh
-wget -qO /lib/upgrade/platform.sh \
-  https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/platform.sh
-sysupgrade -n /tmp/your-image.bin
-```
-
-With ours staged, `-F` is not needed — our `platform_check_image` returns 0.
-Confirm before committing with `sysupgrade -T`: you should see only
-`Image metadata not present`, and **no** `Image check failed`.
-
-> ⚠️ **Never hardcode mtd numbers.** On stock OpenWrt 21 `ubi` is **mtd8** and
-> `ubi2` is **mtd9**. On our ImmortalWrt-derived build they are **mtd7** and
-> **mtd8**. A script with numbers in it writes the wrong partition, and on some
-> layouts could land on the bootloader.
-
----
-
-## 4. Which image
-
-One family: **Immortal-Chester-25** — ImmortalWrt-derived, built by
-`immortalwrt25/build-bin.sh`, published in `ChesterK43P-Bin/`. That is what
-`install.sh` and System Update install, and it is the only thing shipped.
-
-The identity strings say `OpenWrt 25.12-SNAPSHOT` because `rebrand.sh`
-rewrites them, so the banner is not a reliable way to tell builds apart.
-Trust the build id in `/etc/chester-version`.
-
-> A genuine OpenWrt 25 snapshot build was trialled and **abandoned** — it
-> did not bring the modem up on some units. It has been removed from this
-> repository entirely. If you find a reference to it anywhere, it is stale.
-
----
-## 5. Check it worked
-
-```sh
-cat /etc/chester-version          # build should be the new one
-uname -r                          # 6.12.x, not 5.4.x
-ip -4 route show default          # via rmnet_mhi0.1
-ping -c2 1.1.1.1
-ls /sys/bus/pci/devices/          # the modem should be present
-```
-
-From the tested run, after the upgrade:
-
-```
-kernel 6.12.85    OpenWrt 25.12-SNAPSHOT r37830+5    build 20260825163208
-modem  0000:01:00.0, mhi_BHI/DIAG/DUN/QMI0, rmnet_mhi0.1 = 192.0.0.2, internet UP
-```
-
-Two things change across the upgrade and are **not** faults:
-
-* **The PCI address moves.** Stock (kernel 5.4) had the modem at
-  `0001:01:00.0`; ours (6.12) has it at `0000:01:00.0`. Any check pinned to a
-  domain is wrong on one side or the other.
-* **`lan4` disappears.** Kernel 5.4 declares four LAN netdevs on the M01K43P;
-  6.12 declares the three that are actually wired. The dashboard asks the
-  kernel what exists rather than assuming, so it shows 3 LAN + WAN here, 4 on
-  an M02K43 and 5 on an M60K43 — same image, no configuration.
-
----
-
-## 6. After a clean flash
+## 3. After a clean flash
 
 * **The 2.5G socket goes back to WAN mode.** If your cable is in it you lose
   access — move to a LAN socket or join Wi-Fi, then flip it back with the
@@ -192,7 +76,7 @@ deployed updater — a far worse outcome than a directory whose name is now
 only historical.
 
 ---
-## 7. If it goes wrong
+## 4. If it goes wrong
 
 The unit has two banks and the bootloader falls back to the good one, so a
 failed flash leaves you with a working router on an older image rather than a
