@@ -1,17 +1,20 @@
 # Upgrade your Chester K43P to OpenWrt 25
 
-Your router downloads and installs everything itself. You don't copy any files.
-
-Takes about 5 minutes.
+Your router downloads, verifies, and installs the current firmware itself.
+Allow about five minutes.
 
 ---
 
 ## ⚠ Before you start
 
-- **This erases everything on the router** — settings, Wi-Fi names, passwords.
-- **You cannot undo it.**
-- **Do not unplug the router while it works.**
+- **This erases everything on the router** — settings, Wi-Fi names, passwords,
+  APN settings, installed packages, VPN profiles, and port forwards.
+- **Both firmware banks are overwritten.** The previous firmware will not
+  remain as a fallback.
+- **Do not unplug the router while it is installing.**
 - **The router must be connected to the internet.**
+- Move your Ethernet cable to a LAN socket before starting. The 2.5G socket
+  returns to WAN mode after installation.
 
 ---
 
@@ -23,104 +26,79 @@ Open Terminal (Mac) or PuTTY / Windows Terminal (Windows) and run:
 ssh root@192.168.100.1
 ```
 
-Password: `admin`
-
-The first time, it asks if you trust the router. Type `yes`.
+On factory firmware, the default password is `admin`. The first connection may
+ask whether you trust the router's SSH host key; verify it is your router before
+accepting it.
 
 ## Step 2 — Paste this one line
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh
 ```
 
 ## Step 3 — Type YES
 
-It shows you what is about to happen, then asks:
+The installer displays the detected board, firmware, checks, and everything
+that will be erased. It then asks:
 
+```text
+Type YES to continue (anything else cancels):
 ```
-  Type YES to continue:
-```
 
-Type `YES` in capitals and press Enter.
-
-Anything else cancels safely.
+Type **`YES` (ALL CAPS)** and press Enter. Anything else cancels.
 
 ## Step 4 — Wait
 
-It downloads the firmware and installs it. **Do not unplug the router.**
+The installer downloads the firmware, verifies its exact size, SHA-256
+checksum, and UBI headers, stages the correct two-bank flash writer, and then
+asks for confirmation.
 
-It restarts on its own when it's done.
-
----
-
-## That's it
-
-The router keeps the same address and password:
-
-- **http://192.168.100.1**
-- Username `root`, password `admin`
-
-Open that address in your browser and you're on OpenWrt 25.
+After you type `YES`, do not disconnect power. The router flashes both banks
+and restarts automatically.
 
 ---
 
-## If it stops with an error
+## After installation
 
-The router is fine. Nothing was changed. Just fix the problem and run it again.
+Connect at:
+
+- <http://192.168.100.1>
+- Username: `root`
+- Default password: `admin`
+
+The installation resets the password to the image default; it does **not**
+preserve the previous password. Change `admin` immediately after signing in.
+
+Wi-Fi returns to `5G_CPE` with the image's default key. Change the Wi-Fi key
+immediately as well.
+
+---
+
+## If it stops before confirmation
+
+Do not assume every error has the same effect. Failures during board, space,
+download, size, checksum, or UBI validation occur before flashing. A later
+failure may occur after the flash writer has been staged.
 
 | Message | What it means |
 |---|---|
-| `download failed` | The router isn't online. Check its internet, try again. |
-| `checksum mismatch` | The download got damaged. Just run it again. |
-| `not enough space` | Restart the router, then run it again. |
-| `this router reports board ...` | This isn't a Chester K43P. |
+| `curl not found` | This firmware does not provide the downloader required by the installer. |
+| `download failed` | Check the router's internet connection and DNS. |
+| `checksum mismatch` | The download did not match the published firmware; do not flash it. |
+| `not enough space` | Restart the router to clear `/tmp`, then try again. |
+| `this is not a Chester K43P` | The reported board identity is unsupported; do not force it. |
 
-The one line refuses to install anything it can't fully verify first, so an
-error always means the router was left alone.
-
----
-
-## Just testing?
-
-To check everything works **without installing anything**:
-
-```sh
-wget -qO- https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh -s -- --dry-run
-```
+If the installer has started flashing, do not interrupt it. Wait for the
+router to restart before attempting recovery.
 
 ---
 
-<details>
-<summary><b>Technical notes</b> (not needed to do the upgrade)</summary>
+## Technical note
 
-### Installing by hand
+The factory flash writer is not suitable for this raw UBI image. The installer
+downloads and verifies the firmware before replacing
+`/lib/upgrade/platform.sh`. The replacement writer locates partitions by
+name and writes both `ubi` and `ubi2`; never substitute hard-coded MTD
+numbers or use `sysupgrade -F`.
 
-1. Copy `platform.sh` from this folder to `/lib/upgrade/platform.sh`
-2. Copy the firmware to `/tmp/snand-ubi.bin`
-3. `sysupgrade -n /tmp/snand-ubi.bin`
-
-Firmware:
-<https://github.com/ElReyDeHotspot/LettucePi-K43P/releases/download/immortalwrt-25.12/immortalwrt-M10K43P-ubi.bin>
-
-`sha256 8223b357e9cd98b22a5824689f04fccd678f3d39170dae7f126009b3720cb5ed`
-
-### Why platform.sh has to be replaced
-
-The router's own upgrade routine writes only the `ubi2` partition (`mtd9`), but
-the router **boots `ubi`** (`mtd8`). With the stock routine the upgrade appears
-to succeed, the router reboots — and comes straight back on the old firmware,
-because the image went to a bank nothing boots. Confirmed on hardware.
-
-The `platform.sh` here writes **both** banks, which is what makes the new
-firmware take, and is why there is no fallback bank afterwards.
-
-`platform.sh` is fetched at run time by `install.sh`. Change one, change
-the other.
-
-### Verified result
-
-Flashed on hardware: ImmortalWrt `25.12-SNAPSHOT r37830+5-f08ddcbc32`,
-kernel 6.12.85, mediatek/filogic. LAN address and root password are unchanged
-from the vendor firmware.
-
-</details>
+For both supported upgrade paths, see [UPGRADING.md](../UPGRADING.md).
