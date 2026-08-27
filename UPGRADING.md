@@ -56,26 +56,6 @@ us once already.
 
 ---
 
-## Why there is a stepping stone
-
-**There isn't one any more.** This section is kept because older notes and
-links point at it.
-
-There used to be two manifests: `latest.json` pinned at a stepping-stone
-build for older routers, and `next.json` for the crossing to a genuine
-OpenWrt 25 build. The split existed so a config could never be carried
-across a firmware family that could not use it.
-
-That OpenWrt 25 build is gone, so there is nothing to cross to. Both
-manifests now name the same image and every router takes one hop to
-current.
-
-The path stays `openwrt25/` because it is a URL baked into every router
-already in the field. Renaming the directory would silently break every
-deployed updater — a far worse outcome than a directory whose name is now
-only historical.
-
----
 ## 4. If it goes wrong
 
 The unit has two banks and the bootloader falls back to the good one, so a
