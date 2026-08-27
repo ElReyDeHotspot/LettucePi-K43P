@@ -4,7 +4,7 @@
 #
 #  Run on the router over SSH:
 #
-#      wget -qO- https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh
+#      curl -fsSL https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh
 #
 #  Downloads OpenWrt 25, checks it, and flashes it. The router must be online.
 #  Nothing is copied by hand.
@@ -71,7 +71,7 @@ case "$BOARD" in
     *) die "this is not a Chester K43P (board reports '$BOARD') - refusing to flash" ;;
 esac
 
-for t in wget sysupgrade; do
+for t in curl sysupgrade; do
     command -v "$t" >/dev/null 2>&1 || die "$t not found"
 done
 
@@ -134,7 +134,7 @@ ok "space in /tmp: ${FREE}K"
 # ---------------------------------------------------------------- download
 info "downloading ($(( SIZE / 1048576 )) MB) ..."
 rm -f "$IMG"
-wget -q -O "$IMG" "$URL" || die "download failed - is the router online?"
+curl -fsSL "$URL" -o "$IMG" || die "download failed - is the router online?"
 
 GOT=$(wc -c < "$IMG" | tr -d ' ')
 [ "$GOT" = "$SIZE" ] || die "wrong size: got $GOT, expected $SIZE"
@@ -161,7 +161,7 @@ ok "raw UBI image, ${PEB}-byte erase blocks"
 # The stock writer targets only 'ubi2', but this board boots 'ubi'. That is why
 # a stock-path upgrade appears to work and then comes back on the old firmware.
 info "fetching the flash method ..."
-wget -q -O /tmp/platform.sh.new "$PLATFORM_URL" || die "could not fetch platform.sh"
+curl -fsSL "$PLATFORM_URL" -o /tmp/platform.sh.new || die "could not fetch platform.sh"
 grep -q 'snand_do_upgrade' /tmp/platform.sh.new || die "platform.sh looks wrong - aborting"
 cp /tmp/platform.sh.new "$PLATFORM" || die "could not stage the flash method"
 sync
