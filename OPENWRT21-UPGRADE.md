@@ -10,7 +10,7 @@ build. Run the command below on the router over SSH.
 One line, on the router, over SSH:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sed 's#wget -q -O "$IMG" "$URL"#curl -fsSL "$URL" -o "$IMG"#; s#wget -q -O /tmp/platform.sh.new "$PLATFORM_URL"#curl -fsSL "$PLATFORM_URL" -o /tmp/platform.sh.new#' | sh
+curl -fsSL https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh
 ```
 
 When prompted, type **`YES` (ALL CAPS)** before it writes anything. Anything
