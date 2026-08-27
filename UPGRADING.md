@@ -7,25 +7,7 @@ that is the part worth reading.
 
 ---
 
-## 1. Work out what the router is running
-
-SSH in (`root`, password `admin` on stock) and run:
-
-```sh
-cat /etc/openwrt_release | grep DISTRIB_DESCRIPTION
-cat /etc/chester-version 2>/dev/null
-uname -r
-```
-
-| What you see | Which path |
-|---|---|
-| `chester-version` exists | **Path B** — it updates itself |
-| `OpenWrt 21.02-SNAPSHOT`, kernel `5.4.x`, no `chester-version` | **Path A** — factory stock |
-| Anything else with no `chester-version` | **Path A** |
-
----
-
-## 2. Path A — factory stock OpenWrt 21
+## 1. Path A — factory stock OpenWrt 21
 
 One line, on the router, over SSH:
 
@@ -46,7 +28,7 @@ That script does four things that matter, and **all four are required**:
 
 ---
 
-## 3. Path B — already on a Chester build
+## 2. Path B — already on a Chester build
 
 **System Update**, under **Overview**. It compares the build stamped in
 `/etc/chester-version` against `openwrt25/next.json`, downloads, verifies size
@@ -64,7 +46,7 @@ us once already.
 
 ---
 
-## 4. Why the obvious way fails
+## 3. Why the obvious way fails
 
 The natural thing to try is to copy the `.bin` over and run `sysupgrade`. It
 does not work, and it fails in a way that looks like success.
@@ -136,7 +118,7 @@ Confirm before committing with `sysupgrade -T`: you should see only
 
 ---
 
-## 5. Which image
+## 4. Which image
 
 One family: **Immortal-Chester-25** — ImmortalWrt-derived, built by
 `immortalwrt25/build-bin.sh`, published in `ChesterK43P-Bin/`. That is what
@@ -151,7 +133,7 @@ Trust the build id in `/etc/chester-version`.
 > repository entirely. If you find a reference to it anywhere, it is stale.
 
 ---
-## 6. Check it worked
+## 5. Check it worked
 
 ```sh
 cat /etc/chester-version          # build should be the new one
@@ -180,7 +162,7 @@ Two things change across the upgrade and are **not** faults:
 
 ---
 
-## 7. After a clean flash
+## 6. After a clean flash
 
 * **The 2.5G socket goes back to WAN mode.** If your cable is in it you lose
   access — move to a LAN socket or join Wi-Fi, then flip it back with the
@@ -210,7 +192,7 @@ deployed updater — a far worse outcome than a directory whose name is now
 only historical.
 
 ---
-## 8. If it goes wrong
+## 7. If it goes wrong
 
 The unit has two banks and the bootloader falls back to the good one, so a
 failed flash leaves you with a working router on an older image rather than a
