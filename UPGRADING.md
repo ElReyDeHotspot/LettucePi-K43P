@@ -48,11 +48,11 @@ us once already.
 One line, on the router, over SSH:
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sed 's#wget -q -O "$IMG" "$URL"#curl -fsSL "$URL" -o "$IMG"#; s#wget -q -O /tmp/platform.sh.new "$PLATFORM_URL"#curl -fsSL "$PLATFORM_URL" -o /tmp/platform.sh.new#' | sh
 ```
 
-It asks you to type `YES` before writing anything. To drive it unattended, add
-`-s -- --yes`.
+When prompted, type **`YES` (ALL CAPS)** before it writes anything. Anything
+else cancels the installation.
 
 That script does four things that matter, and **all four are required**:
 
@@ -226,3 +226,4 @@ wc -c    < /tmp/your-image.bin
 
 against the `sha256` and `size` in
 [`openwrt25/next.json`](openwrt25/next.json).
+
