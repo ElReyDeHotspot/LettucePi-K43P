@@ -19,31 +19,13 @@ uname -r
 
 | What you see | Which path |
 |---|---|
-| `chester-version` exists | **Path A** — it updates itself |
-| `OpenWrt 21.02-SNAPSHOT`, kernel `5.4.x`, no `chester-version` | **Path B** — factory stock |
-| Anything else with no `chester-version` | **Path B** |
+| `chester-version` exists | **Path B** — it updates itself |
+| `OpenWrt 21.02-SNAPSHOT`, kernel `5.4.x`, no `chester-version` | **Path A** — factory stock |
+| Anything else with no `chester-version` | **Path A** |
 
 ---
 
-## 2. Path A — already on a Chester build
-
-**System Update**, under **Overview**. It compares the build stamped in
-`/etc/chester-version` against `openwrt25/next.json`, downloads, verifies size
-**and** sha256, stages the correct flash writer, and reboots.
-
-> ⚠️ **Settings are erased.** It flashes with `sysupgrade -n`. Wi-Fi name and
-> password, LAN address, admin password, APN and port forwards all return to
-> defaults.
-
-**If it says "up to date" and you know it is not, the manifest is stale, not
-the router.** The check is a plain string comparison between the manifest's
-`build` and the installed one, so an un-bumped `next.json` reads as "nothing to
-do" rather than as an error. Fix `next.json`, not the router. This has bitten
-us once already.
-
----
-
-## 3. Path B — factory stock OpenWrt 21
+## 2. Path A — factory stock OpenWrt 21
 
 One line, on the router, over SSH:
 
@@ -61,6 +43,24 @@ That script does four things that matter, and **all four are required**:
    step everyone misses)
 3. `sysupgrade -n`
 4. our writer puts the image in **both banks**
+
+---
+
+## 3. Path B — already on a Chester build
+
+**System Update**, under **Overview**. It compares the build stamped in
+`/etc/chester-version` against `openwrt25/next.json`, downloads, verifies size
+**and** sha256, stages the correct flash writer, and reboots.
+
+> ⚠️ **Settings are erased.** It flashes with `sysupgrade -n`. Wi-Fi name and
+> password, LAN address, admin password, APN and port forwards all return to
+> defaults.
+
+**If it says "up to date" and you know it is not, the manifest is stale, not
+the router.** The check is a plain string comparison between the manifest's
+`build` and the installed one, so an un-bumped `next.json` reads as "nothing to
+do" rather than as an error. Fix `next.json`, not the router. This has bitten
+us once already.
 
 ---
 
