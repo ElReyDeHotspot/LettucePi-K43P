@@ -68,8 +68,18 @@ print_status() {
 	# configuration. The previous test additionally demanded DHCPv6, masq6,
 	# delegate and sourcefilter, none of which the shipped default sets, so a
 	# fully working router reported IPv6 as off.
+	#
+	# Two ways to be genuinely on. A carrier that delegates a prefix gives the
+	# LAN a global address, which is the good case. A carrier that delegates
+	# nothing leaves the LAN on its ULA, and the way out is masq6 on the wan
+	# zone -- NAT6. That case is working IPv6 as far as a client is concerned,
+	# so demanding a global address there would flip the switch back off on
+	# exactly the routers that need the toggle most.
 	enabled=false
-	[ "$ra" = server ] && [ -n "$lan_global" ] && enabled=true
+	if [ "$ra" = server ]; then
+		[ -n "$lan_global" ] && enabled=true
+		[ "$masq6" = 1 ] && [ -n "$lan_address" ] && enabled=true
+	fi
 	jq -n --argjson enabled "$enabled" --argjson upstream_up "$upstream_up" \
 		--arg upstream_address "$upstream_address" --arg upstream_prefix "$upstream_prefix" \
 		--arg lan_address "$lan_address" --arg ra "$ra" --arg dhcpv6 "$dhcpv6" \
@@ -86,10 +96,26 @@ set_enabled() {
 	wan_index="$(wan_zone_index)"
 	lan_index="$(lan_zone_index)"
 	if [ "$enabled" = 1 ] || [ "$enabled" = true ]; then
-		uci set network.pcie0v6.delegate=0
+		# These two lines used to be delegate=0 and ip6class=local, which is
+		# why turning IPv6 ON turned it straight back off.
+		#
+		# delegate=0 tells netifd not to pass the prefix obtained here to any
+		# other interface, so br-lan never received one. ip6class=local then
+		# told the LAN to accept only prefixes of class "local", while an
+		# upstream publishes its prefix under its own interface name --
+		# "pcie0v6" -- so even a delegated prefix was filtered out. The LAN was
+		# left holding nothing but its ULA, odhcpd logged "no public prefix on
+		# lan" and refused to advertise a default route, and print_status,
+		# which decides "enabled" by looking for a global LAN address, quite
+		# correctly reported false. The switch flipped back every time.
+		#
+		# Measured on the bench: with delegate=1 and no ip6class, br-lan picked
+		# up 2607:fb91:13a2:18b4::1/64 within seconds and a LAN client reached
+		# ip6.me over its own global address.
+		uci set network.pcie0v6.delegate=1
 		uci set network.pcie0v6.sourcefilter=0
 		uci set network.lan.ip6assign=64
-		uci set network.lan.ip6class=local
+		uci -q delete network.lan.ip6class
 		uci set dhcp.lan.ra=server
 		uci set dhcp.lan.ra_slaac=1
 		uci set dhcp.lan.dhcpv6=server
