@@ -149,4 +149,42 @@ cp "$BIN" "$OUT"
 echo "  $OUT"
 echo "  $(stat -c%s "$OUT") bytes"
 echo "  sha256 $(sha256sum "$OUT" | awk '{print $1}')"
+
+# Write the update manifest from the version stamped INSIDE the image, never
+# from the clock at publish time. chester-update compares build ids, so a
+# manifest that disagrees with the image it describes makes every box report an
+# update forever -- and with the nightly auto-run cron armed, re-flash itself
+# with the same firmware every night. That happened with bin 36: the image said
+# 20260831192802, the hand-written manifest said 20260831192911.
+VERFILE="$STAGE/.work/rootfs/etc/chester-version"
+if [ -f "$VERFILE" ]; then
+	# shellcheck disable=SC1090
+	B_BUILT=$(sed -n 's/^built=//p'  "$VERFILE")
+	B_BUILD=$(sed -n 's/^build=//p'  "$VERFILE")
+	B_BIN=$(sed -n   's/^bin=//p'    "$VERFILE")
+	B_VER=$(sed -n   's/^version=//p' "$VERFILE")
+	SHA=$(sha256sum "$OUT" | awk '{print $1}')
+	SIZE=$(stat -c%s "$OUT")
+	NOTES="${NOTES:-Update $B_BIN.}"
+	for m in "$REPO/openwrt25/latest.json" "$REPO/openwrt25/next.json"; do
+		cat > "$m" <<JSON
+{
+  "family": "Immortal-Chester-25",
+  "version": "$B_VER",
+  "built": "$B_BUILT",
+  "build": "$B_BUILD",
+  "bin": "$B_BIN",
+  "sha256": "$SHA",
+  "size": "$SIZE",
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/$(basename "$OUT")",
+  "notes": "$NOTES"
+}
+JSON
+	done
+	echo "  manifests written from the image stamp (build $B_BUILD)"
+	echo "  set NOTES=... before the build to fill in the release note"
+else
+	echo "  WARNING: $VERFILE missing - manifests NOT updated, write them by hand"
+fi
+
 printf '\n\033[1mDone.\033[0m Flash with: sysupgrade -n <image>  (writes both banks)\n\n'
