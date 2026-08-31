@@ -1,0 +1,26 @@
+#!/bin/sh
+# The config is installed only when it is absent, so an upgrade never
+# overwrites the operator's rates.
+#
+# The test is -s, not -e. A config that exists but is empty reads as "present
+# with empty values", which is how a LAN once lost DHCP: every guard saw a file
+# and nobody saw that it said nothing. Staging to a temp name and moving it into
+# place means a power cut cannot leave a half-written one either.
+if [ ! -s /etc/config/chester_sqm ]; then
+	if cp /usr/share/chester-sqm/chester_sqm.default /etc/config/chester_sqm.new 2>/dev/null; then
+		mv /etc/config/chester_sqm.new /etc/config/chester_sqm
+	fi
+fi
+
+chmod 0755 /etc/init.d/chester-sqm 2>/dev/null
+chmod 0755 /etc/hotplug.d/iface/95-chester-sqm 2>/dev/null
+
+# Enabled so it runs at boot; it ships with enabled='0' in its own config, so
+# starting it does nothing until the operator turns it on from the page. That
+# is deliberate: a shaper with a guessed rate is a silent throttle.
+/etc/init.d/chester-sqm enable >/dev/null 2>&1
+
+rm -f /tmp/luci-indexcache* 2>/dev/null
+rm -rf /tmp/luci-modulecache 2>/dev/null
+[ -x /etc/init.d/rpcd ] && /etc/init.d/rpcd reload >/dev/null 2>&1
+exit 0

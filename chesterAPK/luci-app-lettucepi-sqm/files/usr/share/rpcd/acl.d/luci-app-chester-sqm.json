@@ -1,0 +1,15 @@
+{
+	"luci-app-chester-sqm": {
+		"description": "Read and change the Chester Smart Queue settings",
+		"read": {
+			"ubus": {
+				"misectel": [ "sqm_status" ]
+			}
+		},
+		"write": {
+			"ubus": {
+				"misectel": [ "set_sqm" ]
+			}
+		}
+	}
+}

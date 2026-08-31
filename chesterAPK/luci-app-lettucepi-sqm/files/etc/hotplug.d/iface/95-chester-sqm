@@ -1,0 +1,18 @@
+#!/bin/sh
+# Reapply after a redial. rmnet_mhi0.1 is destroyed and recreated on every
+# reconnect and takes its qdisc with it, so shaping silently stops until
+# something puts it back.
+#
+# Debounced, because one redial emits several ifup/ifdown events and each would
+# otherwise trigger a full reapply. Nothing here touches the modem itself.
+[ "$ACTION" = "ifup" ] || [ "$ACTION" = "ifdown" ] || exit 0
+[ "$(uci -q get chester_sqm.main.enabled)" = "1" ] || exit 0
+
+STAMP=/tmp/.chester-sqm-hotplug
+now=$(date +%s 2>/dev/null || echo 0)
+last=$(cat "$STAMP" 2>/dev/null || echo 0)
+[ $(( now - last )) -lt 5 ] && exit 0
+echo "$now" > "$STAMP"
+
+( sleep 3; /etc/init.d/chester-sqm reload ) >/dev/null 2>&1 &
+exit 0

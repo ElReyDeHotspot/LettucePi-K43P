@@ -35,6 +35,7 @@
                     "modem_temp",
                     "neighbors",
                     "oem_model_name",
+                    "sqm_status",
                     "system_time",
                     "tcp_connections",
                     "temp_status",
@@ -72,6 +73,7 @@
             "ubus": {
                 "misectel": [
                     "set_led_power",
+                    "set_sqm",
                     "set_ttl",
                     "set_update_settings",
                     "set_video_engine",

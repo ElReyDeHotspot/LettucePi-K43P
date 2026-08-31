@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-08-26T03:58Z",
-  "build": "20260826035811",
-  "bin": "35",
-  "sha256": "f0d56cc6b4926b0bb4de590a0ea9766d86729835846e7db6050478ec18197f57",
-  "size": "25821184",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/35-2026-08-25-ChesterK43P-25.12.bin",
-  "notes": "Overview reworked: eNB/gNB, carrier aggregation as PCC/SCC, carrier names, network mode selector, and a top-right menu. Settings are kept unless you turn that off."
+  "built": "2026-08-31T19:29Z",
+  "build": "20260831192911",
+  "bin": "36",
+  "sha256": "8596aa7c640009b79737b8d5590e94754973a835cdc265db9f9256203532b3c5",
+  "size": "26083328",
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/36-2026-08-31-ChesterK43P-25.12.bin",
+  "notes": "Smart Queue: a new Apps page that shapes upload with tbf plus fq_codel and paces download with an nftables rate limiter. Upload and download each have their own on/off switch. Ships turned off until you set your line rates."
 }

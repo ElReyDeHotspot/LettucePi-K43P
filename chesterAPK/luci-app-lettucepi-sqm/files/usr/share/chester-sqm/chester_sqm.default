@@ -1,0 +1,18 @@
+
+config settings 'main'
+	option enabled '0'
+	option upload_enabled '1'
+	option upload_kbit '20000'
+	option download_enabled '0'
+	option download_mode 'adaptive'
+	option download_min_kbit '20000'
+	option download_base_kbit '90000'
+	option download_max_kbit '250000'
+	option target_latency_ms '45'
+	option warning_latency_ms '80'
+	option probe_interval '2'
+	option lan_fq_codel '1'
+	option ecn '1'
+	option log_level 'notice'
+	option download_burst_kbytes '128'
+

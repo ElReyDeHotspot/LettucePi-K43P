@@ -1,0 +1,301 @@
+#!/bin/sh /etc/rc.common
+# Chester Smart Queue.
+#
+# Built on what this kernel has, rather than on sqm-scripts, which cannot be
+# installed here: kmod-ifb, kmod-sched-cake and iptables-mod-ipopt all live in
+# the target feed, which is deliberately not configured because it is built
+# against 6.12.87 while this image runs 6.12.85.
+#
+# WHAT THIS KERNEL OFFERS (each verified by attaching it live)
+#   fq_codel   built in
+#   tbf        sch_tbf.ko
+#   IFB        absent, no ifb.ko, RTNETLINK answers Not supported
+#   veth       absent, same answer, so no IFB stand-in either
+#   act_police ABSENT, no act_police.ko, tc actions list action police is
+#              empty, and any police filter fails to load the action module
+#   nft limit  PRESENT, and it is a different kernel path entirely: nf_tables
+#              carries its own byte-oriented token bucket that owes nothing to
+#              act_police, IFB or the tc action plugins
+#
+# So download control IS available, as drop-based policing rather than queued
+# shaping. Measured on the bench with a client downloading through the box:
+# uncapped 499 KB/s, capped at 200 KB/s it settled at 201.0 KB/s over 52.2s
+# with 189 packets dropped, while the router's own download stayed at 434 KB/s.
+#
+# Upload keeps the better mechanism, tbf plus fq_codel, because there we own
+# the queue. Downstream we do not: the bottleneck is the carrier's, so the only
+# lever is to drop early enough that the sender backs off. Expect TCP to pace
+# smoothly and UDP or QUIC to simply see loss.
+#
+# The vendor kernel is left alone: replacing it is what left the modem dead on
+# 2 of 2 units last time.
+START=96
+STOP=10
+USE_PROCD=1
+
+CFG=chester_sqm
+LOG=chester-sqm
+NFT_TABLE=chester_sqm
+NFT_FILE=/var/run/chester-sqm.nft
+
+log() { logger -t "$LOG" "$@"; }
+get() { uci -q get "$CFG.main.$1"; }
+
+# The WAN device is discovered, never assumed: rmnet is recreated on every
+# redial and the section name differs per board.
+wan_dev() {
+	dev=$(get wan_interface)
+	[ -n "$dev" ] && [ -d "/sys/class/net/$dev" ] && { echo "$dev"; return; }
+	dev=$(ip -4 route show default 2>/dev/null | sed -n 's/.*dev \([^ ]*\).*/\1/p' | head -1)
+	[ -n "$dev" ] && { echo "$dev"; return; }
+	sec=$(uci show qmodem 2>/dev/null | sed -n 's/^qmodem\.\([^.]*\)=modem-device$/\1/p' | head -1)
+	base=$(uci -q get "qmodem.$sec.network")
+	for cand in "$base.1" "$base"; do
+		[ -n "$base" ] && [ -d "/sys/class/net/$cand" ] && { echo "$cand"; return; }
+	done
+}
+
+have_fq_codel() {
+	tc qdisc add dev lo root fq_codel 2>/dev/null || return 1
+	tc qdisc del dev lo root 2>/dev/null
+	return 0
+}
+have_tbf() {
+	tc qdisc add dev lo root handle 1: tbf rate 10mbit burst 10kb latency 50ms 2>/dev/null || return 1
+	tc qdisc del dev lo root 2>/dev/null
+	return 0
+}
+have_police() {
+	# Both halves matter: the action must be registered in the kernel AND the
+	# tc build must carry its plugin.
+	out=$(tc actions list action police 2>/dev/null) || return 1
+	[ -n "$out" ] || return 1
+	return 0
+}
+# Probed in a table with no hook and at a rate nothing can reach, so the rule
+# is inert even in the window between adding it and deleting it.
+have_nft_limit() {
+	command -v nft >/dev/null 2>&1 || return 1
+	nft delete table inet ${NFT_TABLE}_probe 2>/dev/null
+	nft add table inet ${NFT_TABLE}_probe 2>/dev/null || return 1
+	nft add chain inet ${NFT_TABLE}_probe c 2>/dev/null
+	if nft add rule inet ${NFT_TABLE}_probe c limit rate over 4000 mbytes/second burst 1 mbytes counter drop 2>/dev/null; then
+		nft delete table inet ${NFT_TABLE}_probe 2>/dev/null
+		return 0
+	fi
+	nft delete table inet ${NFT_TABLE}_probe 2>/dev/null
+	return 1
+}
+
+# Offloading bypasses both the qdisc and the forward hook, so shaping silently
+# does nothing while it is on. Previous values are saved and restored rather
+# than overwritten.
+offload_off() {
+	[ -n "$(get saved_offload)" ] && return 0
+	so=$(uci -q get firewall.@defaults[0].flow_offloading); [ -n "$so" ] || so=0
+	sh=$(uci -q get firewall.@defaults[0].flow_offloading_hw); [ -n "$sh" ] || sh=0
+	uci -q set "$CFG.main.saved_offload=$so"
+	uci -q set "$CFG.main.saved_offload_hw=$sh"
+	uci -q commit "$CFG"
+	if [ "$so" != "0" ] || [ "$sh" != "0" ]; then
+		uci -q set firewall.@defaults[0].flow_offloading=0
+		uci -q set firewall.@defaults[0].flow_offloading_hw=0
+		uci -q commit firewall
+		/etc/init.d/firewall reload >/dev/null 2>&1
+		log "flow offloading disabled (was $so/$sh), it bypasses both the qdisc and the forward hook"
+	fi
+}
+offload_restore() {
+	so=$(get saved_offload); sh=$(get saved_offload_hw)
+	[ -n "$so" ] || return 0
+	uci -q set firewall.@defaults[0].flow_offloading="$so"
+	uci -q set firewall.@defaults[0].flow_offloading_hw="$sh"
+	uci -q commit firewall
+	uci -q delete "$CFG.main.saved_offload"
+	uci -q delete "$CFG.main.saved_offload_hw"
+	uci -q commit "$CFG"
+	/etc/init.d/firewall reload >/dev/null 2>&1
+	log "flow offloading restored to $so/$sh"
+}
+# Something outside this service can turn offloading back on. That makes the
+# limiter look intermittent rather than broken, which is much harder to
+# diagnose, so it is surfaced explicitly instead of silently tolerated.
+offload_is_on() {
+	a=$(uci -q get firewall.@defaults[0].flow_offloading)
+	b=$(uci -q get firewall.@defaults[0].flow_offloading_hw)
+	[ "$a" = "1" ] || [ "$b" = "1" ]
+}
+
+clear_dev() { [ -n "$1" ] && tc qdisc del dev "$1" root 2>/dev/null; }
+
+nft_dl_remove() { nft delete table inet "$NFT_TABLE" 2>/dev/null; rm -f "$NFT_FILE"; return 0; }
+
+# Policing, not queuing: excess packets are dropped so the far end backs off.
+#
+# Matching on iifname rather than on an ifindex is what lets this table outlive
+# a redial, since rmnet is destroyed and recreated under the same name, and it
+# is why nothing here needs to re-run when the modem drops.
+#
+# The whole table is replaced in one nft -f transaction. The create/delete/create
+# preamble is the standard idiom for making that atomic: without it there is a
+# window with no limiter, and a client can grab the full link during it.
+nft_dl_apply() {
+	dev="$1"; kbit="$2"
+	kbytes=$(( kbit / 8 )); [ "$kbytes" -lt 1 ] && kbytes=1
+	# 128 KB paced accurately on the bench with fewer drops than 32 KB, and
+	# without the deep short-transfer allowance of 512 KB that lets a brief
+	# speed test finish before the limiter ever engages.
+	burst=$(get download_burst_kbytes); [ -n "$burst" ] || burst=128
+	{
+		echo "table inet $NFT_TABLE {}"
+		echo "delete table inet $NFT_TABLE"
+		echo "table inet $NFT_TABLE {"
+		echo "	chain forward {"
+		# Ahead of fw4 so the verdict is reached before conntrack and the zone
+		# rules spend work on a packet that is about to be dropped.
+		echo "		type filter hook forward priority -5; policy accept;"
+		echo "		iifname \"$dev\" counter comment \"chester-sqm-total\""
+		# ICMP control traffic is exempted before the limiter can reach it.
+		# Policing is indiscriminate, and an ICMPv6 packet-too-big dropped for
+		# being over rate blackholes IPv6 path MTU discovery: large flows stall
+		# with no error anywhere, which is the same silent shape as the NDP
+		# hop-limit bug. The RA/NS/NA types are link-local and never forwarded,
+		# so listing them costs nothing and removes the question entirely.
+		echo "		meta l4proto ipv6-icmp accept comment \"chester-sqm-icmp6\""
+		echo "		meta l4proto icmp icmp type { destination-unreachable, time-exceeded, parameter-problem } accept comment \"chester-sqm-icmp4\""
+		echo "		iifname \"$dev\" limit rate over $kbytes kbytes/second burst $burst kbytes counter drop comment \"chester-sqm-drop\""
+		echo "	}"
+		echo "}"
+	} > "$NFT_FILE"
+	nft -f "$NFT_FILE" 2>/dev/null || return 1
+	return 0
+}
+
+apply() {
+	[ "$(get enabled)" = "1" ] || { log "disabled"; return 0; }
+	command -v tc >/dev/null 2>&1 || { log "tc missing, cannot shape"; return 1; }
+	have_fq_codel || { log "fq_codel unavailable, cannot shape"; return 1; }
+
+	WAN=$(wan_dev)
+	[ -n "$WAN" ] || { log "no WAN device yet, waiting for the modem"; return 0; }
+
+	offload_off
+
+	if [ "$(get upload_enabled)" = "1" ]; then
+		UP=$(get upload_kbit)
+		if have_tbf && [ -n "$UP" ] && [ "$UP" -gt 0 ] 2>/dev/null; then
+			clear_dev "$WAN"
+			# burst must cover a timer tick at the shaped rate or tbf cannot
+			# reach it; about 10 ms, floored so slow links still work.
+			B=$(( UP / 800 )); [ "$B" -lt 8 ] && B=8
+			if tc qdisc replace dev "$WAN" root handle 1: tbf rate "${UP}kbit" burst "${B}kb" latency 50ms 2>/dev/null; then
+				ECN=""; [ "$(get ecn)" = "1" ] && ECN="ecn"
+				tc qdisc replace dev "$WAN" parent 1:1 handle 10: fq_codel target 5ms interval 100ms $ECN 2>/dev/null
+				log "upload: ${UP}kbit tbf plus fq_codel on $WAN"
+			else
+				log "upload: failed to attach tbf on $WAN"
+			fi
+		else
+			log "upload: skipped (rate=$UP)"
+		fi
+	fi
+
+	# Download failing must never take the upload shaper with it, so every exit
+	# from this block is a log line rather than a return.
+	if [ "$(get download_enabled)" = "1" ]; then
+		DL=$(get download_base_kbit)
+		if [ -z "$DL" ] || [ "$DL" -le 0 ] 2>/dev/null; then
+			log "download: skipped (rate=$DL)"
+		elif have_nft_limit; then
+			if nft_dl_apply "$WAN" "$DL"; then
+				log "download: policed at ${DL}kbit on $WAN via nftables"
+			else
+				nft_dl_remove
+				log "download: nftables policer failed to install on $WAN, upload shaping still active"
+			fi
+		elif have_police; then
+			tc qdisc replace dev "$WAN" handle ffff: ingress 2>/dev/null
+			tc filter replace dev "$WAN" parent ffff: protocol all priority 10 matchall action police rate "${DL}kbit" burst 1mb conform-exceed drop 2>/dev/null ||
+			tc filter replace dev "$WAN" parent ffff: protocol all priority 10 u32 match u32 0 0 police rate "${DL}kbit" burst 1mb drop 2>/dev/null
+			log "download: policed at ${DL}kbit on $WAN via tc"
+		else
+			log "download control unavailable, no nft limit and no act_police, upload shaping still active"
+		fi
+	else
+		nft_dl_remove
+	fi
+
+	# LAN gets queue management only, never a rate cap, so transfers between
+	# local clients keep full speed.
+	if [ "$(get lan_fq_codel)" = "1" ] && [ -d /sys/class/net/br-lan ]; then
+		ECN=""; [ "$(get ecn)" = "1" ] && ECN="ecn"
+		tc qdisc replace dev br-lan root fq_codel target 5ms interval 100ms $ECN 2>/dev/null &&
+			log "lan: fq_codel on br-lan, no rate limit"
+	fi
+}
+
+remove() {
+	WAN=$(wan_dev)
+	if [ -n "$WAN" ]; then
+		tc filter del dev "$WAN" parent ffff: 2>/dev/null
+		tc qdisc del dev "$WAN" ingress 2>/dev/null
+		clear_dev "$WAN"
+	fi
+	nft_dl_remove
+	clear_dev br-lan
+	offload_restore
+	log "removed"
+}
+
+# Counters are read back from the live ruleset rather than tracked here, so
+# what the UI shows is what the kernel actually did.
+dl_counter() {
+	nft list table inet "$NFT_TABLE" 2>/dev/null |
+		sed -n "s/.*counter packets \([0-9]*\) bytes \([0-9]*\).*chester-sqm-$1.*/\1 \2/p" | head -1
+}
+
+sqminfo() {
+	WAN=$(wan_dev)
+	echo "enabled:      $(get enabled)"
+	echo "wan device:   ${WAN:-none}"
+	echo "upload:       $(get upload_kbit) kbit (enabled=$(get upload_enabled))"
+	if have_nft_limit; then
+		echo "download:     $(get download_base_kbit) kbit (enabled=$(get download_enabled)) via nftables policing"
+	elif have_police; then
+		echo "download:     $(get download_base_kbit) kbit (enabled=$(get download_enabled)) via tc police"
+	else
+		echo "download:     UNAVAILABLE, no nft limit and no act_police"
+	fi
+	echo "fq_codel:     $(have_fq_codel && echo yes || echo no)"
+	echo "tbf:          $(have_tbf && echo yes || echo no)"
+	echo "police:       $(have_police && echo yes || echo no)"
+	echo "nft limit:    $(have_nft_limit && echo yes || echo no)"
+	offload_is_on && echo "WARNING:      flow offloading is ON, it bypasses shaping entirely"
+	[ -n "$WAN" ] && { echo "--- $WAN ---"; tc -s qdisc show dev "$WAN"; }
+	echo "--- download policer ---"
+	if nft list table inet "$NFT_TABLE" >/dev/null 2>&1; then
+		echo "seen:    $(dl_counter total) (packets bytes)"
+		echo "dropped: $(dl_counter drop) (packets bytes)"
+	else
+		echo "not installed"
+	fi
+	echo "--- br-lan ---"
+	tc -s qdisc show dev br-lan 2>/dev/null | head -3
+}
+
+start_service() {
+	apply
+	procd_open_instance
+	procd_set_param command /bin/true
+	procd_close_instance
+}
+stop_service()   { remove; }
+reload_service() { remove; apply; }
+service_triggers() {
+	procd_add_reload_trigger "$CFG"
+	# A firewall reload does not delete a foreign table on this build, verified
+	# by restarting fw4 with our table installed and finding it still there.
+	# Reapplying anyway costs nothing and does not depend on that staying true.
+	procd_add_reload_trigger firewall
+}
+extra_command "sqminfo" "Show shaping state and capabilities"

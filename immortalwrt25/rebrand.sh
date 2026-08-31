@@ -1268,6 +1268,36 @@ curl -fsSL --max-time 40 "$FEED/packages.adb?cb=$(date +%s)" -o "$WORK/feed.adb"
 install_feed_apk luci-app-lettucepi-dashboard || true
 install_feed_apk luci-app-lettucepi-zapret    || true
 
+# Smart Queue attaches tbf and fq_codel, and the image ships tc-tiny, which
+# does not carry them. tc-full conflicts with tc-tiny, so apk will not resolve
+# the two -- the vendor package has to come out before ours goes in, which is
+# also why our package does not simply declare tc-full as a dependency.
+#
+# How we know the image ships the tiny one: on a bench box /sbin/tc carried the
+# apk archive's own mtime rather than the squashfs build date, which is what a
+# hand-installed package looks like next to an image-time one.
+TCAPK=$(ls "$APKSRC"/tc-full-*.apk 2>/dev/null | sort -V | tail -1)
+[ -n "$TCAPK" ] || die "tc-full apk not in $APKSRC - Smart Queue would ship without its qdiscs"
+"$APKBIN" del --root "$R" --no-scripts tc-tiny >/dev/null 2>&1 || true
+"$APKBIN" add --root "$R" --no-scripts --arch aarch64_cortex-a53 \
+	--allow-untrusted "$TCAPK" 2>&1 | sed 's/^/    /' || die "tc-full failed to install"
+# tc-full delivers /usr/libexec/tc-full plus an apk "alternatives" entry that
+# would create the tc command: 400:/sbin/tc:/usr/libexec/tc-full. Alternatives
+# are wired up by a script, and this install is --no-scripts because the build
+# host is x86_64 and cannot chroot into an aarch64 rootfs -- so the link never
+# appears and tc is simply absent, with the package showing as installed.
+#
+# It is written into usr/sbin because /sbin is itself a symlink to usr/sbin in
+# this rootfs, and given a RELATIVE target: an absolute one would resolve
+# against the build host while the image is still being assembled.
+[ -f "$R/usr/libexec/tc-full" ] || die "tc-full did not deliver /usr/libexec/tc-full"
+install -d "$R/usr/sbin"
+ln -sf ../libexec/tc-full "$R/usr/sbin/tc"
+[ -L "$R/usr/sbin/tc" ] || die "the tc alternatives link was not created"
+echo "  $(basename "$TCAPK") + /usr/sbin/tc alternatives link"
+
+install_feed_apk luci-app-lettucepi-sqm       || true
+
 # Services these packages own. Enabling by hand here would mean writing
 # /etc/rc.d symlinks into the rootfs, and a plain file there (rather than a
 # symlink) makes procd register the service under its rc.d name, so a later
@@ -1293,6 +1323,19 @@ if [ -x /etc/init.d/ttyd ]; then
 	/etc/init.d/ttyd enable
 	/etc/init.d/ttyd start
 fi
+# Smart Queue. Installed with --no-scripts, so its own post-install never ran:
+# the config has to be laid down here and the service enabled. It ships with
+# enabled='0' inside that config, so enabling the init script starts no shaping
+# until the operator sets their real line rates on the Smart Queue page -- a
+# shaper running at a guessed rate is a silent throttle.
+#
+# The test is -s rather than -e: a config that exists but is empty reads as
+# "present with empty values", which is how a LAN once lost DHCP.
+if [ -x /etc/init.d/chester-sqm ]; then
+	[ -s /etc/config/chester_sqm ] || \
+		cp /usr/share/chester-sqm/chester_sqm.default /etc/config/chester_sqm
+	/etc/init.d/chester-sqm enable
+fi
 # Prime the modem temperature cache so the Overview shows a number on first
 # paint rather than a dash.
 [ -x /usr/sbin/chester-modem-temp ] && /usr/sbin/chester-modem-temp refresh >/dev/null 2>&1 &
@@ -1304,7 +1347,7 @@ echo "  /etc/uci-defaults/98-lettucepi-services (phy-led + ttyd enable, temp cac
 # --no-scripts means nothing in the image enables the services these packages
 # ship. Fail the build if the first-boot script does not cover each one, rather
 # than shipping a Terminal page that loads and cannot connect.
-for svc in chester-phy-led ttyd; do
+for svc in chester-phy-led ttyd chester-sqm; do
 	grep -q "/etc/init.d/$svc enable" "$R/etc/uci-defaults/98-lettucepi-services" \
 		|| die "$svc is installed but nothing enables it at first boot"
 done

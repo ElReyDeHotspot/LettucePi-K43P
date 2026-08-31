@@ -1,0 +1,17 @@
+#!/bin/sh
+# Take the shaping down before the files go.
+#
+# stop() is the only thing that knows the whole cleanup: it removes the qdiscs,
+# deletes the nftables table and restores the flow-offloading values it saved
+# when it started. Removing the package without it would leave a download
+# policer installed with nothing left that can explain or remove it, and
+# offloading still forced off.
+if [ -x /etc/init.d/chester-sqm ]; then
+	/etc/init.d/chester-sqm stop >/dev/null 2>&1
+	/etc/init.d/chester-sqm disable >/dev/null 2>&1
+fi
+
+# Belt and braces: if the init script was already gone or failed, the table
+# must still not survive the package.
+nft delete table inet chester_sqm 2>/dev/null
+exit 0

@@ -841,6 +841,124 @@ const methods = {
 			};
 		}
 	},
+	sqm_status: {
+		call: function() {
+			// Everything here is shell, never an inline ubus call: an rpcd
+			// method that calls ubus deadlocks rpcd against itself.
+			let one = (cmd) => trimSafe(readCommandOutput(cmd) || '');
+
+			let wan = one("uci -q get chester_sqm.main.wan_interface");
+			if (!wan)
+				// Deliberately free of backslashes. A capture group written
+				// here as \( ... \) never reaches the shell: ucode consumes the
+				// escape inside the string literal and sed receives a corrupt
+				// pattern, so this silently returned nothing and the page
+				// showed no WAN device while shaping was in fact running.
+				wan = one("ip -4 route show default 2>/dev/null | sed -n 's/.* dev //p' | cut -d' ' -f1 | head -1");
+
+			// Capability probes, the same ones the service gates on.
+			let police = one("tc actions list action police 2>/dev/null | head -1");
+			let tbfline = wan ? one(`tc -s qdisc show dev ${wan} 2>/dev/null | grep -m1 'qdisc tbf'`) : '';
+			let stats = wan ? one(`tc -s qdisc show dev ${wan} 2>/dev/null | grep -m1 'Sent '`) : '';
+			let lanq = one("tc qdisc show dev br-lan 2>/dev/null | grep -m1 'qdisc fq_codel'");
+
+			let m = match(stats, /Sent (\d+) bytes (\d+) pkt \(dropped (\d+), overlimits (\d+)/);
+			let rate = match(tbfline, /rate ([0-9A-Za-z]+)/);
+
+			// Download does not go through tc at all. act_police and IFB are
+			// both absent here, but nf_tables carries its own byte-oriented
+			// token bucket on a different kernel path, and that is what the
+			// service uses. Probed at a rate nothing can reach so the rule is
+			// inert for the moment it exists.
+			let nftok = one("nft add table inet chester_sqm_uiprobe 2>/dev/null && nft add chain inet chester_sqm_uiprobe c 2>/dev/null && nft add rule inet chester_sqm_uiprobe c limit rate over 4000 mbytes/second burst 1 mbytes counter drop 2>/dev/null && echo yes; nft delete table inet chester_sqm_uiprobe 2>/dev/null");
+
+			// Counters are read back from the live ruleset, so the page shows
+			// what the kernel actually did rather than what we asked for.
+			let dlrule = one("nft list table inet chester_sqm 2>/dev/null | grep -m1 chester-sqm-drop");
+			let dltotal = one("nft list table inet chester_sqm 2>/dev/null | grep -m1 chester-sqm-total");
+			let dm = match(dlrule, /counter packets (\d+) bytes (\d+)/);
+			let tm = match(dltotal, /counter packets (\d+) bytes (\d+)/);
+			let dlrate = match(dlrule, /limit rate over (\d+) kbytes/);
+
+			return {
+				enabled: one("uci -q get chester_sqm.main.enabled") == '1',
+				wan: wan,
+				upload_enabled: one("uci -q get chester_sqm.main.upload_enabled") == '1',
+				upload_kbit: one("uci -q get chester_sqm.main.upload_kbit"),
+				lan_fq_codel: lanq ? true : false,
+				download_available: (nftok == 'yes' || police) ? true : false,
+				download_method: (nftok == 'yes') ? 'nftables' : (police ? 'tc' : ''),
+				download_enabled: one("uci -q get chester_sqm.main.download_enabled") == '1',
+				download_kbit: one("uci -q get chester_sqm.main.download_base_kbit"),
+				download_burst: one("uci -q get chester_sqm.main.download_burst_kbytes"),
+				download_active: dlrule ? true : false,
+				download_kbytes: dlrate ? dlrate[1] : '',
+				dl_seen_bytes: tm ? tm[2] : '',
+				dl_dropped: dm ? dm[1] : '',
+				dl_dropped_bytes: dm ? dm[2] : '',
+				shaping: tbfline ? true : false,
+				tbf_rate: rate ? rate[1] : '',
+				sent_bytes: m ? m[1] : '',
+				dropped: m ? m[3] : '',
+				overlimits: m ? m[4] : '',
+				offload: one("uci -q get firewall.@defaults[0].flow_offloading")
+			};
+		}
+	},
+
+	set_sqm: {
+		args: {
+			enabled: 'String', upload_kbit: 'String', upload_enabled: 'String',
+			download_enabled: 'String', download_kbit: 'String'
+		},
+		call: function(request) {
+			let on = trimSafe(request.args.enabled) == '1';
+			let up = trimSafe(request.args.upload_kbit);
+			let upon = trimSafe(request.args.upload_enabled) == '1';
+			let dlon = trimSafe(request.args.download_enabled) == '1';
+			let dl = trimSafe(request.args.download_kbit);
+
+			// A rate of zero or nonsense would leave tbf unable to pass
+			// traffic, so it is rejected rather than written. Only checked
+			// when that direction is actually being turned on: a stale rate
+			// sitting behind a switched-off shaper must not block the save.
+			if (on && upon && !match(up, /^[0-9]+$/))
+				return { success: false, message: 'upload rate must be a whole number of kbit' };
+			if (on && upon && (+up < 64 || +up > 10000000))
+				return { success: false, message: 'upload rate is out of range' };
+			// Below 8 kbit the kbit-to-kbytes conversion floors to zero and the
+			// limiter would drop everything, so the floor is enforced here.
+			if (on && dlon && !match(dl, /^[0-9]+$/))
+				return { success: false, message: 'download rate must be a whole number of kbit' };
+			if (on && dlon && (+dl < 64 || +dl > 10000000))
+				return { success: false, message: 'download rate is out of range' };
+
+			let cmd = 'uci -q set chester_sqm.main.enabled=' + quoteArg(on ? '1' : '0');
+			cmd += ' && uci -q set chester_sqm.main.upload_enabled=' + quoteArg(upon ? '1' : '0');
+			if (match(up, /^[0-9]+$/))
+				cmd += ' && uci -q set chester_sqm.main.upload_kbit=' + quoteArg(up);
+			cmd += ' && uci -q set chester_sqm.main.download_enabled=' + quoteArg(dlon ? '1' : '0');
+			if (match(dl, /^[0-9]+$/))
+				cmd += ' && uci -q set chester_sqm.main.download_base_kbit=' + quoteArg(dl);
+			cmd += ' && uci -q commit chester_sqm';
+			// Turning a direction off has to tear its shaper down, and reload
+			// is remove-then-apply, so it covers that too. Only a fully
+			// disabled service takes the stop path.
+			cmd += on ? ' && /etc/init.d/chester-sqm reload' : ' && /etc/init.d/chester-sqm stop';
+
+			let r = runCommand('( ' + cmd + ' ) >/dev/null 2>&1');
+			return {
+				success: r.result,
+				enabled: on,
+				upload_enabled: upon,
+				upload_kbit: up,
+				download_enabled: dlon,
+				download_kbit: dl,
+				message: r.result ? null : 'could not apply the smart queue settings'
+			};
+		}
+	},
+
 	update_settings: {
 		call: function() {
 			let ctx = cursor();
