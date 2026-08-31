@@ -437,7 +437,10 @@ return view.extend({
 				'click': ui.createHandlerFn(self, function () {
 					return self.handleInstall(keep.input.checked);
 				})
-			}, _('Install Update'))
+			// "Update Now", matching the confirm button in the dialog this
+			// opens. It read "Install Update" while the dialog said "Update
+			// Now", and someone looking for the update button did not find it.
+			}, _('Update Now'))
 			: E('span', { 'class': 'su-note' }, [
 				online ? _('Nothing To Install') : _('Cannot Check Right Now')
 			]);

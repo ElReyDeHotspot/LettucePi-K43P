@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-08-31T20:00Z",
-  "build": "20260831200040",
-  "bin": "37",
-  "sha256": "083ff52951df6829fa33d5db010c5d0783265f02a257229779307909e3c4eb1b",
+  "built": "2026-08-31T21:01Z",
+  "build": "20260831210154",
+  "bin": "38",
+  "sha256": "aa45864c61e94c8f97712fed738fbbd3877966bb827e636c301179807aa46c27",
   "size": "26083328",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/37-2026-08-31-ChesterK43P-25.12.bin",
-  "notes": "Fixes the IPv6 switch, which was writing the two settings that turned IPv6 off: the LAN never received a delegated prefix, so the switch flipped itself back and pressing it broke IPv6. Smart Queue now ships fully off - no direction shapes until you set your line rates."
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/38-2026-08-31-ChesterK43P-25.12.bin",
+  "notes": "The update button now reads Update Now, matching the confirm button in the dialog it opens. Carries the IPv6 switch fix from bin 37, and Smart Queue still ships fully off."
 }
