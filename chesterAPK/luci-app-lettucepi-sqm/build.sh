@@ -4,7 +4,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 APK="${APK_TOOLS:-/root/apk-tools/build/src/apk}"
 KEY="${1:-/mnt/c/Users/CTR/claude/k43p-factory/keys/chester-apk.key}"
-VERSION="${VERSION:-1.0.0-r1}"
+VERSION="${VERSION:-1.0.1-r1}"
 OUT="$HERE/../luci-app-lettucepi-sqm-$VERSION.apk"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
@@ -28,8 +28,12 @@ chmod 0755 "$STAGE/files/etc/init.d/chester-sqm" \
 sh -n "$STAGE/files/etc/init.d/chester-sqm" || { echo "init script does not parse" >&2; exit 1; }
 sh -n "$STAGE/scripts/post-install"          || { echo "post-install does not parse" >&2; exit 1; }
 sh -n "$STAGE/scripts/pre-deinstall"         || { echo "pre-deinstall does not parse" >&2; exit 1; }
-grep -q "option enabled '0'" "$STAGE/files/usr/share/chester-sqm/chester_sqm.default" \
-	|| { echo "default config must ship disabled - a guessed rate is a silent throttle" >&2; exit 1; }
+# All three off, not just the master. The rates in this file are placeholders,
+# not measurements, so no direction may shape until someone chooses it.
+for k in enabled upload_enabled download_enabled; do
+	grep -q "option $k '0'" "$STAGE/files/usr/share/chester-sqm/chester_sqm.default" \
+		|| { echo "default config must ship $k='0' - a guessed rate is a silent throttle" >&2; exit 1; }
+done
 
 # tc-full is NOT a declared dependency. It conflicts with the tc-tiny the image
 # ships, so apk would refuse the install rather than resolve it; the image build
