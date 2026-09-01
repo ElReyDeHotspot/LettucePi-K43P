@@ -29,6 +29,8 @@ MANIFEST_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/ma
 cachebust() { printf '%s?cb=%s' "$1" "$(date +%s)"; }
 VERSION_FILE=/etc/chester-version
 IMG=/tmp/snand-ubi.bin
+PART=/tmp/snand-ubi.bin.part
+PART_URL=/tmp/snand-ubi.bin.url
 LOG=/tmp/chester-update.log
 
 jget() { sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\{0,1\}\([^\",}]*\)\"\{0,1\}.*/\1/p" | head -1; }
@@ -90,13 +92,28 @@ install)
 	[ "$free" -ge $(( (siz / 1024) + 4096 )) ] || { echo "FAIL: not enough free space"; exit 1; }
 
 	log "downloading $url"
+	# Cellular links can disappear briefly while remaining otherwise healthy.
+	# GitHub's HTTP/2 stream reset used to discard the whole partial download,
+	# so a 25 MiB image repeatedly restarted from byte zero and saturated the
+	# link without ever reaching the checksum gate. Keep a partial file only for
+	# the same URL, force HTTP/1.1, and let curl resume across bounded retries.
+	if [ "$(cat "$PART_URL" 2>/dev/null)" != "$url" ]; then
+		rm -f "$PART" "$PART_URL"
+		printf '%s\n' "$url" > "$PART_URL"
+	fi
 	rm -f "$IMG"
-	curl -fL --retry 2 --max-time 900 -o "$IMG" "$url" >>"$LOG" 2>&1 || { echo "FAIL: download failed"; exit 1; }
+	curl --http1.1 -fL --continue-at - \
+		--retry 12 --retry-all-errors --retry-delay 5 \
+		--connect-timeout 30 --speed-time 60 --speed-limit 1024 \
+		--max-time 1800 -o "$PART" "$url" >>"$LOG" 2>&1 \
+		|| { echo "FAIL: download paused; retry Update Now to resume"; exit 1; }
+	mv "$PART" "$IMG"
+	rm -f "$PART_URL"
 
 	got=$(wc -c < "$IMG" | tr -d ' ')
-	[ "$got" = "$siz" ] || { echo "FAIL: download incomplete ($got of $siz bytes)"; rm -f "$IMG"; exit 1; }
+	[ "$got" = "$siz" ] || { echo "FAIL: download incomplete ($got of $siz bytes)"; mv "$IMG" "$PART"; exit 1; }
 	act=$(sha256sum "$IMG" | awk '{print $1}')
-	[ "$act" = "$sha" ] || { echo "FAIL: checksum mismatch - refusing to install"; rm -f "$IMG"; exit 1; }
+	[ "$act" = "$sha" ] || { echo "FAIL: checksum mismatch - refusing to install"; rm -f "$IMG" "$PART" "$PART_URL"; exit 1; }
 	[ "$(dd if="$IMG" bs=4 count=1 2>/dev/null)" = "UBI#" ] || { echo "FAIL: not a firmware image"; rm -f "$IMG"; exit 1; }
 	log "verified"
 
