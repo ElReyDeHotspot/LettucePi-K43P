@@ -220,7 +220,7 @@ step "Removing Chinese language"
 # files are gone -- `apk info` then lies, and anything reasoning about the
 # installed set gets it wrong. apk del updates the database properly.
 if [ -x "$APKBIN" ]; then
-	ZH=$("$APKBIN" --root "$R" info 2>/dev/null | grep -E '^luci-i18n-.*-zh-cn$' | tr '\n' ' ')
+	ZH=$("$APKBIN" --root "$R" info 2>/dev/null | grep -E '^luci-i18n-.*-zh-cn$' | tr '\n' ' ' || true)
 	if [ -n "$ZH" ]; then
 		"$APKBIN" --root "$R" del --no-network --no-scripts $ZH >/dev/null 2>&1 || true
 		LEFT=$("$APKBIN" --root "$R" info 2>/dev/null | grep -cE '^luci-i18n-.*-zh-cn$' || true)

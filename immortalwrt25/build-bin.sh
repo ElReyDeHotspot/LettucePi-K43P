@@ -31,6 +31,8 @@ REPO="$(cd "$HERE/.." && pwd)"
 BASE="${1:-$REPO/ChesterK43P-Bin/01-2026-07-01-immortalwrt-25.12-upstream-ubi.bin}"
 VERSION="${2:-25.12}"
 BRAND="${BRAND:-Chester K43P}"
+WAN_LAYOUT="${WAN_LAYOUT:-external}"
+EXTERNAL_KERNEL_BASE="${EXTERNAL_KERNEL_BASE:-$REPO/ChesterK43P-Bin/35-2026-08-25-ChesterK43P-25.12.bin}"
 
 # ext4. Not /mnt/c -- see above.
 WORK="${WORK:-/root/k43p-build}"
@@ -117,16 +119,29 @@ else
 	die "openwrt25/platform.sh missing - the System Update page cannot flash both banks without it"
 fi
 
-# K43P boards exist in two Ethernet layouts. On the affected production units
-# the WAN-labelled jack is MT7531 port 0; the external RTL8221B at port 5 is not
-# populated. The stock tree omits port 0 and declares the absent PHY, leaving
-# the real socket with no netdev while boot stalls on RTL8221B SerDes setup.
-# Expose internal port 0 as `wan` and omit port 5/phy@6. Applied on every build
-# so a future release cannot silently restore the wrong hardware variant.
-DTB="$HERE/dtb/misectel_m01k43-port0-wan.dtb"
-[ -f "$DTB" ] || die "port-0 WAN dtb missing: $DTB"
-bash "$HERE/patch-kernel-dtb.sh" "$WORK/extract/kernel" "$STAGE/kernel.bin" "$DTB" \
-	|| die "could not apply the port-0 WAN device tree"
+# K43P boards exist in two Ethernet layouts. External-WAN boards use the
+# RTL8221B PHY at switch port 5 (the layout shipped in Bin 35), while the other
+# production variant wires the WAN-labelled jack directly to MT7531 port 0.
+# Keep both build targets explicit so publishing one can never silently apply
+# the wrong device tree to the other hardware.
+case "$WAN_LAYOUT" in
+	external)
+	[ -f "$EXTERNAL_KERNEL_BASE" ] || die "external-WAN kernel base missing: $EXTERNAL_KERNEL_BASE"
+	rm -rf "$WORK/external-kernel"; mkdir -p "$WORK/external-kernel"
+	python3 "$HERE/ubi-extract.py" "$EXTERNAL_KERNEL_BASE" "$WORK/external-kernel" >/dev/null
+	[ -f "$WORK/external-kernel/kernel" ] || die "no kernel in external-WAN base: $EXTERNAL_KERNEL_BASE"
+	cp "$WORK/external-kernel/kernel" "$STAGE/kernel.bin"
+	echo "  WAN layout: external RTL8221B on switch port 5 (kernel from $(basename "$EXTERNAL_KERNEL_BASE"))"
+	;;
+	internal)
+	DTB="$HERE/dtb/misectel_m01k43-port0-wan.dtb"
+	[ -f "$DTB" ] || die "port-0 WAN dtb missing: $DTB"
+	bash "$HERE/patch-kernel-dtb.sh" "$WORK/extract/kernel" "$STAGE/kernel.bin" "$DTB" \
+		|| die "could not apply the port-0 WAN device tree"
+	echo "  WAN layout: internal MT7531 port 0"
+	;;
+	*) die "unknown WAN_LAYOUT '$WAN_LAYOUT' (expected external or internal)" ;;
+esac
 
 cp "$WORK/extract/rootfs" "$STAGE/rootfs.raw"
 chmod +x "$STAGE/rebrand.sh"

@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-09-01T17:25Z",
-  "build": "20260901172542",
-  "bin": "41",
-  "sha256": "b538da35e6e29713b1b721cf380fe6075affa033230f63e338b84cbcb1037df4",
+  "built": "2026-09-01T18:13Z",
+  "build": "20260901181306",
+  "bin": "42",
+  "sha256": "570a716a774bbad226ced5ff5f07ceb765e48090d22a25aa6935ea3f73e2f5bf",
   "size": "26083328",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/41-2026-09-01-ChesterK43P-25.12.bin",
-  "notes": "Moves Update Now above Save so the action remains visible below the system update banner."
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/42-2026-09-01-ChesterK43P-25.12.bin",
+  "notes": "Restores the external RTL8221B 2.5GbE WAN jack used by this K43P hardware variant. Update Now remains directly above Save on the Software Update page."
 }
