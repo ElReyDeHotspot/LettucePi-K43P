@@ -240,7 +240,14 @@ var CSS = [
 '}',
 '.su-footer__copy strong { display: block; font-size: 14px; font-weight: 700; }',
 '.su-footer__copy span { display: block; margin-top: 3px; color: var(--su-muted); font-size: 12px; }',
-'.su-footer__actions { display: flex; align-items: center; gap: 11px; flex: 0 0 auto; }',
+'.su-footer__actions {',
+'\tdisplay: flex;',
+'\tflex-direction: column;',
+'\talign-items: stretch;',
+'\tgap: 11px;',
+'\tmin-width: 180px;',
+'\tflex: 0 0 auto;',
+'}',
 
 '.su-button {',
 '	display: inline-flex;',
@@ -438,7 +445,7 @@ return view.extend({
 		else if (newer) { pill = 'is-new'; pillText = _('Update available'); }
 		else { pill = 'is-ok'; pillText = _('Up To Date'); }
 
-		var masterAction = newer
+		var updateAction = newer
 			? E('button', {
 				'class': 'su-button',
 				'click': ui.createHandlerFn(self, function () {
@@ -448,9 +455,12 @@ return view.extend({
 			// opens. It read "Install Update" while the dialog said "Update
 			// Now", and someone looking for the update button did not find it.
 			}, _('Update Now'))
-			: E('span', { 'class': 'su-note' }, [
-				online ? _('Nothing To Install') : _('Cannot Check Right Now')
-			]);
+			: null;
+		var masterState = E('span', { 'class': 'su-note' }, [
+			newer ? _('Ready To Install')
+				: (online ? _('Nothing To Install') : _('Cannot Check Right Now'))
+		]);
+		var footerActions = newer ? [ note, updateAction, save ] : [ note, save ];
 
 		return E('div', { 'class': 'su-page' }, [ E('main', { 'class': 'su-window' }, [
 			E('header', { 'class': 'su-header' }, [
@@ -475,7 +485,7 @@ return view.extend({
 								: _('This Router Is Current'))
 					])
 				]),
-				E('div', {}, [ masterAction ])
+				E('div', {}, [ masterState ])
 			]),
 
 			E('div', { 'class': 'su-groups' }, [
@@ -496,7 +506,7 @@ return view.extend({
 			 * which clock the schedule runs on, and repeating it here was just
 			 * restating the row above in a longer sentence. */
 			E('footer', { 'class': 'su-footer' }, [
-				E('div', { 'class': 'su-footer__actions' }, [ note, save ])
+				E('div', { 'class': 'su-footer__actions' }, footerActions)
 			])
 		]) ]);
 	},

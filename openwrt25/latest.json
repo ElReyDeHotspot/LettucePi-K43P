@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-09-01T03:39Z",
-  "build": "20260901033915",
-  "bin": "40",
-  "sha256": "669fb2cdfd1ea5f1c8ee6600ad721e5ee0b2a17bf41a0710b4250f7ed427b150",
+  "built": "2026-09-01T17:25Z",
+  "build": "20260901172542",
+  "bin": "41",
+  "sha256": "b538da35e6e29713b1b721cf380fe6075affa033230f63e338b84cbcb1037df4",
   "size": "26083328",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/40-2026-08-31-ChesterK43P-25.12.bin",
-  "notes": "Fixes the WAN-labelled jack on K43P units where it is MT7531 port 0 rather than an external RTL8221B. The firmware now exposes port 0 as wan, removes the nonexistent port-5 PHY, restores real carrier detection, and allows DHCP clients behind the socket to appear normally."
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/41-2026-09-01-ChesterK43P-25.12.bin",
+  "notes": "Moves Update Now above Save so the action remains visible below the system update banner."
 }
