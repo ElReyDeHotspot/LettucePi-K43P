@@ -1,30 +1,29 @@
 #!/bin/bash
-# Replace the device tree inside the kernel FIT with the WAN fixed-link version.
+# Replace the device tree inside the kernel FIT with the port-0 WAN version.
 #
 #     patch-kernel-dtb.sh <kernel-volume-in> <kernel-volume-out> <dtb>
 #
 # WHY THIS EXISTS
 #
-# ImmortalWrt 25.12 describes the 2.5G WAN socket as a managed Clause-45 PHY:
-# an `phy@6` node (RTL8221B) referenced by `port@5` through `phy-handle`. The
-# vendor firmware instead declared that port as a plain `fixed-link` and never
-# touched the PHY.
+# K43P boards exist in two Ethernet layouts. On the affected production units,
+# the WAN-labelled physical jack is MT7531 port 0 and the external RTL8221B at
+# port 5 is not populated. ImmortalWrt 25.12 does the opposite: it omits port 0
+# and declares a managed Clause-45 PHY at address 6 for port 5.
 #
-# On boards whose RTL8221B does not complete SerDes initialisation, the managed
-# path fails and takes the whole port with it:
+# On the port-0 units the phantom RTL8221B path fails during boot:
 #
 #   rtl822x_set_serdes_option_mode failed: -110
 #   wan (uninitialized): failed to connect to PHY: -ETIMEDOUT
 #   error -110 setting up PHY for tree 0, switch 0, port 5
 #
-# DSA then never creates the `wan` netdev, so the socket disappears from the UI,
-# from /sys/class/net, and from every port list. One customer unit lost its WAN
-# port this way while a bench unit on the identical image was fine -- the boards
-# differ, but the firmware is what decides whether that difference matters.
+# DSA never creates the physical port-0 netdev because the tree omitted it, so
+# the socket disappears from the UI and client traffic. A bench unit with a
+# populated port-5 RTL8221B works on the identical image, confirming the board
+# variants.
 #
-# Reverting to the vendor's fixed-link shape fixes it, and as a bonus the LEDs
-# work again: unbound, the PHY falls back to its own power-on LED behaviour,
-# whereas the half-configured managed path left the socket dark.
+# The production-unit fix is to expose MT7531 port 0 as `wan` and omit both
+# port 5 and phy@6. The existing optional-WAN configuration already places the
+# netdev named `wan` in br-lan, so clients behind that jack receive DHCP.
 #
 # WHY IT REBUILDS THE FIT RATHER THAN EDITING BYTES
 #
@@ -32,9 +31,8 @@
 # the device tree data. Patching the blob in place leaves both stale. So the FIT
 # is rebuilt with mkimage, which recomputes them.
 #
-# Trade-off worth knowing: with fixed-link the port reports a permanent
-# carrier=1 speed=2500 even with no cable, because the link is declared static
-# rather than read from a PHY. The vendor firmware behaved the same way.
+# Unlike the fixed-link workaround, this uses the internal MT7531 PHY and thus
+# reports real cable carrier, speed, counters, and link transitions.
 set -euo pipefail
 
 IN="${1:?usage: patch-kernel-dtb.sh <in> <out> <dtb>}"
@@ -125,11 +123,11 @@ ts=$(dd if="$OUT" bs=1 skip=$((off+4)) count=4 2>/dev/null | xxd -p)
 dd if="$OUT" bs=1 skip="$off" count="$((16#$ts))" of="$W/out.dtb" 2>/dev/null
 dtc -I dtb -O dts "$W/out.dtb" 2>/dev/null > "$W/out.dts"
 
-grep -q 'phy@6'      "$W/out.dts" && die "patched FIT still contains phy@6"
-grep -q 'phy-handle' "$W/out.dts" && die "patched FIT still contains a phy-handle"
-awk '/port@5 \{/,/^\t*\};/' "$W/out.dts" | grep -q 'fixed-link' \
-	|| die "patched FIT has no fixed-link on port@5"
+grep -q 'phy@6'  "$W/out.dts" && die "patched FIT still contains phy@6"
+grep -q 'port@5' "$W/out.dts" && die "patched FIT still contains port@5"
+awk '/port@0 \{/,/^\t*\};/' "$W/out.dts" | grep -q 'label = "wan"' \
+	|| die "patched FIT has no wan label on port@0"
 
-printf '  kernel FIT rebuilt with the WAN fixed-link device tree\n'
+printf '  kernel FIT rebuilt with the MT7531 port-0 WAN device tree\n'
 printf '  %-22s %s bytes\n' "$(basename "$OUT")" "$(stat -c%s "$OUT")"
 printf '  dtb sha256 %s\n' "$(sha256sum "$DTB" | cut -c1-16)"

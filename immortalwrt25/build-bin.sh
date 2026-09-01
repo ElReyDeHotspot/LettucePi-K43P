@@ -117,18 +117,16 @@ else
 	die "openwrt25/platform.sh missing - the System Update page cannot flash both banks without it"
 fi
 
-# The stock device tree describes the 2.5G WAN socket as a managed Clause-45
-# PHY. On boards whose RTL8221B does not finish SerDes init that fails outright
-# and DSA never creates the `wan` netdev, so the port vanishes -- it cost one
-# customer unit its WAN socket while a bench unit on the same image was fine.
-# The vendor firmware declared that port as a fixed-link instead, and reverting
-# to that shape fixes both the port and its LEDs. Applied here, on every build,
-# because a fix that lives only in a hand-patched .bin is one release away from
-# being silently undone.
-DTB="$HERE/dtb/misectel_m01k43-wan-fixedlink.dtb"
-[ -f "$DTB" ] || die "WAN fixed-link dtb missing: $DTB"
+# K43P boards exist in two Ethernet layouts. On the affected production units
+# the WAN-labelled jack is MT7531 port 0; the external RTL8221B at port 5 is not
+# populated. The stock tree omits port 0 and declares the absent PHY, leaving
+# the real socket with no netdev while boot stalls on RTL8221B SerDes setup.
+# Expose internal port 0 as `wan` and omit port 5/phy@6. Applied on every build
+# so a future release cannot silently restore the wrong hardware variant.
+DTB="$HERE/dtb/misectel_m01k43-port0-wan.dtb"
+[ -f "$DTB" ] || die "port-0 WAN dtb missing: $DTB"
 bash "$HERE/patch-kernel-dtb.sh" "$WORK/extract/kernel" "$STAGE/kernel.bin" "$DTB" \
-	|| die "could not apply the WAN fixed-link device tree"
+	|| die "could not apply the port-0 WAN device tree"
 
 cp "$WORK/extract/rootfs" "$STAGE/rootfs.raw"
 chmod +x "$STAGE/rebrand.sh"
