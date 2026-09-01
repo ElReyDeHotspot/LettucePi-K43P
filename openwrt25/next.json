@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-08-31T21:01Z",
-  "build": "20260831210154",
-  "bin": "38",
-  "sha256": "aa45864c61e94c8f97712fed738fbbd3877966bb827e636c301179807aa46c27",
+  "built": "2026-09-01T03:22Z",
+  "build": "20260901032250",
+  "bin": "39",
+  "sha256": "3b59587af6aa4cbb373c47373c43e4dfc8e85f5aa330cafbbb00bb2a926278a3",
   "size": "26083328",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/38-2026-08-31-ChesterK43P-25.12.bin",
-  "notes": "The update button now reads Update Now, matching the confirm button in the dialog it opens. Carries the IPv6 switch fix from bin 37, and Smart Queue still ships fully off."
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/39-2026-08-31-ChesterK43P-25.12.bin",
+  "notes": "Restores the 2.5G WAN socket on units whose Realtek PHY does not complete SerDes init. The device tree now declares that port as a fixed link, the way the vendor firmware did, instead of a managed PHY that could fail and take the whole port with it."
 }

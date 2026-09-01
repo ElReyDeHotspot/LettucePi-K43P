@@ -45,7 +45,7 @@ case "$WORK" in
 esac
 
 [ -f "$BASE" ] || die "base image not found: $BASE"
-for t in unsquashfs mksquashfs ubinize python3 curl; do
+for t in unsquashfs mksquashfs ubinize python3 curl mkimage dumpimage dtc; do
 	command -v "$t" >/dev/null || die "$t missing"
 done
 
@@ -117,7 +117,19 @@ else
 	die "openwrt25/platform.sh missing - the System Update page cannot flash both banks without it"
 fi
 
-cp "$WORK/extract/kernel" "$STAGE/kernel.bin"
+# The stock device tree describes the 2.5G WAN socket as a managed Clause-45
+# PHY. On boards whose RTL8221B does not finish SerDes init that fails outright
+# and DSA never creates the `wan` netdev, so the port vanishes -- it cost one
+# customer unit its WAN socket while a bench unit on the same image was fine.
+# The vendor firmware declared that port as a fixed-link instead, and reverting
+# to that shape fixes both the port and its LEDs. Applied here, on every build,
+# because a fix that lives only in a hand-patched .bin is one release away from
+# being silently undone.
+DTB="$HERE/dtb/misectel_m01k43-wan-fixedlink.dtb"
+[ -f "$DTB" ] || die "WAN fixed-link dtb missing: $DTB"
+bash "$HERE/patch-kernel-dtb.sh" "$WORK/extract/kernel" "$STAGE/kernel.bin" "$DTB" \
+	|| die "could not apply the WAN fixed-link device tree"
+
 cp "$WORK/extract/rootfs" "$STAGE/rootfs.raw"
 chmod +x "$STAGE/rebrand.sh"
 printf '  %-22s %s bytes\n' "kernel.bin" "$(stat -c%s "$STAGE/kernel.bin")"

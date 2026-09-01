@@ -1308,11 +1308,16 @@ install_feed_apk luci-app-lettucepi-sqm       || true
 # operator turns it on from the Overview.
 cat > "$R/etc/uci-defaults/98-lettucepi-services" <<'UCID'
 #!/bin/sh
-# WAN socket LED watchdog. It only writes a PHY register when that register is
-# actually wrong, so it cannot fight a firmware that already sets them.
+# The WAN socket LED watchdog is deliberately NOT started any more.
+#
+# It poked the RTL8221B's LED registers over MDIO because ImmortalWrt's managed
+# PHY path left the socket dark. The device tree now declares that port as a
+# fixed-link, so nothing binds the PHY and it falls back to its own power-on LED
+# behaviour -- which lights correctly. The watchdog can no longer reach the PHY
+# at all and would just log "gave up: no RTL8221B on wan after 60s" every boot.
 if [ -x /etc/init.d/chester-phy-led ]; then
-	/etc/init.d/chester-phy-led enable
-	/etc/init.d/chester-phy-led start
+	/etc/init.d/chester-phy-led disable 2>/dev/null
+	/etc/init.d/chester-phy-led stop 2>/dev/null
 fi
 # Terminal (ttyd). It is installed into the rootfs with --no-scripts, because
 # the build host is x86_64 and this rootfs is aarch64, so apk cannot chroot in
@@ -1347,7 +1352,7 @@ echo "  /etc/uci-defaults/98-lettucepi-services (phy-led + ttyd enable, temp cac
 # --no-scripts means nothing in the image enables the services these packages
 # ship. Fail the build if the first-boot script does not cover each one, rather
 # than shipping a Terminal page that loads and cannot connect.
-for svc in chester-phy-led ttyd chester-sqm; do
+for svc in ttyd chester-sqm; do
 	grep -q "/etc/init.d/$svc enable" "$R/etc/uci-defaults/98-lettucepi-services" \
 		|| die "$svc is installed but nothing enables it at first boot"
 done
