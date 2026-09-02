@@ -21,11 +21,18 @@ set -u
 # ---------------------------------------------------------------- firmware
 # The image is raw UBI. It is written to both banks by the staged platform.sh,
 # because this board boots the bank the stock writer ignores.
+#
+# These three are pinned to a specific published image on purpose: this is the
+# entry point from factory-stock firmware, so it has to land on a known-good
+# build rather than on whatever happens to be newest. That does mean they go
+# stale -- they still named bin 35 while the fleet was on 42 -- so bump all
+# three together whenever the published image moves, and check them against
+# openwrt25/latest.json, which is generated from the image itself.
 FW_FAMILY="Immortal-Chester-25"
 FW_NAME="ImmortalWrt (current)"
-FW_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/35-2026-08-25-ChesterK43P-25.12.bin"
-FW_SHA="f0d56cc6b4926b0bb4de590a0ea9766d86729835846e7db6050478ec18197f57"
-FW_SIZE=25821184
+FW_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/42-2026-09-01-ChesterK43P-25.12.bin"
+FW_SHA="570a716a774bbad226ced5ff5f07ceb765e48090d22a25aa6935ea3f73e2f5bf"
+FW_SIZE=26083328
 
 PLATFORM_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/platform.sh"
 
