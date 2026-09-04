@@ -1,0 +1,19 @@
+{
+  "metadata_version": "1.1",
+  "compat_version": "1.0",
+  "supported_devices": [
+    "M01K43P",
+    "M02K43P",
+    "feiyan,m01k43",
+    "misectel,m01k43",
+    "misectel,m01k43-usb",
+    "alwaylink,m01k43"
+  ],
+  "version": {
+    "dist": "OpenWrt",
+    "version": "25.12-SNAPSHOT",
+    "revision": "M01K43-BASE-20260625",
+    "target": "mediatek/filogic",
+    "board": "m01k43_5g"
+  }
+}

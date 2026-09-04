@@ -20,6 +20,24 @@ It prompts for the router's SSH password, then runs the guarded installer on
 the router. If you are already at the router's SSH prompt, run only the quoted
 `curl ... | sh` portion.
 
+## LuCI / System Upgrade
+
+Use `m01k43-5g-openwrt25-sysupgrade.bin` in LuCI. First stage its matching
+safety-checked writer once from the router's SSH prompt:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/25-Base-Image/prepare-luci.sh | sh
+```
+
+Then upload `m01k43-5g-openwrt25-sysupgrade.bin` in LuCI. Do **not** upload
+`m01k43-5g-openwrt25-base.bin` there; that is the raw UBI used by the one-line
+installer.
+
+The sysupgrade file has standard OpenWrt metadata while retaining the raw UBI
+unchanged as a named payload. The staged writer extracts only that member and
+checks its exact size, SHA-256, and two erase-block headers before either flash
+bank is erased.
+
 The installer validates the Chester stamp and K43P board identity, checks the
 named `ubi` and `ubi2` partitions, verifies the exact image size, SHA-256 and
 both UBI headers, then requires **`YES` (ALL CAPS)** before writing anything.
