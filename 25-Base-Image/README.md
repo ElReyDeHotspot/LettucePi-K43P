@@ -2,7 +2,7 @@
 
 This folder contains the tested M01K43 OpenWrt 25 base image. Its displayed
 device-tree model is `M01K43 (5G PCIe)` while the internal
-`alwaylink,m01k43` compatibility remains unchanged for driver binding. It exposes
+`m01k43` compatibility remains unchanged for driver binding. It exposes
 `lan1` through `lan4` plus `wan` and boots with these defaults:
 
 - Address: `192.168.1.1`
