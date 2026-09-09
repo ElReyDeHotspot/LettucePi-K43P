@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-09-01T18:13Z",
-  "build": "20260901181306",
-  "bin": "42",
-  "sha256": "570a716a774bbad226ced5ff5f07ceb765e48090d22a25aa6935ea3f73e2f5bf",
+  "built": "2026-09-09T10:25Z",
+  "build": "20260909102500",
+  "bin": "43",
+  "sha256": "14deeebacbdb19cb171c6dd6389a535af1fdb56d7f07673a1477a7f602de8d73",
   "size": "26083328",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/42-2026-09-01-ChesterK43P-25.12.bin",
-  "notes": "Restores the external RTL8221B 2.5GbE WAN jack used by this K43P hardware variant. Update Now remains directly above Save on the Software Update page."
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/43-2026-09-08-ChesterK43P-25.12.bin",
+  "notes": "Bin 43 restores the external RTL8221B 2.5G WAN, exposes and migrates all LAN ports, retains the approved four-port dashboard layout, and restores secured 5G_CPE Wi-Fi defaults."
 }
