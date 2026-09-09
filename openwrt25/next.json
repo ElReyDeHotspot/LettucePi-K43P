@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-09-09T21:24Z",
-  "build": "20260909212429",
+  "built": "2026-09-09T21:59Z",
+  "build": "20260909215913",
   "bin": "45",
-  "sha256": "e99868888ab39713b922f2334acf77e61d36b1c5ba18c0c1a7deaa17c5f43071",
+  "sha256": "020018d5dc7ecb68455e06674623b10cbef0c4cf6d2297569a20a649af72f8ad",
   "size": "26083328",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/45-2026-09-09-ChesterK43P-25.12.bin",
-  "notes": "Bin 45 fixes Quectel EN-DC carrier aggregation reporting in qmodem cell_info, adding LTE and NR secondary carriers to the home dashboard while retaining Bin 44 hardware layout selection, external RTL8221B WAN support, dual-bank upgrades, and secured 5G_CPE Wi-Fi defaults."
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/45-2026-09-09-ChesterK43P-25.12-r2.bin",
+  "notes": "Bin 45-r2 fixes Quectel EN-DC carrier aggregation reporting in qmodem cell_info, including B2 EARFCN 925, PCI, and QCAINFO bandwidth decoding, plus LTE and NR secondary carriers on the home dashboard. It retains Bin 44 hardware layout selection, external RTL8221B WAN support, dual-bank upgrades, and secured 5G_CPE Wi-Fi defaults."
 }

@@ -176,7 +176,7 @@ function chesterCarriersFromEntries(entries,mode){
 		if(!val||val==='-')continue;
 		var slot=null;
 		if(key==='band'||key==='bandca')slot='band';
-		else if(key==='arfcn'||key==='earfcn'||key==='nrarfcn'||key==='arfcnca')slot='arfcn';
+		else if(key==='arfcn'||key==='earfcn'||key==='nrarfcn'||key==='arfcnca'||key==='earfcnca')slot='arfcn';
 		else if(key==='physicalcellid'||key==='pci'||key==='pcid'||key==='physicalcellidca')slot='pci';
 		else if(key==='dlbandwidth'||key==='dlbandwidthca')slot='bw';
 		if(!slot)continue;
