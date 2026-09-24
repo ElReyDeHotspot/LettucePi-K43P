@@ -74,7 +74,7 @@ MODEL=$(cat /tmp/sysinfo/model 2>/dev/null || echo unknown)
 info "board: $BOARD"
 info "model: $MODEL"
 case "$BOARD" in
-    M01K43P|misectel,m01k43|misectel,m01k43-usb|alwaylink,m01k43) ok "supported board" ;;
+    M01K43|M01K43P|misectel,m01k43|misectel,m01k43-usb|alwaylink,m01k43) ok "supported board" ;;
     *) die "this is not a Chester K43P (board reports '$BOARD') - refusing to flash" ;;
 esac
 
