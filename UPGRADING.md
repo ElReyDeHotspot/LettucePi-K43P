@@ -1,7 +1,7 @@
 # Upgrading a Chester K43P
 
 Every step here was run against a real unit on 2026-08-25: a factory-stock
-M01K43P on OpenWrt 21.02-SNAPSHOT 2.6.0, taken to build `20260825163208`.
+M10K43P on OpenWrt 21.02-SNAPSHOT 2.6.0, taken to build `20260825163208`.
 Where something failed, the failure is written down rather than tidied away —
 that is the part worth reading.
 
