@@ -5,9 +5,9 @@ function asDisplayValue(value,fallback){if(isEmptyValue(value))
 return fallback||'--';return String(value);}
 function hasMeaningfulValue(value){return!isEmptyValue(value)&&value!=='--';}
 function isTruthyFlag(value){return value===true||value===1||value==='1'||value==='true'||value==='yes'||value==='on'||value==='up';}
-function isRadioUp(radio){if(!radio)
-return false;if(isTruthyFlag(radio.up)||isTruthyFlag(radio.is_up)||isTruthyFlag(radio?.iwinfo?.up))
-return true;return ensureArray(radio.interfaces).some((iface)=>isTruthyFlag(iface?.up)||isTruthyFlag(iface?.is_up)||isTruthyFlag(iface?.iwinfo?.up));}
+function isRadioUp(radio){if(!radio||isTruthyFlag(radio.disabled)||radio.autostart===false)
+return false;const interfaces=ensureArray(radio.interfaces);if(interfaces.length)
+return interfaces.some((iface)=>!isTruthyFlag(iface?.disabled)&&(isTruthyFlag(iface?.up)||isTruthyFlag(iface?.is_up)||isTruthyFlag(iface?.iwinfo?.up)));return isTruthyFlag(radio.up)||isTruthyFlag(radio.is_up)||isTruthyFlag(radio?.iwinfo?.up);}
 function ensureArray(value){return Array.isArray(value)?value:[];}
 function arrayValue(value){if(Array.isArray(value))
 return value;if(value==null||value==='')
