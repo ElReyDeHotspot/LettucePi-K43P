@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-09-09T21:59Z",
-  "build": "20260909215913",
+  "built": "2026-09-16T19:16Z",
+  "build": "20260916191624",
   "bin": "45",
-  "sha256": "020018d5dc7ecb68455e06674623b10cbef0c4cf6d2297569a20a649af72f8ad",
+  "sha256": "ddd58f56f369ee942acd49a097d7b037eaf46554d1c04f14c8985c2a295d2868",
   "size": "26083328",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/45-2026-09-09-ChesterK43P-25.12-r2.bin",
-  "notes": "Bin 45-r2 fixes Quectel EN-DC carrier aggregation reporting in qmodem cell_info, including B2 EARFCN 925, PCI, and QCAINFO bandwidth decoding, plus LTE and NR secondary carriers on the home dashboard. It retains Bin 44 hardware layout selection, external RTL8221B WAN support, dual-bank upgrades, and secured 5G_CPE Wi-Fi defaults."
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/45-2026-09-16-ChesterK43P-25.12-WAN-port5-fixedlink-r3.bin",
+  "notes": "Bin 45-r3 is the WAN port 5 fixed-link test image. It updates the K43P external WAN port handling while retaining the Bin 45 dashboard, carrier aggregation reporting, hardware layout selector, dual-bank upgrades, and secured 5G_CPE Wi-Fi defaults."
 }
