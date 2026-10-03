@@ -1,0 +1,29 @@
+#!/bin/sh
+set -eu
+
+effective="${1:-}"
+selected="${2:-$effective}"
+case "$effective" in
+	pcie|usb3) ;;
+	*) echo INVALID; exit 1 ;;
+esac
+
+image="/usr/lib/chester/kernel-profile-${effective}.fit"
+[ -s "$image" ] || { echo MISSING_PROFILE; exit 1; }
+volume=''
+for path in /sys/class/ubi/ubi*_*; do
+	[ -f "$path/name" ] || continue
+	[ "$(cat "$path/name")" = kernel ] || continue
+	volume="/dev/$(basename "$path")"
+	break
+done
+[ -n "$volume" ] && [ -e "$volume" ] || { echo KERNEL_VOLUME_NOT_FOUND; exit 1; }
+
+uci -q set chester.modem=settings
+uci -q set chester.modem.transport_profile="$selected"
+uci -q set chester.modem.effective_profile="$effective"
+uci -q commit chester
+ubiupdatevol "$volume" "$image" >/tmp/chester-profile-update.log 2>&1 || { cat /tmp/chester-profile-update.log; exit 1; }
+sync
+(sleep 3; reboot) >/dev/null 2>&1 &
+echo OK

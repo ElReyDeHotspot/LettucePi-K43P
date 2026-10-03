@@ -1,0 +1,69 @@
+#!/usr/bin/ucode
+'use strict';
+
+import { popen } from 'fs';
+
+function command(line) {
+	let fd = popen(line + ' 2>/dev/null', 'r');
+	if (!fd)
+		return '';
+	let output = trim(fd.read('all') || '');
+	fd.close();
+	return output;
+}
+
+const methods = {
+	status: {
+		call: function() {
+			let pci = command('for d in /sys/bus/pci/devices/*; do [ -f "$d/vendor" ] || continue; v=$(cat "$d/vendor"); [ "$v" = 0x17cb ] || [ "$v" = 0x2c7c ] || continue; printf "%s|%s|%s|%s|%s" "$(basename "$d")" "$v" "$(cat "$d/device")" "$(cat "$d/current_link_speed")" "$(cat "$d/current_link_width")"; break; done');
+			let mhi = command('ls /sys/class/net 2>/dev/null | grep -E "^(rmnet_mhi|mhi)" | head -1');
+			let usb = command('for d in /sys/bus/usb/devices/*; do [ -f "$d/idVendor" ] || continue; [ "$(cat "$d/idVendor")" = 2c7c ] || continue; printf "%s|%s|%s|%s|%s|%s" "$(basename "$d")" "$(cat "$d/idVendor")" "$(cat "$d/idProduct")" "$(cat "$d/speed")" "$(cat "$d/product")" "$(basename "$(readlink -f "$d"/*/net/* 2>/dev/null | head -1)")"; break; done');
+			let driver = command('for n in rmnet_mhi0 rmnet_mhi0.1 wwan0 wwan0_1 usb0; do [ -e "/sys/class/net/$n" ] || continue; basename "$(readlink -f "/sys/class/net/$n/device/driver")"; break; done');
+			let iface = command('for n in rmnet_mhi0 rmnet_mhi0.1 wwan0 wwan0_1 usb0; do [ -e "/sys/class/net/$n" ] && { echo "$n"; break; }; done');
+			let pcie_log = command('dmesg | grep -E "PCIe link down|pci.*link up|mhi.*[Ii]nit" | tail -1');
+			let transport = 'Not detected';
+			let speed = '--';
+			let bus = '--';
+			let modem_id = '--';
+			if (pci || mhi) {
+				let values = split(pci, '|');
+				transport = 'PCIe';
+				bus = values[0] || '--';
+				modem_id = values[1] && values[2] ? values[1] + ':' + values[2] : '--';
+				speed = values[3] ? values[3] + ' x' + (values[4] || '?') : '--';
+			}
+			else if (usb) {
+				let values = split(usb, '|');
+				let rate = +values[3];
+				transport = rate >= 5000 ? 'USB 3 SuperSpeed' : (rate >= 480 ? 'USB 2 High-Speed' : 'USB');
+				bus = values[0] || '--';
+				modem_id = values[1] && values[2] ? values[1] + ':' + values[2] : '--';
+				speed = values[3] ? values[3] + ' Mb/s' : '--';
+			}
+			let active_profile = command('if [ -f /sys/firmware/devicetree/base/soc/pcie@11280000/status ] && grep -q disabled /sys/firmware/devicetree/base/soc/pcie@11280000/status; then echo usb3; else echo pcie; fi');
+			let selected_profile = command('uci -q get chester.modem.transport_profile') || 'auto';
+			return { transport, speed, bus, modem_id, driver: driver || '--', interface: iface || '--', pcie_status: pcie_log || 'No PCIe modem event', active_profile, selected_profile };
+		}
+	},
+	set_profile: {
+		args: { profile: 'String' },
+		call: function(request) {
+			let profile = request.args.profile;
+			if (profile != 'auto' && profile != 'pcie' && profile != 'usb3')
+				return { success: false, message: 'invalid profile' };
+			let effective = profile;
+			if (effective == 'auto') {
+				if (command('[ -e /sys/class/net/rmnet_mhi0 ] || [ -e /sys/class/net/rmnet_mhi0.1 ]; echo $?') == '0')
+					effective = 'pcie';
+				else if (command('for d in /sys/bus/usb/devices/*; do [ -f "$d/idVendor" ] && [ "$(cat "$d/idVendor")" = 2c7c ] && { echo yes; break; }; done') == 'yes')
+					effective = 'usb3';
+				else
+					return { success: false, message: 'QMODEM has not detected a modem; choose PCIe or USB manually' };
+			}
+			let output = command('/usr/sbin/chester-modem-profile ' + effective + ' ' + profile);
+			return { success: output == 'OK', profile, effective, message: output == 'OK' ? 'profile staged; rebooting' : output };
+		}
+	}
+};
+
+return { modem_transport: methods };

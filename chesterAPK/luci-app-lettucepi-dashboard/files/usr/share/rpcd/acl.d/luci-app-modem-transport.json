@@ -1,0 +1,7 @@
+{
+  "luci-app-modem-transport": {
+    "description": "Read modem USB and PCIe transport status",
+    "read": { "ubus": { "modem_transport": [ "status" ] } },
+    "write": { "ubus": { "modem_transport": [ "set_profile" ] } }
+  }
+}

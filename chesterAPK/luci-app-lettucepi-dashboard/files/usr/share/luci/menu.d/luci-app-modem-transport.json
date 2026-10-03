@@ -1,0 +1,8 @@
+{
+  "admin/network/modem-transport": {
+    "title": "Modem Transport",
+    "order": 95,
+    "action": { "type": "view", "path": "misectel-network/modem-transport" },
+    "depends": { "acl": [ "luci-app-modem-transport" ] }
+  }
+}

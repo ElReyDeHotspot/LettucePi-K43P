@@ -18,7 +18,9 @@ find "$STAGE" -type d -exec chmod 0755 {} +
 find "$STAGE" -type f -exec chmod 0644 {} +
 find "$STAGE" -type f -exec sed -i 's/\r$//' {} +
 chmod 0755 "$STAGE/files/usr/share/rpcd/ucode/misectel" \
+	       "$STAGE/files/usr/share/rpcd/ucode/modem_transport" \
            "$STAGE/files/usr/sbin/chester-modem-temp" \
+	       "$STAGE/files/usr/sbin/chester-modem-profile" \
            "$STAGE/files/usr/sbin/chester-phy-led" \
            "$STAGE/files/etc/init.d/chester-phy-led" \
            "$STAGE/scripts/"*

@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-09-16T19:16Z",
-  "build": "20260916191624",
-  "bin": "45",
-  "sha256": "ddd58f56f369ee942acd49a097d7b037eaf46554d1c04f14c8985c2a295d2868",
-  "size": "26083328",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/45-2026-09-16-ChesterK43P-25.12-WAN-port5-fixedlink-r3.bin",
-  "notes": "Bin 45-r3 is the WAN port 5 fixed-link test image. It updates the K43P external WAN port handling while retaining the Bin 45 dashboard, carrier aggregation reporting, hardware layout selector, dual-bank upgrades, and secured 5G_CPE Wi-Fi defaults."
+  "built": "2026-10-03T15:23Z",
+  "build": "20261003152300",
+  "bin": "46",
+  "sha256": "aed47b9ea085ed87ff7195546f669a48e1c5b24acdeb1fca52b60c4fb98f85bc",
+  "size": "35389440",
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/46-2026-10-03-ChesterK43P-25.12.bin",
+  "notes": "Bin 46 adds selectable PCIe and full-speed USB 3 modem boot profiles, live transport and negotiated-speed reporting, QMODEM-compatible automatic detection, complete sidebar icon coverage, configurable three/four-port display, and retains the Bin 45 WAN and cellular aggregation fixes."
 }
