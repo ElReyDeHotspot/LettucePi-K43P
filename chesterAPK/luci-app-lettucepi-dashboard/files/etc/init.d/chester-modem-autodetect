@@ -1,0 +1,100 @@
+#!/bin/sh /etc/rc.common
+
+START=96
+STOP=10
+USE_PROCD=1
+
+log() {
+	logger -t chester-modem-autodetect "$*"
+	echo "$*" >> /tmp/chester-modem-autodetect.log
+}
+
+active_profile() {
+	if [ -f /sys/firmware/devicetree/base/soc/pcie@11280000/status ] && \
+		grep -q disabled /sys/firmware/devicetree/base/soc/pcie@11280000/status; then
+		echo usb3
+	else
+		echo pcie
+	fi
+}
+
+pcie_modem_present() {
+	[ -e /sys/class/net/rmnet_mhi0 ] || [ -e /sys/class/net/rmnet_mhi0.1 ] || \
+		ls /dev/mhi_* >/dev/null 2>&1
+}
+
+usb_modem_present() {
+	for dev in /sys/bus/usb/devices/*; do
+		[ -f "$dev/idVendor" ] || continue
+		[ "$(cat "$dev/idVendor")" = 2c7c ] || continue
+		return 0
+	done
+	return 1
+}
+
+wait_for_modem() {
+	profile="$1"
+	remaining=30
+	while [ "$remaining" -gt 0 ]; do
+		if [ "$profile" = pcie ]; then
+			pcie_modem_present && return 0
+		else
+			usb_modem_present && return 0
+		fi
+		sleep 1
+		remaining=$((remaining - 1))
+	done
+	return 1
+}
+
+start_service() {
+	selected="$(uci -q get chester.modem.transport_profile || echo auto)"
+	profile="$(active_profile)"
+	if [ "$selected" != auto ]; then
+		if [ "$selected" != "$profile" ]; then
+			log "manual profile $selected differs from active $profile; staging selected kernel"
+			/usr/sbin/chester-modem-profile "$selected" "$selected"
+			return $?
+		fi
+		log "manual profile $selected is active; automatic discovery skipped"
+		return 0
+	fi
+
+	resolved="$(uci -q get chester.modem.resolved_profile || true)"
+	if [ -n "$resolved" ] && [ "$resolved" != "$profile" ]; then
+		log "resolved profile $resolved differs from active $profile; restoring resolved kernel"
+		/usr/sbin/chester-modem-profile "$resolved" auto
+		return $?
+	fi
+	[ -z "$resolved" ] || {
+		log "automatic profile already resolved as $resolved"
+		return 0
+	}
+
+	phase="$(uci -q get chester.modem.discovery_phase || echo pcie_probe)"
+	log "active=$profile phase=$phase; waiting up to 30 seconds for modem"
+
+	if wait_for_modem "$profile"; then
+		uci -q set chester.modem=settings
+		uci -q set chester.modem.effective_profile="$profile"
+		uci -q set chester.modem.resolved_profile="$profile"
+		uci -q set chester.modem.discovery_phase=complete
+		uci -q commit chester
+		log "$profile modem detected; profile resolved without further reboot"
+		return 0
+	fi
+
+	if [ "$profile" = pcie ] && [ "$phase" != usb3_attempted ]; then
+		uci -q set chester.modem=settings
+		uci -q set chester.modem.discovery_phase=usb3_attempted
+		uci -q commit chester
+		log "no PCIe/MHI modem detected; staging one USB3 fallback boot"
+		/usr/sbin/chester-modem-profile usb3 auto
+		return $?
+	fi
+
+	uci -q set chester.modem=settings
+	uci -q set chester.modem.discovery_phase=failed
+	uci -q commit chester
+	log "no modem detected after PCIe and USB3 attempts; automatic switching stopped"
+}

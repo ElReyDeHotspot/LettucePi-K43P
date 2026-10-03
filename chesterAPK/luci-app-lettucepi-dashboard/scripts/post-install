@@ -4,9 +4,19 @@
 # and the ACLs. Without the rpcd reload the new ubus methods exist on disk but
 # are not served, and every panel that calls them reads blank.
 chmod 0755 /usr/share/rpcd/ucode/misectel \
+	/usr/share/rpcd/ucode/modem_transport \
 	/usr/sbin/chester-modem-temp \
+	/usr/sbin/chester-modem-profile \
 	/usr/sbin/chester-phy-led \
+	/etc/init.d/chester-modem-autodetect \
 	/etc/init.d/chester-phy-led 2>/dev/null
+
+# Start every clean install on the PCIe-first automatic discovery path. The
+# service has a persistent phase marker and will attempt USB3 at most once, so
+# a missing modem cannot create a reboot loop.
+if [ -x /etc/init.d/chester-modem-autodetect ]; then
+	/etc/init.d/chester-modem-autodetect enable >/dev/null 2>&1
+fi
 
 # The WAN socket LED watchdog. It only writes a PHY register when that register
 # is actually wrong, so enabling it cannot fight a firmware that already sets

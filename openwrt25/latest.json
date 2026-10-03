@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-09-16T19:16Z",
-  "build": "20260916191624",
-  "bin": "45",
-  "sha256": "ddd58f56f369ee942acd49a097d7b037eaf46554d1c04f14c8985c2a295d2868",
-  "size": "26083328",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/45-2026-09-16-ChesterK43P-25.12-WAN-port5-fixedlink-r3.bin",
-  "notes": "Bin 45-r3 is the current stable release. It provides the tested K43P PCIe modem path and WAN port 5 fixed-link handling while retaining the Bin 45 dashboard, carrier aggregation reporting, hardware layout selector, dual-bank upgrades, and secured 5G_CPE Wi-Fi defaults. Bin 46 has been withdrawn from OTA due to PCIe modem detection regression."
+  "built": "2026-10-03T21:20Z",
+  "build": "20261003212041",
+  "bin": "47",
+  "sha256": "123fe5f2066829ba8633e961c4c121cb1ee82c325d387d5a6dd43c24359153f8",
+  "size": "35389440",
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/47-2026-10-03-ChesterK43P-25.12.bin",
+  "notes": "Bin 47 promotes the tested PCIe-first modem discovery flow with a one-shot USB3 fallback and reboot-loop guard. It also fixes the Overview Wi-Fi status so disabled radios show Disabled, while retaining Bin 45 WAN port 5 and cellular aggregation fixes."
 }
