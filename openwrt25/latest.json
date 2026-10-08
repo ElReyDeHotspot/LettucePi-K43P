@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-10-03T21:20Z",
-  "build": "20261003212041",
-  "bin": "47",
-  "sha256": "123fe5f2066829ba8633e961c4c121cb1ee82c325d387d5a6dd43c24359153f8",
+  "built": "2026-10-08T16:25Z",
+  "build": "20261008162500",
+  "bin": "48",
+  "sha256": "eac4677e257be74b77bcd856d55955cc346fa1448bfa68d4d4a90200439a9b4c",
   "size": "35389440",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/47-2026-10-03-ChesterK43P-25.12.bin",
-  "notes": "Bin 47 promotes the tested PCIe-first modem discovery flow with a one-shot USB3 fallback and reboot-loop guard. It also fixes the Overview Wi-Fi status so disabled radios show Disabled, while retaining Bin 45 WAN port 5 and cellular aggregation fixes."
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/48-2026-10-08-ChesterK43P-25.12.bin",
+  "notes": "Bin 48 replaces the forced WAN link with the real RTL8221B Clause-45 PHY binding at MDIO address 6, restoring bidirectional 2.5 GbE and DHCP when WAN is configured as LAN on tested three-port and four-port K43P units. It retains Bin 47 PCIe-first modem detection, USB3 fallback, Wi-Fi status correction, and adds dual-bank upgrade handling for both misectel,m01k43 and alwaylink,m01k43 identifiers."
 }
