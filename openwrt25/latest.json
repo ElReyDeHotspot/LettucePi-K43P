@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-10-08T16:25Z",
-  "build": "20261008162500",
-  "bin": "48",
-  "sha256": "eac4677e257be74b77bcd856d55955cc346fa1448bfa68d4d4a90200439a9b4c",
+  "built": "2026-10-14T21:05Z",
+  "build": "20261014210534",
+  "bin": "49",
+  "sha256": "37240acd4818d209239b01d572e85c583b942731d70a5e2af36a6d36121a4eba",
   "size": "35389440",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/48-2026-10-08-ChesterK43P-25.12.bin",
-  "notes": "Bin 48 replaces the forced WAN link with the real RTL8221B Clause-45 PHY binding at MDIO address 6, restoring bidirectional 2.5 GbE and DHCP when WAN is configured as LAN on tested three-port and four-port K43P units. It retains Bin 47 PCIe-first modem detection, USB3 fallback, Wi-Fi status correction, and adds dual-bank upgrade handling for both misectel,m01k43 and alwaylink,m01k43 identifiers."
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/49-2026-10-14-ChesterK43P-25.12.bin",
+  "notes": "Bin 49 publishes the tested universal K43/K43P v3 image. It boots PCIe first, automatically falls back to the USB3 modem profile when no MHI modem appears, supports QManager data_interface confirmation, writes and verifies both kernel banks, and retains the managed RTL8221B WAN binding from Bin 48."
 }
