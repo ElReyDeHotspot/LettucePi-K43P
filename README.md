@@ -1,7 +1,6 @@
 # LettucePi — Chester K43P
 
-Firmware for the **Chester K43P** 5G router (MediaTek MT7981, board
-`alwaylink,m01k43`).
+Firmware for the **Chester K43P** 5G router (MediaTek MT7981).
 
 The router downloads, verifies and installs everything itself. Nothing to copy
 by hand.
