@@ -13,7 +13,7 @@ by hand.
 | Processor | MediaTek MT7981, dual-core ARM Cortex-A53 |
 | Memory | 256 MiB RAM |
 | Flash | 128 MiB SPI NAND |
-| Cellular slot | M.2 PCIe |
+| Cellular Slot | K43: M.2 USB 3.0 \| K43P: M.2 PCIe |
 | Cellular modes | 5G SA, 5G NSA, and LTE, depending on the installed modem |
 | SIM selection | SIM 1 and SIM 2 with a compatible dual-SIM modem |
 | WAN / LAN | 1 × 2.5 GbE socket, configurable as WAN or LAN |
