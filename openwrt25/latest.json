@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-11-25T18:04Z",
-  "build": "20261125180424",
-  "bin": "57",
-  "sha256": "fabcb3332b1cbd24b3fc18ad1f081161f51114bbc662bd9c4b472e53a39ef41d",
-  "size": "49676288",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/57-2026-11-25-ChesterK43P-25.12.bin",
-  "notes": "Universal K43/K43P build with PCIe and USB3 modem profiles, SIM-first Quick Start, updated Local LAN, VPN, system and Software pages, DNS Setup theme colors, and queued AT access for PCIe modems. SIM hot-plug detection uses the installed modem setting."
+  "built": "2026-11-25T18:43Z",
+  "build": "20261125184339",
+  "bin": "58",
+  "sha256": "619bb06ad564156db6b48bd174c9f03b86cc8a424060d2ade61be915e7dbf2f3",
+  "size": "50069504",
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/58-2026-11-25-ChesterK43P-25.12.bin",
+  "notes": "Universal K43/K43P with PCIe and USB3 modem profiles. Adds K45P SIM Selection with per-SIM M-Lab tests, direct Cellular selection in Speeds, a local server-only LuCI terminal, clearer Smart Queue status, and compact Live Traffic sampling under memory pressure. Block List IP and DNS rules were verified on the K43P."
 }
