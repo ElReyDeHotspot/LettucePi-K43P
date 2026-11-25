@@ -13,17 +13,14 @@ by hand.
 | Processor | MediaTek MT7981, dual-core ARM Cortex-A53 |
 | Memory | 256 MiB RAM |
 | Flash | 128 MiB SPI NAND |
-| Cellular slot | M.2, PCIe on the K43P |
+| Cellular slot | M.2 PCIe |
 | Cellular modes | 5G SA, 5G NSA, and LTE, depending on the installed modem |
 | SIM selection | SIM 1 and SIM 2 with a compatible dual-SIM modem |
 | WAN / LAN | 1 × 2.5 GbE socket, configurable as WAN or LAN |
-| LAN | 3 × 1 GbE sockets labeled LAN1–LAN3 on the verified K43P layout |
+| LAN | 3 × 1 GbE sockets labeled LAN1–LAN3 |
 | Wi-Fi | Dual-band Wi-Fi 6 (802.11ax), 2.4 GHz and 5 GHz |
 | Firmware | LettucePi on OpenWrt 25.12 |
 | Default LAN address | `192.168.100.1` |
-
-The table describes the K43P PCIe board. Related non-P K43 boards can have a
-different modem interface or [Ethernet layout](dtb/README.md).
 
 ## Updating
 
