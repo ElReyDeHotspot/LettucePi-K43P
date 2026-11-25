@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-10-14T21:05Z",
-  "build": "20261014210534",
-  "bin": "49",
-  "sha256": "37240acd4818d209239b01d572e85c583b942731d70a5e2af36a6d36121a4eba",
-  "size": "35389440",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/49-2026-10-14-ChesterK43P-25.12.bin",
-  "notes": "Bin 49 publishes the tested universal K43/K43P v3 image. It boots PCIe first, automatically falls back to the USB3 modem profile when no MHI modem appears, supports QManager data_interface confirmation, writes and verifies both kernel banks, and retains the managed RTL8221B WAN binding from Bin 48."
+  "built": "2026-11-25T18:04Z",
+  "build": "20261125180424",
+  "bin": "57",
+  "sha256": "fabcb3332b1cbd24b3fc18ad1f081161f51114bbc662bd9c4b472e53a39ef41d",
+  "size": "49676288",
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/57-2026-11-25-ChesterK43P-25.12.bin",
+  "notes": "Universal K43/K43P build with PCIe and USB3 modem profiles, SIM-first Quick Start, updated Local LAN, VPN, system and Software pages, DNS Setup theme colors, and queued AT access for PCIe modems. SIM hot-plug detection uses the installed modem setting."
 }

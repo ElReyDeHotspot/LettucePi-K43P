@@ -28,7 +28,8 @@ folder.** This is an archive for reference and rollback.
 | 13 | 2026-08-23 | `13-...-ChesterK43P-25.12` | 22.5 MB | Superseded. Fourth LAN port (lan4) restored; identity and package feeds moved to OpenWrt 25 |
 | 14 | 2026-08-24 | `14-...-ChesterK43P-25.12` | 22.5 MB | Superseded. Final ImmortalWrt build. Was the stepping stone to a genuine OpenWrt 25 build; that build was abandoned and the stepping stone with it. |
 | 15-25 | 2026-08-25 | `NN-...-ChesterK43P-25.12` | ~23-25 MB | Superseded. Same-day iterations: zapret/tpws, WAN-LAN switch, Developer menu, port fixes. |
-| 26 | 2026-08-25 | `26-...-ChesterK43P-25.12` | 23.9 MB | ✅ **Current.** 4K/HD engine (tpws), WAN/LAN switch on the WAN square, Developer menu, LTE+5G signal, modem temperature, phytool. Validated from factory OpenWrt 21 -- see [OPENWRT21-UPGRADE.md](../OPENWRT21-UPGRADE.md). |
+| 26 | 2026-08-25 | `26-...-ChesterK43P-25.12` | 23.9 MB | Superseded. 4K/HD engine (tpws), WAN/LAN switch on the WAN square, Developer menu, LTE+5G signal, modem temperature, phytool. Validated from factory OpenWrt 21 -- see [OPENWRT21-UPGRADE.md](../OPENWRT21-UPGRADE.md). |
+| 57 | 2026-11-25 | [57-2026-11-25-ChesterK43P-25.12.bin](57-2026-11-25-ChesterK43P-25.12.bin) | 47.4 MiB | **Current OTA image.** Universal K43/K43P with PCIe and USB3 modem profiles. |
 
 ## SHA-256
 
@@ -47,6 +48,7 @@ ed780b13ed23b705f5418d3b4e927435bd12bdd1c494ac796948e09f92907e01  06-2026-08-21-
 51a4187ba25729a574546a149abb3de9b7e9f57f2386ad6a05637236e16ba46b  12-2026-08-23-ChesterK43P-25.12.bin
 d1740c6f75ae7de00703d08b4acda859761fe6dac67d2a402c18588df83c1859  13-2026-08-23-ChesterK43P-25.12.bin
 ddcc0a8c86ff8de8fe0e249c6e4ae721b1c250fd2f12ae05b86511a779230811  14-2026-08-24-ChesterK43P-25.12.bin
+fabcb3332b1cbd24b3fc18ad1f081161f51114bbc662bd9c4b472e53a39ef41d  57-2026-11-25-ChesterK43P-25.12.bin
 ```
 
 ## Two different formats in here
