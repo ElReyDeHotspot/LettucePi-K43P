@@ -14,8 +14,7 @@ by hand.
 | Memory | 256 MiB RAM |
 | Flash | 128 MiB SPI NAND |
 | Cellular slot | M.2, PCIe on the K43P |
-| Tested modem | Quectel RM520N-GLAP, enumerated at PCIe 2.0 ×1 |
-| Cellular modes | 5G SA, 5G NSA, and LTE with the [RM520N series](https://www.quectel.com/product/5g-rm520n-series/) |
+| Cellular modes | 5G SA, 5G NSA, and LTE, depending on the installed modem |
 | SIM selection | SIM 1 and SIM 2 with a compatible dual-SIM modem |
 | WAN / LAN | 1 × 2.5 GbE socket, configurable as WAN or LAN |
 | LAN | 3 × 1 GbE sockets labeled LAN1–LAN3 on the verified K43P layout |
