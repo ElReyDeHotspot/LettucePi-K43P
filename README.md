@@ -9,7 +9,7 @@ by hand.
 
 | Component | Specification |
 | --- | --- |
-| Board | Chester K43P |
+| Board | Chester K43/K43P |
 | Processor | MediaTek MT7981, dual-core ARM Cortex-A53 |
 | Memory | 256 MiB RAM |
 | Flash | 128 MiB SPI NAND |
