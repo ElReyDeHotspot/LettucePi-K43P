@@ -29,8 +29,8 @@ folder.** This is an archive for reference and rollback.
 | 14 | 2026-08-24 | `14-...-ChesterK43P-25.12` | 22.5 MB | Superseded. Final ImmortalWrt build. Was the stepping stone to a genuine OpenWrt 25 build; that build was abandoned and the stepping stone with it. |
 | 15-25 | 2026-08-25 | `NN-...-ChesterK43P-25.12` | ~23-25 MB | Superseded. Same-day iterations: zapret/tpws, WAN-LAN switch, Developer menu, port fixes. |
 | 26 | 2026-08-25 | `26-...-ChesterK43P-25.12` | 23.9 MB | Superseded. 4K/HD engine (tpws), WAN/LAN switch on the WAN square, Developer menu, LTE+5G signal, modem temperature, phytool. Validated from factory OpenWrt 21 -- see [OPENWRT21-UPGRADE.md](../OPENWRT21-UPGRADE.md). |
-| 57 | 2026-11-25 | [57-2026-11-25-ChesterK43P-25.12.bin](57-2026-11-25-ChesterK43P-25.12.bin) | 47.4 MiB | Superseded. Universal K43/K43P with PCIe and USB3 modem profiles. |
-| 58 | 2026-11-25 | [58-2026-11-25-ChesterK43P-25.12.bin](58-2026-11-25-ChesterK43P-25.12.bin) | 47.75 MiB | **Current OTA image.** SIM Selection port and fixes for Cellular M-Lab, Terminal, Smart Queue, and Live Traffic. |
+| 49 | 2026-10-14 | [49-2026-10-14-ChesterK43P-25.12.bin](49-2026-10-14-ChesterK43P-25.12.bin) | 33.75 MiB | Previous OTA image. |
+| 60 | 2026-11-25 | [60-2026-11-25-ChesterK43P-25.12.bin](60-2026-11-25-ChesterK43P-25.12.bin) | 37.50 MiB | **Current OTA image.** Quick Start and LuCI login verified after a clean flash on K43P. |
 
 ## SHA-256
 
@@ -49,8 +49,8 @@ ed780b13ed23b705f5418d3b4e927435bd12bdd1c494ac796948e09f92907e01  06-2026-08-21-
 51a4187ba25729a574546a149abb3de9b7e9f57f2386ad6a05637236e16ba46b  12-2026-08-23-ChesterK43P-25.12.bin
 d1740c6f75ae7de00703d08b4acda859761fe6dac67d2a402c18588df83c1859  13-2026-08-23-ChesterK43P-25.12.bin
 ddcc0a8c86ff8de8fe0e249c6e4ae721b1c250fd2f12ae05b86511a779230811  14-2026-08-24-ChesterK43P-25.12.bin
-fabcb3332b1cbd24b3fc18ad1f081161f51114bbc662bd9c4b472e53a39ef41d  57-2026-11-25-ChesterK43P-25.12.bin
-619bb06ad564156db6b48bd174c9f03b86cc8a424060d2ade61be915e7dbf2f3  58-2026-11-25-ChesterK43P-25.12.bin
+37240acd4818d209239b01d572e85c583b942731d70a5e2af36a6d36121a4eba  49-2026-10-14-ChesterK43P-25.12.bin
+17f301c5488070e76e8884966ed9b09aebe86888d5689dc74b0d2e410f33ccfa  60-2026-11-25-ChesterK43P-25.12.bin
 ```
 
 ## Two different formats in here

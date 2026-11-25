@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-11-25T18:43Z",
-  "build": "20261125184339",
-  "bin": "58",
-  "sha256": "619bb06ad564156db6b48bd174c9f03b86cc8a424060d2ade61be915e7dbf2f3",
-  "size": "50069504",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/58-2026-11-25-ChesterK43P-25.12.bin",
-  "notes": "Universal K43/K43P with PCIe and USB3 modem profiles. Adds K45P SIM Selection with per-SIM M-Lab tests, direct Cellular selection in Speeds, a local server-only LuCI terminal, clearer Smart Queue status, and compact Live Traffic sampling under memory pressure. Block List IP and DNS rules were verified on the K43P."
+  "built": "2026-11-25T22:18Z",
+  "build": "20261125221843",
+  "bin": "60",
+  "sha256": "17f301c5488070e76e8884966ed9b09aebe86888d5689dc74b0d2e410f33ccfa",
+  "size": "39321600",
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/60-2026-11-25-ChesterK43P-25.12.bin",
+  "notes": "Chester K43/K43P with PCIe and USB3 modem profiles. Fixes Quick Start after a clean flash and improves OTA download verification, reuse, and memory checks. M-Lab and the VPN page are built in. WARP, Tailscale, Ookla, and Live Traffic with Block List are available on demand."
 }
