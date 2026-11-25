@@ -5,6 +5,27 @@ Firmware for the **Chester K43P** 5G router (MediaTek MT7981).
 The router downloads, verifies and installs everything itself. Nothing to copy
 by hand.
 
+## Specifications
+
+| Component | Specification |
+| --- | --- |
+| Board | Chester K43P (`misectel,m01k43`) |
+| Processor | MediaTek MT7981, dual-core ARM Cortex-A53 |
+| Memory | 256 MiB RAM |
+| Flash | 128 MiB SPI NAND |
+| Cellular slot | M.2, PCIe on the K43P |
+| Tested modem | Quectel RM520N-GLAP, enumerated at PCIe 2.0 ×1 |
+| Cellular modes | 5G SA, 5G NSA, and LTE with the [RM520N series](https://www.quectel.com/product/5g-rm520n-series/) |
+| SIM selection | SIM 1 and SIM 2 with a compatible dual-SIM modem |
+| WAN / LAN | 1 × 2.5 GbE socket, configurable as WAN or LAN |
+| LAN | 3 × 1 GbE sockets labeled LAN1–LAN3 on the verified K43P layout |
+| Wi-Fi | Dual-band Wi-Fi 6 (802.11ax), 2.4 GHz and 5 GHz |
+| Firmware | LettucePi on OpenWrt 25.12 |
+| Default LAN address | `192.168.100.1` |
+
+The table describes the K43P PCIe board. Related non-P K43 boards can have a
+different modem interface or [Ethernet layout](dtb/README.md).
+
 ## Updating
 
 **Already on OpenWrt 25?** Nothing to type. Go to **System → Settings → System
