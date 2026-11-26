@@ -1,0 +1,4 @@
+#!/bin/sh
+/etc/init.d/chester_scan_recovery enable
+[ ! -f /etc/chester-scan/recovery.json ] || /etc/init.d/chester_scan_recovery start
+exit 0

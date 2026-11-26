@@ -1,0 +1,14 @@
+{
+  "admin/vpn": {
+    "title": "VPN",
+    "order": 40,
+    "action": {"type": "view", "path": "misectel-vpn/chester-client"},
+    "depends": {"acl": ["luci-app-misectel-vpn"]}
+  },
+  "admin/vpn/overview": {"hidden": true},
+  "admin/vpn/wireguard": {"hidden": true},
+  "admin/vpn/openvpn": {"hidden": true},
+  "admin/vpn/l2tp": {"hidden": true},
+  "admin/vpn/pptp": {"hidden": true},
+  "admin/vpn/vxlan": {"hidden": true}
+}

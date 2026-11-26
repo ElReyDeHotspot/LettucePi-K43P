@@ -1,4 +1,6 @@
 #maincontent .st-scan{max-width:1240px}
+#maincontent .st-scan .scan-offline-notice{padding:17px 19px;border:1px solid #bddbfa;border-radius:14px;background:#e6f2ff!important;color:#245584!important;font-size:14px;line-height:1.65}
+html[data-chester-appearance=night] #maincontent .st-scan .scan-offline-notice{background:#19334c!important;color:#bddfff!important;border-color:#355e83}
 #maincontent .st-scan .scan-controls{display:flex;align-items:flex-end;gap:20px;justify-content:space-between}#maincontent .st-scan .scan-controls>.st-field{flex:1;max-width:430px;margin-bottom:0}
 #maincontent .st-scan .scan-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}#maincontent .st-scan .scan-controls+.st-muted{margin-top:17px}
 #maincontent .st-scan .scan-message,#maincontent .st-scan .scan-job{border-radius:13px;padding:15px 17px;background:#e6f2ff;border:1px solid #bddbfa;color:#245584;font-size:14px;margin-top:14px}

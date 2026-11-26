@@ -53,15 +53,16 @@ type Result struct {
 	Supported []string          `json:"supported"`
 }
 type State struct {
-	Elapsed int64   `json:"elapsed"`
-	Running bool    `json:"running"`
-	PID     int     `json:"pid"`
-	Started int64   `json:"started"`
-	Modem   string  `json:"modem"`
-	Mode    string  `json:"mode"`
-	Phase   string  `json:"phase"`
-	Message string  `json:"message"`
-	Result  *Result `json:"result,omitempty"`
+	Recovery *recoveryReport `json:"recovery,omitempty"`
+	Elapsed  int64           `json:"elapsed"`
+	Running  bool            `json:"running"`
+	PID      int             `json:"pid"`
+	Started  int64           `json:"started"`
+	Modem    string          `json:"modem"`
+	Mode     string          `json:"mode"`
+	Phase    string          `json:"phase"`
+	Message  string          `json:"message"`
+	Result   *Result         `json:"result,omitempty"`
 }
 
 func output(v any) { json.NewEncoder(os.Stdout).Encode(v) }
@@ -589,8 +590,17 @@ func contains(a []string, v string) bool {
 	}
 	return false
 }
-func worker(modem, mode string) {
+func inheritedWorkerLock() *os.File {
 	inherited := os.NewFile(3, "scan-lock")
+	if inherited != nil {
+		// Only the worker owns this lock. A guard or AT client inheriting FD 3
+		// would prevent orphan recovery from acquiring the scanner lock.
+		syscall.CloseOnExec(3)
+	}
+	return inherited
+}
+func worker(modem, mode string) {
+	inherited := inheritedWorkerLock()
 	if inherited != nil {
 		defer inherited.Close()
 	}
@@ -601,8 +611,21 @@ func worker(modem, mode string) {
 	s.Mode = mode
 	s.Phase = "running"
 	s.Message = "Reading serving cells, carriers and nearby cells…"
+	s.Recovery = nil
 	atomicState(s)
+	var session *scanSession
 	defer func() {
+		if session != nil {
+			originalPhase, originalMessage := s.Phase, s.Message
+			r, e := restoreSession(session, func(message string) { s.Phase = "restoring"; s.Message = message; atomicState(s) })
+			s.Recovery = r
+			s.Phase = originalPhase
+			s.Message = originalMessage + ". " + r.Message
+			if e != nil {
+				s.Phase = "recovery_failed"
+				s.Message = e.Error()
+			}
+		}
 		s.Running = false
 		s.Elapsed = time.Now().Unix() - s.Started
 		cleanupSIMLock(os.Getpid())
@@ -651,7 +674,16 @@ func worker(modem, mode string) {
 			fail(errors.New("This modem did not confirm support for the selected full scan. Use nearby refresh instead"))
 			return
 		}
-		s.Message = "Scanning nearby networks. Allow up to 5 minutes; closing this page does not stop the scan."
+		s.Phase = "preparing"
+		s.Message = "Saving Original Settings and Checking Cellular Connectivity…"
+		atomicState(s)
+		session, e = prepareSession(modem, port)
+		if e != nil {
+			fail(e)
+			return
+		}
+		s.Phase = "scanning"
+		s.Message = "Cellular Offline — Full Scan in Progress. Service Will Be Restored Automatically."
 		atomicState(s)
 		cmd := "AT+QSCAN=" + map[string]string{"lte": "1", "nr": "2", "all": "3"}[mode]
 		command := cmd + ",1"
@@ -687,6 +719,10 @@ func worker(modem, mode string) {
 	s.Message = fmt.Sprintf("Found %d distinct cells", len(result.Cells))
 }
 func start(modem, mode, accepted string) {
+	if _, e := os.Stat(journalPath); e == nil {
+		output(map[string]any{"success": false, "error": "Original Modem Settings Are Being Recovered. Wait for Recovery to Finish"})
+		return
+	}
 	if !validMode(mode) {
 		output(map[string]any{"success": false, "error": "Choose a valid scan type"})
 		return
@@ -748,6 +784,14 @@ func main() {
 	}
 	if len(os.Args) == 2 && os.Args[1] == "status" {
 		output(status())
+		return
+	}
+	if len(os.Args) == 2 && os.Args[1] == "recover" {
+		recoverOrphan("")
+		return
+	}
+	if len(os.Args) == 3 && os.Args[1] == "guard" {
+		recoverOrphan(os.Args[2])
 		return
 	}
 	if len(os.Args) == 5 && os.Args[1] == "start" {

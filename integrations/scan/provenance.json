@@ -1,0 +1,13 @@
+{
+  "built_date": "2026-11-25",
+  "target": "linux/arm64, CGO_ENABLED=0",
+  "dependencies": "Go standard library only",
+  "binary_sha256": "f98b3ec558516695c487cd77221211f30b7c25d538d044d047dac694a24d2c5b",
+  "sources_sha256": {
+    "main.go": "e48e81becd616275af00daea7f3366939bd1679d1e292f47ac85f686ecac0235",
+    "main_test.go": "402050093c1f9b50f561f54276bdda57c8c305ca03541bc694978061a69de512",
+    "session.go": "4c044b3177a5c70baca06836cda248b862a28f62c07b133f79182f557397219b",
+    "session_test.go": "fd904d88e6c93ae4491e8d694d84c1ab146d54662744458f74ebc179b77ee8e4",
+    "go.mod": "e5d7d3dfb5163e1dd064411ca6f9cdabe20e7f561807eb50c60c5030222e72a6"
+  }
+}

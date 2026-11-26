@@ -1,0 +1,23 @@
+{
+  "tested_date": "2026-11-25",
+  "device": "K43P",
+  "tested_modem": "RM520N-GL",
+  "binary_sha256": "f98b3ec558516695c487cd77221211f30b7c25d538d044d047dac694a24d2c5b",
+  "normal_scan": {
+    "cells": 31,
+    "total_scan_and_recovery_seconds": 34.9,
+    "original_settings_restored": true,
+    "cellular_ipv4_verified": true,
+    "cellular_ipv6_verified": true
+  },
+  "worker_killed_test": {
+    "automatic_compensation_passed": true,
+    "total_test_seconds": 37.6,
+    "original_settings_restored": true,
+    "cellular_ipv4_verified": true,
+    "cellular_ipv6_verified": true
+  },
+  "saved_configuration_hashes_unchanged": true,
+  "no_router_reboot": true,
+  "firmware_image_built": false
+}
