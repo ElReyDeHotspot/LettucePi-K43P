@@ -1,9 +1,8 @@
 # Upgrading a Chester K43P
 
-Every step here was run against a real unit on 2026-08-25: a factory-stock
-M10K43P on OpenWrt 21.02-SNAPSHOT 2.6.0, taken to build `20260825163208`.
-Where something failed, the failure is written down rather than tidied away —
-that is the part worth reading.
+The factory OpenWrt 21 migration was originally tested on a real M10K43P
+running OpenWrt 21.02-SNAPSHOT 2.6.0. The current installer follows the latest
+published full firmware instead of a fixed BIN number.
 
 ---
 
@@ -12,11 +11,16 @@ that is the part worth reading.
 One line, on the router, over SSH:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/refs/heads/main/openwrt25/install.sh | sh
 ```
 
-When prompted, type **`YES` (ALL CAPS)** before it writes anything. Anything
-else cancels the installation.
+The installer selects the **latest published full BIN** on each run. It fetches
+the manifest, image and flash writer from one Git commit, then checks the image
+size, SHA-256 and UBI headers.
+
+**This is a clean OpenWrt 21 → 25 migration: settings are erased and both firmware
+banks are overwritten.** When prompted, type **`YES` (ALL CAPS)** to continue.
+Anything else cancels before the flash writer is replaced or firmware is written.
 
 That script does four things that matter, and **all four are required**:
 
@@ -30,19 +34,19 @@ That script does four things that matter, and **all four are required**:
 
 ## 2. Path B — already on a Chester build
 
-**System Update**, under **Overview**. It compares the build stamped in
-`/etc/chester-version` against `openwrt25/next.json`, downloads, verifies size
-**and** sha256, stages the correct flash writer, and reboots.
+Open **Overview → Update** or **System → System Update**.
 
-> ⚠️ **Settings are erased.** It flashes with `sysupgrade -n`. Wi-Fi name and
-> password, LAN address, admin password, APN and port forwards all return to
-> defaults.
+Current builds check the signed app-update channel. Small app updates verify
+firmware compatibility and file checksums, preserve settings, and restart the
+router without replacing its kernel or calibration.
 
-**If it says "up to date" and you know it is not, the manifest is stale, not
-the router.** The check is a plain string comparison between the manifest's
-`build` and the installed one, so an un-bumped `next.json` reads as "nothing to
-do" rather than as an error. Fix `next.json`, not the router. This has bitten
-us once already.
+Older builds may first offer a full BIN update. Keep **Keep My Settings** enabled
+when that option is offered. The migration command in Path A always performs a
+clean installation and erases settings.
+
+If no update appears, use **Check for Updates** on the System Update page.
+Overview caches successful checks for up to 15 minutes and retries failed checks
+after one minute.
 
 ---
 
@@ -58,10 +62,9 @@ us once already.
 
 ## 4. If it goes wrong
 
-The unit has two banks and the bootloader falls back to the good one, so a
-failed flash leaves you with a working router on an older image rather than a
-brick. Get in over SSH and try again — checking that the writer was actually
-staged before you do.
+The migration writer overwrites both firmware banks, so the old firmware is
+**not retained as a fallback**. Do not disconnect power during installation.
+Recovery from an interrupted flash may require TFTP or serial access.
 
 Verify a download by hand at any time:
 
