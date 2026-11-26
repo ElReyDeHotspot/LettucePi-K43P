@@ -1,0 +1,19 @@
+#!/bin/sh
+# Read-only reboot beacon. No credentials, network settings or update controls.
+case "${REQUEST_METHOD:-GET}" in GET|HEAD) ;; *)
+ printf 'Status: 405 Method Not Allowed\r\nAllow: GET, HEAD\r\n\r\n'; exit 0;;
+esac
+product= version= build= revision=
+while IFS='=' read -r key value; do
+ case "$key" in
+ product) product=$value;; version) version=$value;; build) build=$value;; bin) revision=$value;;
+ esac
+done < /etc/chester-version
+case "$product" in K43P|K45P) ;; *) exit 1;; esac
+case "$version" in ''|*[!0-9.]*) exit 1;; esac
+case "$build:$revision" in *[!0-9:]*|:*|*:) exit 1;; esac
+boot=$(cat /proc/sys/kernel/random/boot_id)
+case "$boot" in ''|*[!0-9a-f-]*) exit 1;; esac
+printf 'Content-Type: application/json\r\nCache-Control: no-store, max-age=0\r\nX-Content-Type-Options: nosniff\r\nCross-Origin-Resource-Policy: same-origin\r\n\r\n'
+[ "${REQUEST_METHOD:-GET}" != HEAD ] || exit 0
+printf '{"product":"%s","version":"%s","build":"%s","revision":"%s","boot":"%s"}\n' "$product" "$version" "$build" "$revision" "$boot"

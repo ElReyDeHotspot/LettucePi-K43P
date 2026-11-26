@@ -226,4 +226,20 @@ exec sleep 60
     assert 'Retry needed to restore chester_sim' in (root / 'log').read_text()
     print('PASS failed service restart is retried by recovery watchdog', flush=True)
 
+    root = top / 'browser-request-id'
+    env, _, _ = fixture(root)
+    request_id = 'c' * 32
+    result = subprocess.run([str(root / 'update'), 'install', request_id], env=env,
+                            capture_output=True, text=True, timeout=10)
+    assert result.returncode == 0 and result.stdout.startswith('OK:')
+    wait_for(lambda: (root / 'job.json').exists() and json.loads((root / 'job.json').read_text())['phase'] == 'failed')
+    wait_for(lambda: not (root / 'state').exists())
+    status = subprocess.check_output([str(root / 'update'), 'job-status'], env=env, text=True)
+    job = json.loads(status)
+    assert job['id'] == request_id and job['recovering'] is False
+    restored(root)
+    bad = subprocess.run([str(root / 'update'), 'install', ';reboot'], env=env, capture_output=True)
+    assert bad.returncode == 2
+    print('PASS browser request identity and post-failure recovery status', flush=True)
+
 print('PASS OTA resource tests; no real network, services, firewall or flash accessed.')

@@ -34,6 +34,7 @@ PART_URL=/tmp/snand-ubi.bin.url
 LOG=/tmp/chester-update.log
 JOB=/tmp/chester-update-job.json
 LOCK=/var/lock/chester-update.lock
+RUN_ID=
 MIN_FREE_KIB=12288
 . /usr/lib/chester/ota-resources.sh
 # Use the branch's full ref to avoid stale responses on the historical short URL.
@@ -72,7 +73,7 @@ newer_build() {
 
 job() {
     umask 077
-    printf '{"phase":"%s","message":"%s"}\n' "$1" "$2" > "$JOB.tmp" &&
+    printf '{"id":"%s","phase":"%s","message":"%s","updated":%s}\n' "$RUN_ID" "$1" "$2" "$(date +%s)" > "$JOB.tmp" &&
         mv -f "$JOB.tmp" "$JOB"
     log "$1: $2"
 }
@@ -243,7 +244,8 @@ status)
 		"$(installed_ver)" "$(installed_date)" "$cur" "$(installed_bin)" "$lv" "$li" "$lb" "$ls" "$lz" "$lN" "$ln" "$upd"
 	;;
 job-status)
-    if [ -s "$JOB" ]; then cat "$JOB"; else printf '{"phase":"idle"}\n'; fi
+    recovering=false; [ ! -d "$OTA_RES_DIR" ] || recovering=true
+    if [ -s "$JOB" ]; then jq --argjson recovering "$recovering" '. + {recovering:$recovering}' "$JOB"; else printf '{"phase":"idle"}\n'; fi
     ;;
 verify-cache)
     read_release || exit 1
@@ -251,7 +253,10 @@ verify-cache)
     printf 'BIN%s cache verified (%s bytes): %s\n' "$(printf '%s' "$m" | jget bin)" "$siz" "$img"
     ;;
 install)
-    launch run-install "$(keep_settings)"
+    RUN_ID=${2:-}
+    case "$RUN_ID" in *[!0-9a-f]*) exit 2;; esac
+    [ -z "$RUN_ID" ] || [ "${#RUN_ID}" = 32 ] || exit 2
+    launch run-install "$(keep_settings)" "$RUN_ID"
     ;;
 install-local)
     # Root CLI staging for a locally built image. This action has no LuCI ACL.
@@ -262,6 +267,7 @@ install-local)
 run-install)
     flock -xn 9 || exit 1
     keep=$2
+    RUN_ID=${3:-}
     stage_remote
     stage_flash
     ;;

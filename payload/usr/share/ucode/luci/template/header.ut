@@ -7,7 +7,7 @@
 	include(`themes/${theme}/header`);
 -%}
 
-<script src="{{ resource }}/luci.js?v=26.271.19062~e43a8f9-{{ pkgs_update_time }}-chester-live-218"></script>
+<script src="{{ resource }}/luci.js?v=26.271.19062~e43a8f9-{{ pkgs_update_time }}-chester-live-223"></script>
 <script src="{{ resource }}/chester-ui/session-expiry.js?v=20261122-1"></script>
 <script>
 	L = new LuCI({{ replace(`${ {
