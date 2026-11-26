@@ -1,0 +1,21 @@
+{
+  "admin/modem/scan": {
+    "title": "Band / Tower Scan",
+    "order": 43,
+    "action": {
+      "type": "view",
+      "path": "lettucepi/scan"
+    },
+    "depends": {
+      "acl": ["luci-app-chester-scan"],
+      "fs": { "/usr/libexec/chester-scan": "executable" }
+    }
+  },
+  "admin/chester/scan": {
+    "hidden": true,
+    "action": {
+      "type": "alias",
+      "path": "admin/modem/scan"
+    }
+  }
+}

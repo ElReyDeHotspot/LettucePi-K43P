@@ -1,0 +1,1 @@
+{"luci-app-chester-scan":{"description":"View and run Chester cellular scans","read":{"ubus":{"chester.scan":["status"]},"uci":["qmodem"]},"write":{"ubus":{"chester.scan":["start"]}}}}

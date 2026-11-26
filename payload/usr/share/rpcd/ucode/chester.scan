@@ -1,0 +1,11 @@
+#!/usr/bin/ucode
+'use strict';
+import {popen} from 'fs';
+function call(args){let f=popen('/usr/libexec/chester-scan '+args,'r');if(!f)return {success:false,error:'Scanner is unavailable'};let text=f.read('all');f.close();try{return json(text);}catch(e){return {success:false,error:'Could not read scanner response'};}}
+return {'chester.scan':{
+ status:{call:()=>call('status')},
+ start:{args:{modem:'String',mode:'String',accepted:'String'},call:r=>{
+  let a=r.args;if(!match(a.modem||'',/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,31}$/)||index(['nearby','lte','nr','all'],a.mode)<0)return {success:false,error:'Choose a modem and scan type'};
+  return call('start '+a.modem+' '+a.mode+' '+(a.accepted=='1'?'1':'0'));
+ }}
+}};
