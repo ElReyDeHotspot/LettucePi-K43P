@@ -1,0 +1,18 @@
+#!/bin/sh
+# NOARP modem data interfaces cannot always generate a link-local address.
+logical=$1
+dev=$2
+case "$logical:$dev" in *[!A-Za-z0-9_.:@-]*) exit 1;; esac
+[ -n "$(uci -q get "network.$logical.modem_config")" ] || exit 0
+ip -o link show dev "$dev" 2>/dev/null | grep -q NOARP || exit 0
+# odhcp6c owns RA processing here. A parallel kernel SLAAC /64 route sends
+# LAN-client replies back toward the modem instead of the LAN.
+echo 0 > "/proc/sys/net/ipv6/conf/$dev/autoconf" || exit 1
+echo 0 > "/proc/sys/net/ipv6/conf/$dev/accept_ra" || exit 1
+ip -6 addr flush dev "$dev" scope global || exit 1
+ip -6 addr show dev "$dev" scope link 2>/dev/null | grep -q 'inet6 fe80:' && exit 0
+identity=$(cat /sys/class/net/br-lan/address 2>/dev/null)
+[ -n "$identity" ] || exit 1
+digest=$(printf '%s:%s' "$identity" "$dev" | sha256sum | cut -c1-16)
+linklocal=$(printf '%s' "$digest" | sed 's/^\(....\)\(....\)\(....\)\(....\)$/fe80::\1:\2:\3:\4/')
+ip -6 addr add "$linklocal/64" dev "$dev" scope link nodad

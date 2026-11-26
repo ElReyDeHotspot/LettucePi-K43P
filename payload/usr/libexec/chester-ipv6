@@ -1,0 +1,107 @@
+#!/usr/bin/ucode
+'use strict';
+import {cursor} from 'uci';
+import {connect} from 'ubus';
+import {readfile,open,popen,mkdir,rmdir,rename,unlink,chmod,readlink,stat} from 'fs';
+import {validate,plan,activeMode,ipv6} from '/usr/share/chester/ipv6.uc';
+const DIR='/etc/chester-ipv6',JOURNAL=DIR+'/transaction.json',LOCK='/tmp/chester-ipv6.lock',RUNTIME='/tmp/chester-ipv6';
+const CONFIGS=['network','dhcp','firewall','chester_ipv6'];
+let bus=connect();
+function q(s){return "'"+replace(''+s,"'","'\\''")+"'";}
+function command(s){let p=popen(s,'r');if(!p)return {code:1,output:''};let output=p.read(262144);let code=p.close();return {code:code,output:output||''};}
+function jsonfile(path){try{return json(readfile(path)||'{}');}catch(e){return {};}}
+function write(path,data){let f=open(path+'.new','w',0600);if(!f)die('Could not write settings.');let ok=f.write(data)==length(data);f.close();if(!ok||!rename(path+'.new',path)){unlink(path+'.new');die('Could not save settings.');}chmod(path,0600);}
+function call(object,method,args){try{return bus.call(object,method,args||{})||{};}catch(e){return {};}}
+function arr(v){return type(v)=='array'?v:v==null?[]:split(''+v,' ');}
+function revision(){return trim(command('sha256sum /etc/config/network /etc/config/dhcp /etc/config/firewall /etc/config/chester_ipv6 2>/dev/null').output);}
+function globalIP(address){return ipv6(address||'')&&!match(lc(address),/^(f[cd]|fe[89ab]|ff|::)/);}
+function context(){
+ let u=cursor(),all=call('network.interface','dump').interface||[],iface='',best={};
+ u.foreach('network','interface',s=>{if(s.proto!='dhcpv6')return;let parent=replace(s.device||s.ifname||'','@','');if(!s.modem_config&&!u.get('network',parent,'modem_config'))return;let live={};for(let item in all)if(item.interface==s['.name'])live=item;if(!iface||live.up&&!best.up){iface=s['.name'];best=live;}});
+ let lan={};for(let item in all)if(item.interface=='lan')lan=item;
+ let lan_zone='',wan_zone='';u.foreach('firewall','zone',s=>{let names=arr(s.network);if(index(names,'lan')>=0)lan_zone=s.name;if(index(names,iface)>=0)wan_zone=s.name;});
+ let lan_dns=arr(u.get('dhcp','lan','dns')),address='',mask=0;for(let a in best['ipv6-address']||[])if(globalIP(a.address)){address=a.address;mask=a.mask;break;}
+ let evidence=jsonfile(RUNTIME+'/uplink-'+iface+'.json'),prefixes=best['ipv6-prefix']||[];
+ let has_pd=evidence.has_pd===true;for(let p in prefixes)if(p.mask<64)has_pd=true;
+ let shared64=!has_pd&&!!address&&(mask==64||!!match(evidence.ra||'',/\/64,/)),noarp=!!(int(replace(trim(readfile('/sys/class/net/'+(best.l3_device||'')+'/flags')||'0'),/^0x/,''),16)&128);
+ let addresses=[];for(let p in lan['ipv6-prefix-assignment']||[]){let a=p['local-address']?.address;if(a)push(addresses,{address:a,mask:p['local-address'].mask});}for(let a in lan['ipv6-address']||[])push(addresses,a);
+ let primary='';for(let a in addresses)if(globalIP(a.address)){primary=a.address;break;}if(!primary&&length(addresses))primary=addresses[0].address;
+ let saved=u.get('chester_ipv6','main'),mode=u.get('chester_ipv6','main','mode')||((u.get('dhcp','lan','ra')=='disabled')?'disabled':'auto');
+ let dhcp=u.get('dhcp','lan','dhcpv6')||'disabled';if(dhcp=='server')dhcp=u.get('dhcp','lan','dhcpv6_na')=='0'?'stateless':'stateful';if(dhcp=='relay')dhcp='stateless';
+ let s={mode:mode,slaac:u.get('dhcp','lan','ra_slaac')!='0',dhcpv6:dhcp,prefix:u.get('network',iface,'reqprefix')||'auto',dns:u.get('chester_ipv6','main','dns')||'auto',custom_dns:arr(u.get('chester_ipv6','main','custom_dns')),firewall:u.get('chester_ipv6','main','firewall')!='0',recovery:u.get('chester_ipv6','main','recovery')=='1'};
+ for(let key in ['slaac','dhcpv6','prefix']){let v=u.get('chester_ipv6','main',key);if(v!=null)s[key]=key=='slaac'?v=='1':v;}
+ let ula=u.get('network','globals','ula_prefix')||'';
+ return {u:u,settings:s,managed:!!saved,interface:iface,device:best.l3_device||'',up:!!best.up,address:address,mask:mask,prefix:length(prefixes)?prefixes[0].address+'/'+prefixes[0].mask:'',has_pd:has_pd,shared64:shared64,noarp:noarp,lan:lan,lan_device:lan.l3_device||'br-lan',lan_address:primary,lan_addresses:addresses,lan_dns:lan_dns,lan_zone:lan_zone,wan_zone:wan_zone,ula:ula,evidence:evidence,ra:u.get('dhcp','lan','ra')||'disabled'};
+}
+function status(){let c=context(),enabled=c.settings.mode!='disabled';return {success:true,settings:c.settings,revision:revision(),enabled:enabled,interface:c.interface,device:c.device,upstream_up:c.up,upstream_address:c.address,upstream_prefix:c.prefix,address:c.address,prefix:c.prefix,state:c.up&&c.address?'connected':'disconnected',lan_address:c.lan_address,ra:c.ra,dhcpv6:c.settings.dhcpv6,address_method:c.settings.slaac?(c.settings.dhcpv6=='stateful'?'SLAAC + DHCPv6':'SLAAC'):'DHCPv6',active_mode:enabled?activeMode(c.settings,c):'disabled',prefix_delegation:c.has_pd?'Delegated Prefix':c.shared64?'Shared /64':'Not Available',last_test:jsonfile(RUNTIME+'/test.json'),capabilities:{pd:c.has_pd,relay:c.shared64,passthrough:false,nat66:!!c.ula},delegated_prefix:c.has_pd?c.prefix:'',managed:c.managed,last_mode:c.u.get('chester_ipv6','main','last_mode')||'auto'};}
+function acquire(){if(!mkdir(LOCK,0700)){let pid=trim(readfile(LOCK+'/pid')||'');if(match(pid,/^[0-9]+$/)&&index(readfile('/proc/'+pid+'/cmdline')||'','chester-ipv6')>=0)die('Another IPv6 operation is running.');unlink(LOCK+'/pid');if(!rmdir(LOCK)||!mkdir(LOCK,0700))die('IPv6 is busy.');}write(LOCK+'/pid',readlink('/proc/self'));}
+function release(){unlink(LOCK+'/pid');rmdir(LOCK);}
+function services(){let r=command('ubus -t 8 call network reload >/dev/null 2>&1 && /etc/init.d/odhcpd restart >/dev/null 2>&1 && /etc/init.d/firewall reload >/dev/null 2>&1');if(r.code!=0)die('A network service could not reload.');}
+function recover(){let j=jsonfile(JOURNAL);if(!j.configs)return false;for(let name in CONFIGS){let text=j.configs[name];if(text==null)unlink('/etc/config/'+name);else write('/etc/config/'+name,text);}services();unlink(JOURNAL);return true;}
+function section(u,config,sid,type,values){if(u.get(config,sid)&&u.get(config,sid,'chester_ipv6')!='1')die('A custom section already uses '+sid+'.');if(!u.get(config,sid)&&!u.set(config,sid,type))die('Could not create '+sid+'.');for(let k,v in values)if(!u.set(config,sid,k,v))die('Could not set '+k+'.');u.set(config,sid,'chester_ipv6','1');}
+function removeManaged(u,config,sid){if(u.get(config,sid,'chester_ipv6')=='1')u.delete(config,sid);}
+function probe(device,source,size,wait){let args=source?'-I '+q(source):'-I '+q(device);let result=command('ping -6 '+args+' -c 1 -W '+(wait||3)+' '+(size?'-s '+size+' ':'')+'2606:4700:4700::1111 2>&1');let latency=match(result.output,/time[=<]([0-9.]+) ms/);return {ok:result.code==0,latency_ms:latency?latency[1]:null};}
+function save(raw,internal){
+ if(stat('/tmp/chester-sim.lock')||stat('/tmp/chester-link-test.lock'))die('Wait for the SIM operation or link test to finish before changing IPv6.');
+ let s=validate(raw.settings||raw),c=context();if(raw.revision!=null&&raw.revision!=revision())die('Settings changed in another page. Refresh before applying.');
+ if(length(command('uci -q changes network; uci -q changes dhcp; uci -q changes firewall; uci -q changes chester_ipv6').output))die('Apply or revert pending network changes first.');
+ if(s.mode=='pd'&&!c.has_pd)die('This carrier has not supplied a delegated prefix. Use Automatic or Native /64 Relay.');
+ if(s.mode=='relay'&&!c.shared64)die('This connection does not provide a shared /64. Use Automatic.');
+ let p=plan(s,c,c),u=c.u;
+ if((p.nat66||p.disabled)&&!match(c.ula,/^f[cd][0-9a-fA-F:]+\/[0-9]+$/)&&p.nat66)die('Set a valid local IPv6 prefix in Local LAN before using NAT66.');
+ mkdir(DIR,0700);chmod(DIR,0700);let backup={configs:{},created:time()};for(let name in CONFIGS)backup.configs[name]=readfile('/etc/config/'+name);write(JOURNAL,sprintf('%J',backup));
+ try{
+  if(readfile('/etc/config/chester_ipv6')==null){write('/etc/config/chester_ipv6','');u.unload('chester_ipv6');u.load('chester_ipv6');}
+  if(!u.get('chester_ipv6','main'))u.set('chester_ipv6','main','settings');
+  for(let k,v in s)if(k!='enabled'){if(type(v)=='array'&&!length(v))u.delete('chester_ipv6','main',k);else if(!u.set('chester_ipv6','main',k,type(v)=='bool'?(v?'1':'0'):v))die('Could not save '+k+'.');}
+  u.set('chester_ipv6','main','active_mode',p.active);if(s.mode!='disabled')u.set('chester_ipv6','main','last_mode',s.mode);
+  for(let change in p.changes){if(change.value==null)u.delete(change.config,change.sid,change.key);else if(!u.set(change.config,change.sid,change.key,change.value))die('Could not apply '+change.key+'.');}
+  if(p.relay_master)section(u,'dhcp','chester_ipv6_upstream','dhcp',{interface:c.interface,ignore:'0',master:'1',ra:'disabled',dhcpv6:'disabled',ndp:'relay'});else removeManaged(u,'dhcp','chester_ipv6_upstream');
+  if(p.nat66)section(u,'firewall','chester_ipv6_nat66','nat',{name:'Chester IPv6 NAT66',src:c.wan_zone,src_ip:c.ula,family:'ipv6',proto:'all',target:'MASQUERADE'});else removeManaged(u,'firewall','chester_ipv6_nat66');
+  if(p.inbound)section(u,'firewall','chester_ipv6_inbound','rule',{name:'Chester IPv6 Inbound Access',src:c.wan_zone,dest:c.lan_zone,family:'ipv6',proto:'all',target:'ACCEPT'});else removeManaged(u,'firewall','chester_ipv6_inbound');
+  if(p.disabled)section(u,'firewall','chester_ipv6_disabled','rule',{name:'Chester IPv6 Disabled',src:c.lan_zone,dest:'*',family:'ipv6',proto:'all',target:'REJECT'});else removeManaged(u,'firewall','chester_ipv6_disabled');
+  for(let name in CONFIGS)if(!u.commit(name))die('Could not commit IPv6 settings.');
+  if(command('fw4 check >/dev/null 2>&1').code!=0)die('Firewall validation failed.');
+  services();if(p.disabled)call('network.interface.'+c.interface,'down');
+  if(s.enabled&&(c.up&&c.address||c.settings.mode=='disabled')){let healthy=false;for(let attempt=0;attempt<3;attempt++){let live=context();if(live.up&&live.address&&live.lan_address&&probe(live.device,null,null,1).ok&&probe(live.device,live.lan_address,null,1).ok){healthy=true;break;}command('sleep 1');}if(!healthy)die('The new mode did not restore usable cellular and LAN IPv6.');}
+  unlink(JOURNAL);unlink(RUNTIME+'/test.json');
+ }catch(e){for(let name in CONFIGS)u.revert(name);recover();die('IPv6 changes were rolled back: '+e);}
+ if(!internal)command('/etc/init.d/chester_ipv6 restart >/dev/null 2>&1');
+ return status();
+}
+
+function test(){
+ let c=context(),checks=[],enabled=c.settings.mode!='disabled',reachable=false;
+ let add=(id,label,state,detail)=>push(checks,{id:id,label:label,state:state,detail:detail});
+ let internet=c.up&&c.address&&c.device?probe(c.device):{ok:false};reachable=internet.ok;
+ add('wan','WAN IPv6 Connectivity',internet.ok?'passed':'failed',internet.ok?'Cellular-bound reply'+(internet.latency_ms?'  /  '+internet.latency_ms+' ms':''):'No reply over the cellular interface.');
+ let route=c.device?command('ip -6 route show default dev '+q(c.device)).output:'';
+ add('route','IPv6 Default Route',length(trim(route))?'passed':'failed',length(trim(route))?'Cellular default route is present.':'No cellular IPv6 default route.');
+ let lanOK=enabled&&(c.ra=='server'||c.ra=='relay')&&!!c.lan_address;
+ add('lan','LAN IPv6 Addressing',!enabled?'disabled':lanOK?'passed':'failed',!enabled?'IPv6 is disabled.':lanOK?'LAN address and advertisements are configured.':'LAN IPv6 addressing is not ready.');
+ let dns=command('resolveip -6 -t 3 cloudflare.com 2>/dev/null');
+ add('dns','IPv6 DNS Resolution',dns.code==0&&length(trim(dns.output))?'passed':'failed','AAAA lookup through the router resolver; DNS transport may be IPv4.');
+ let forward=trim(readfile('/proc/sys/net/ipv6/conf/all/forwarding')||'')=='1',source='';for(let a in c.lan_addresses)if(globalIP(a.address)){source=a.address;break;}
+ if(!source&&c.settings.mode=='nat66')source=c.lan_address;
+ let lanProbe=enabled&&source&&c.device?probe(c.device,source):{ok:false};
+ add('forward','IPv6 Forwarding',!enabled?'disabled':forward&&lanProbe.ok?'passed':'failed',!enabled?'IPv6 is disabled.':lanProbe.ok?'LAN-source reachability and kernel forwarding passed. Client traffic still depends on client configuration.':'LAN-source traffic did not reach the Internet.');
+ let mtu=reachable?probe(c.device,null,1232):{ok:false};
+ add('mtu','Path MTU Discovery',mtu.ok?'partial':'failed',mtu.ok?'1280-byte IPv6 packet passed. Full path-MTU discovery was not measured.':'IPv6 minimum-size packet did not get a reply.');
+ let result={success:true,ok:internet.ok&&lanProbe.ok&&forward&&enabled,checks:checks,timestamp:time(),scope:'Router and LAN-source checks; not an end-to-end test of every LAN device.'};mkdir(RUNTIME,0700);write(RUNTIME+'/test.json',sprintf('%J',result));return result;
+}
+function event(){let iface=ARGV[1]||'';if(!match(iface,/^[A-Za-z0-9_.-]{1,40}$/))return {};mkdir(RUNTIME,0700);let prefixes=ARGV[3]||'',ra=ARGV[4]||'';write(RUNTIME+'/uplink-'+iface+'.json',sprintf('%J',{has_pd:length(trim(prefixes))>0,prefixes:substr(prefixes,0,1024),ra:substr(ra,0,1024),event:ARGV[2],timestamp:time()}));return {};}
+function tick(){
+ if(readfile('/tmp/chester-sim.lock/owner')!=null||stat('/tmp/chester-sim.lock')||stat('/tmp/chester-link-test.lock'))return {};
+ let c=context();if(!c.managed){if(!c.interface)return {};return save({settings:c.settings},true);}if(c.settings.mode=='disabled')return {};
+ let journal=jsonfile(RUNTIME+'/recovery.json'),now=time();
+ if(c.up&&c.address){let wanted=activeMode(c.settings,c),applied=c.u.get('chester_ipv6','main','active_mode');if(c.settings.mode=='auto'&&wanted!=applied){let result=save({settings:c.settings},true);return result;}return {};}
+ if(!c.settings.recovery||journal.next>now)return {};
+ let attempts=journal.hour&&now-journal.hour<3600?(journal.attempts||0):0;
+ if(attempts>=3)return {};call('network.interface.'+c.interface,'up');mkdir(RUNTIME,0700);write(RUNTIME+'/recovery.json',sprintf('%J',{hour:attempts?journal.hour:now,attempts:attempts+1,next:now+120}));return {};
+}
+let action=ARGV[0]||'status',result,locked=false;
+try{
+ if(action=='status')result=status();else if(action=='event')result=event();else {acquire();locked=true;if(action=='recover'){result={success:true,recovered:recover()};}else if(readfile(JOURNAL)!=null){recover();die('Interrupted IPv6 changes were restored. Refresh and try again.');}else if(action=='bootstrap'){let c=context();result=c.managed?status():save({settings:c.settings},true);}else if(action=='save')result=save(json(ARGV[1]||'{}'));else if(action=='test')result=test();else if(action=='tick')result=tick();else if(action=='toggle'){let raw=json(ARGV[1]||'{}'),s=context().settings;if(raw.enabled===true||raw.enabled=='1')s.mode=s.mode=='disabled'?'auto':s.mode;else if(raw.enabled===false||raw.enabled=='0')s.mode='disabled';else die('Choose Enable or Disable.');result=save({settings:s});}else die('Unknown IPv6 action.');}
+}catch(e){result={success:false,error:''+e};}
+if(locked)release();
+printf('%J\n',result||{success:true});

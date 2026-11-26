@@ -1,0 +1,7 @@
+#!/bin/sh
+[ "$(readlink /etc/rc.d/S99ubus-at-daemon)" != ../init.d/ubus-at-daemon ] || rm -f /etc/rc.d/S99ubus-at-daemon
+/etc/init.d/ubus-at-daemon enable
+/etc/init.d/ubus-at-daemon start
+/etc/init.d/chester_ipv6 enable
+/etc/init.d/chester_ipv6 start
+exit 0

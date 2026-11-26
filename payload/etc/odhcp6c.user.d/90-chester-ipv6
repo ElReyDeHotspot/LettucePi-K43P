@@ -1,0 +1,5 @@
+#!/bin/sh
+# Record actual DHCPv6-PD separately from the vendor's RFC 7278 /64 extension.
+case "$INTERFACE" in ''|*[!A-Za-z0-9_.-]*) return 0;; esac
+[ -n "$(uci -q get "network.$INTERFACE.modem_config")" ] || return 0
+/usr/libexec/chester-ipv6 event "$INTERFACE" "$2" "$PREFIXES" "$RA_ADDRESSES" >/dev/null 2>&1

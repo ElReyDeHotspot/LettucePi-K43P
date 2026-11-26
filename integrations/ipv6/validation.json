@@ -1,0 +1,82 @@
+{
+  "date": "2026-11-26",
+  "board": "K43P",
+  "status": "passed",
+  "kernel": "6.12.85",
+  "modes": {
+    "automatic": "router and real LAN client passed",
+    "native_64": "router and real LAN client passed",
+    "nat66": "router and real LAN client passed",
+    "disabled": "IPv6 client blocked; IPv4 stayed online",
+    "passthrough": "excluded",
+    "dhcpv6_pd": "not supplied by test carrier; hidden and rejected without real delegation"
+  },
+  "checks": {
+    "nat66_client": true,
+    "reject_passthrough": true,
+    "reject_pd": true,
+    "stale_revision": true,
+    "reject_invalid_dns": true,
+    "disable": true,
+    "enable_automatic": true,
+    "automatic_client": true,
+    "native_relay": true,
+    "dns_cloudflare": true,
+    "dns_google": true,
+    "dns_quad9": true,
+    "dns_manual": true,
+    "stateful_without_slaac": true,
+    "slaac_stateless": true,
+    "stateful_firewall_toggle": true,
+    "bounded_recovery": true,
+    "recovery_off": true,
+    "failed_apply_rollback": true,
+    "interrupted_transaction_recovery": true,
+    "final_client": true
+  },
+  "reboot": {
+    "ipv4_client_tcp": true,
+    "ipv6_client_tcp": true,
+    "original_selections_restored": true,
+    "ipv4_settings_preserved": true,
+    "kernel_unchanged": true,
+    "unhealthy_apply_rollback": true,
+    "manual_dns_cleared": true,
+    "note": "Connectivity verified after cellular registration and LAN prefix advertisements settled. IPv6 UCI options are normalized by the new backend."
+  },
+  "ui": {
+    "day": "verified",
+    "night": "verified",
+    "phone_width": 390,
+    "phone_test_connection": "passed",
+    "save_apply": "passed",
+    "manual_dns_validation": "passed"
+  },
+  "limits": [
+    "DHCPv6-PD requires carrier support and was not live-tested on this connection.",
+    "Diagnostics check router/LAN-source paths; separate real-client TCP checks were also run.",
+    "1280-byte packet check passed; full path-MTU discovery was not measured.",
+    "SLAAC-free DHCPv6 configuration was tested; client DHCPv6 support varies."
+  ],
+  "payload_sha256": {
+    "usr/share/chester/ipv6.uc": "2e50009534764aa9a71d9860e3222edda21e36bd4453d087707cf97d7b4c600f",
+    "usr/libexec/chester-ipv6": "29c5fada512cac10e29d1cc102e726dc6bd08ca6002ca8b3d72332b73bc3cfae",
+    "usr/share/rpcd/ucode/chester.ipv6": "0e9ff2c0184c7b6f7017635bddfbf55f100665000e1e73fd5b29ced0649e6bde",
+    "usr/libexec/rpcd/chester_ipv6": "398ac7dec90db9fc23678d779f52a9159a250963b2d0bafdc178cdde86acf3a3",
+    "etc/init.d/chester_ipv6": "7b9155eefa3e22d8863cab2af735103f8076ed1274f9dcf570200acea72119f5",
+    "usr/libexec/chester-ipv6-watch": "48c46f41725e185b8d50563d0a8e988ff5ec27d7d6bb37a0cffbbae5230c3eed",
+    "etc/odhcp6c.user.d/90-chester-ipv6": "a2177e8714eff99e33ecb1732dac88ac20182f0bc16870df5d1a802dd64d3196",
+    "etc/uci-defaults/98-chester-ipv6": "d807f4e785472fcd05b1b95359f14bc73ede4bdccfad5e8c09b710587b227b18",
+    "lib/upgrade/keep.d/chester-ipv6": "09d61e0bc8849386032d3b49187ea70243e2d21dd708ef113bb1f9ed5c840dfd",
+    "usr/share/rpcd/acl.d/luci-app-chester-ipv6.json": "b56a233d0534ebf49a9f1f00f2b68756656d8a51e7caab51aa9b35487a345292",
+    "usr/share/luci/menu.d/luci-app-chester-ipv6.json": "0b4ab09999b802708cb23eef4a8fcec4d528d1fb7c0ae11055336da7872536bc",
+    "www/luci-static/resources/view/misectel-modem/ipv6.js": "459f5a08435b2f4f39f984309ff784525891144919f0e6bc61f86ff9ad3aa0c3",
+    "www/luci-static/resources/chester-ui/ipv6.css": "6443c9954ad17331a7a06bf6f5f0370e180ab4a72bd74a5c23ceef8e504526cb",
+    "usr/libexec/chester-ipv6-linklocal": "a10469f53e3f3a008cbd3f3d779daa890fb84d14cd71df2451312efcef3ff992",
+    "lib/netifd/proto/dhcpv6.sh": "ad06162b1f19d69ded7b8a1084d48678129d81373d72067e9d85b7e7bc6d4406",
+    "lib/netifd/dhcpv6.script": "abf780efd2fe59c106d1e1a077021c967b89e6ca4838f573aef2184674e36ddf",
+    "etc/init.d/ubus-at-daemon": "3704eb91afe08c3b9632d642ce180cb102be73a9b7d2a48bde77452066eb5c11",
+    "etc/hotplug.d/iface/99-chester-ipv6": "eac5856b071cab7a0a44446c1f74a014ab2df96cae82487f9265de82ce79c457"
+  },
+  "firmware_built": false
+}

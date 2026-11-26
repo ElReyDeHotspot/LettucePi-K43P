@@ -1,0 +1,5 @@
+#!/bin/sh
+while :; do
+ sleep 30
+ /usr/libexec/chester-ipv6 tick >/dev/null 2>&1
+done
