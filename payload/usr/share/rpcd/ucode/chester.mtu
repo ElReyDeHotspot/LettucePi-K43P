@@ -1,0 +1,6 @@
+#!/usr/bin/ucode
+'use strict';
+import {popen} from 'fs';
+function q(s){return "'"+replace(s||'',"'","'\\''")+"'";}
+function run(action,input){if(length(input||'')>4096)return {success:false,error:'MTU settings are too large.'};let p=popen('/usr/libexec/chester-mtu '+action+(input?' '+q(input):''),'r');if(!p)return {success:false,error:'MTU service unavailable.'};let text=p.read(65536);p.close();try{return json(text);}catch(e){return {success:false,error:'MTU service returned an invalid response.'};}}
+return {'chester.mtu':{status:{call:()=>run('status')},save:{args:{settings:'String'},call:r=>run('save',r.args.settings)},test:{call:()=>run('test')}}};

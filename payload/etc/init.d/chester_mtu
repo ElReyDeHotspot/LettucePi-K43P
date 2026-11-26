@@ -1,0 +1,7 @@
+#!/bin/sh /etc/rc.common
+START=97
+start() {
+ ubus -t 2 call network.interface.lan status >/dev/null 2>&1 || return 0
+ /usr/libexec/chester-mtu recover >/dev/null
+ /usr/libexec/chester-mtu refresh >/dev/null
+}

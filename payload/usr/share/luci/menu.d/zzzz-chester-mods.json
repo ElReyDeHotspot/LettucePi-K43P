@@ -1,0 +1,92 @@
+{
+  "admin/chester": {
+    "title": "Chester Mods",
+    "order": 24,
+    "action": {
+      "type": "firstchild",
+      "recurse": true
+    }
+  },
+  "admin/chester/failover": {
+    "title": "Failover",
+    "order": 10,
+    "action": {
+      "type": "view",
+      "path": "lettucepi/failover"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-k45p-failover"
+      ]
+    }
+  },
+  "admin/chester/vlans": {
+    "title": "VLANs",
+    "order": 60,
+    "action": {
+      "type": "view",
+      "path": "lettucepi/vlans"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-chester-vlans"
+      ]
+    }
+  },
+  "admin/chester/terminal": {
+    "title": "Terminal",
+    "order": 80,
+    "action": {
+      "type": "view",
+      "path": "ttyd/term"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-ttyd"
+      ],
+      "uci": {
+        "ttyd": true
+      }
+    }
+  },
+  "admin/chester/terminal/config": {
+    "title": "Config",
+    "order": 2,
+    "action": {
+      "type": "view",
+      "path": "ttyd/config"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-ttyd"
+      ],
+      "uci": {
+        "ttyd": true
+      }
+    }
+  },
+  "admin/chester/speeds": {
+    "title": "Speeds",
+    "order": 30,
+    "action": {
+      "type": "view",
+      "path": "lettucepi/speedtest"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-lettucepi-speedtest"
+      ]
+    }
+  },
+  "admin/chester/ookla": {
+    "action": {
+      "type": "view",
+      "path": "lettucepi/speeds-redirect"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-lettucepi-speedtest"
+      ]
+    }
+  }
+}

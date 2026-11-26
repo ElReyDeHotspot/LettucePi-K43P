@@ -44,7 +44,7 @@ function section(u,config,sid,type,values){if(u.get(config,sid)&&u.get(config,si
 function removeManaged(u,config,sid){if(u.get(config,sid,'chester_ipv6')=='1')u.delete(config,sid);}
 function probe(device,source,size,wait){let args=source?'-I '+q(source):'-I '+q(device);let result=command('ping -6 '+args+' -c 1 -W '+(wait||3)+' '+(size?'-s '+size+' ':'')+'2606:4700:4700::1111 2>&1');let latency=match(result.output,/time[=<]([0-9.]+) ms/);return {ok:result.code==0,latency_ms:latency?latency[1]:null};}
 function save(raw,internal){
- if(stat('/tmp/chester-sim.lock')||stat('/tmp/chester-link-test.lock'))die('Wait for the SIM operation or link test to finish before changing IPv6.');
+ if(stat('/tmp/chester-sim.lock')||stat('/tmp/chester-link-test.lock')||stat('/tmp/chester-mtu.lock'))die('Wait for the SIM operation or link test to finish before changing IPv6.');
  let s=validate(raw.settings||raw),c=context();if(raw.revision!=null&&raw.revision!=revision())die('Settings changed in another page. Refresh before applying.');
  if(length(command('uci -q changes network; uci -q changes dhcp; uci -q changes firewall; uci -q changes chester_ipv6').output))die('Apply or revert pending network changes first.');
  if(s.mode=='pd'&&!c.has_pd)die('This carrier has not supplied a delegated prefix. Use Automatic or Native /64 Relay.');
@@ -93,7 +93,7 @@ function test(){
 }
 function event(){let iface=ARGV[1]||'';if(!match(iface,/^[A-Za-z0-9_.-]{1,40}$/))return {};mkdir(RUNTIME,0700);let prefixes=ARGV[3]||'',ra=ARGV[4]||'';write(RUNTIME+'/uplink-'+iface+'.json',sprintf('%J',{has_pd:length(trim(prefixes))>0,prefixes:substr(prefixes,0,1024),ra:substr(ra,0,1024),event:ARGV[2],timestamp:time()}));return {};}
 function tick(){
- if(readfile('/tmp/chester-sim.lock/owner')!=null||stat('/tmp/chester-sim.lock')||stat('/tmp/chester-link-test.lock'))return {};
+ if(readfile('/tmp/chester-sim.lock/owner')!=null||stat('/tmp/chester-sim.lock')||stat('/tmp/chester-link-test.lock')||stat('/tmp/chester-mtu.lock'))return {};
  let c=context();if(!c.managed){if(!c.interface)return {};return save({settings:c.settings},true);}if(c.settings.mode=='disabled')return {};
  let journal=jsonfile(RUNTIME+'/recovery.json'),now=time();
  if(c.up&&c.address){let wanted=activeMode(c.settings,c),applied=c.u.get('chester_ipv6','main','active_mode');if(c.settings.mode=='auto'&&wanted!=applied){let result=save({settings:c.settings},true);return result;}return {};}

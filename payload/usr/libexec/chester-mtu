@@ -1,0 +1,110 @@
+#!/usr/bin/ucode
+'use strict';
+import {cursor} from 'uci';
+import {connect} from 'ubus';
+import {readfile,open,popen,mkdir,rmdir,rename,unlink,chmod,readlink,stat} from 'fs';
+import {defaults,validate,rules} from '/usr/share/chester/mtu.uc';
+const DIR='/etc/chester-mtu',RUN='/tmp/chester-mtu',LOCK='/tmp/chester-mtu.lock',JOURNAL=DIR+'/transaction.json';
+const CONFIGS=['network','firewall','chester_mtu'],FILES=[DIR+'/mss-forward.nft',DIR+'/mss-post.nft'];
+let bus=connect();
+function q(s){return "'"+replace(''+s,"'","'\\''")+"'";}
+function command(s){let p=popen(s,'r');if(!p)return {code:1,output:''};let output=p.read(131072),code=p.close();return {code:code,output:output||''};}
+function call(object,method,args){try{return bus.call(object,method,args||{})||{};}catch(e){return {};}}
+function arr(v){return type(v)=='array'?v:v==null?[]:split(''+v,' ');}
+function jsonfile(path){try{return json(readfile(path)||'{}');}catch(e){return {};}}
+function write(path,data){let f=open(path+'.new','w',0600);if(!f)die('Could not write MTU settings.');let ok=f.write(data)==length(data);f.close();if(!ok||!rename(path+'.new',path)){unlink(path+'.new');die('Could not save MTU settings.');}chmod(path,0600);}
+function revision(){return trim(command('sha256sum /etc/config/network /etc/config/firewall /etc/config/chester_mtu 2>/dev/null').output);}
+function context(){
+ let u=cursor(),all=call('network.interface','dump').interface||[],iface='',v4={},v6={},device='',cfg='';
+ u.foreach('network','interface',s=>{if(!s.modem_config||s.proto!='dhcp')return;let live={};for(let item in all)if(item.interface==s['.name'])live=item;if(!iface||live.up&&!v4.up){iface=s['.name'];v4=live;device=live.l3_device||s.device||s.ifname||'';cfg=s.modem_config;}});
+ let related=[];u.foreach('network','interface',s=>{if(cfg&&s.modem_config==cfg){push(related,s['.name']);if(s.proto=='dhcpv6')for(let item in all)if(item.interface==s['.name'])v6=item;}});
+ if(!match(device,/^[A-Za-z0-9_.-]{1,15}$/))device='';
+ let mtu=device?int(trim(readfile('/sys/class/net/'+device+'/mtu')||'0')):0,zone='',zone_sid='',zone_fix=false;
+ u.foreach('firewall','zone',s=>{if(index(arr(s.network),iface)>=0){zone=s.name;zone_sid=s['.name'];zone_fix=s.mtu_fix=='1';}});
+ let managed=!!u.get('chester_mtu','main'),s={...defaults};
+ if(managed){for(let key in ['mtu_mode','mss_mode'])s[key]=u.get('chester_mtu','main',key)||s[key];for(let key in ['mtu','mss4','mss6'])s[key]=int(u.get('chester_mtu','main',key)||s[key]);s.mss_enabled=u.get('chester_mtu','main','mss_enabled')!='0';}else s.mss_enabled=zone_fix;
+ let baseline={};try{baseline=json(u.get('chester_mtu','main','baseline')||'{}');}catch(e){}
+ let advertised=jsonfile(RUN+'/network-mtu.json'),automatic=advertised.device==device?advertised.mtu:baseline.auto_mtu;
+ if(!automatic||automatic<1280||automatic>1500)automatic=mtu>=1280&&mtu<=1500?mtu:1500;
+ if(s.mtu_mode=='auto'&&mtu>=1280&&mtu<=1500&&!advertised.mtu)automatic=mtu;
+ return {u:u,settings:s,managed:managed,interface:iface,related:related,device:device,mtu:mtu,automatic:automatic,zone:zone,zone_sid:zone_sid,zone_fix:zone_fix,v4:v4,v6:v6,baseline:baseline,network_key:device+'|'+(v4.route?.[0]?.nexthop||'')+'|'+(v6.route?.[0]?.nexthop||'')};
+}
+function testState(){let job=jsonfile(RUN+'/job.json');if(!job.token)return {state:'idle'};let result=jsonfile(RUN+'/result-'+job.token+'.json');if((result.success==null||job.smart&&!stat(RUN+'/done-'+job.token))&&time()-job.started>65)return {state:'failed',error:'The MTU test timed out. The saved profile remains available.'};if(result.success!=null){if(job.smart&&!stat(RUN+'/done-'+job.token))return {state:'running',token:job.token,phase:'optimizing'};let update=jsonfile(RUN+'/update-'+job.token+'.json');if(job.smart&&update.success===false)return {state:'failed',error:update.error||'Smart Mode could not apply the tested values.'};return {state:result.success?'complete':'failed',token:job.token,...result};}if(time()-job.started>65)return {state:'failed',error:'The MTU test did not finish. Retry when the cellular connection is stable.'};return {state:'running',token:job.token,started:job.started};}
+function status(){let c=context(),applied=jsonfile(RUN+'/applied.json');return {success:true,settings:c.settings,managed:c.managed,revision:revision(),device:c.device,interface:c.interface,online:!!c.v4.up||!!c.v6.up,current_mtu:c.mtu||null,automatic_mtu:c.automatic,applied:!c.managed||applied.device==c.device&&!c.zone_fix,conflict:c.managed&&c.zone_fix,smart_reason:c.u.get('chester_mtu','main','smart_reason')||'Carrier Default',test:testState()};}
+function acquire(){mkdir(RUN,0700);if(!mkdir(LOCK,0700)){let pid=trim(readfile(LOCK+'/pid')||'');if(match(pid,/^[0-9]+$/)&&index(readfile('/proc/'+pid+'/cmdline')||'','chester-mtu')>=0)die('Another MTU operation is running.');unlink(LOCK+'/pid');if(!rmdir(LOCK)||!mkdir(LOCK,0700))die('MTU settings are busy.');}write(LOCK+'/pid',readlink('/proc/self'));}
+function release(){unlink(LOCK+'/pid');rmdir(LOCK);}
+function guard(allowTest){if(stat('/tmp/chester-sim.lock')||stat('/tmp/chester-link-test.lock')||stat('/tmp/chester-ipv6.lock'))die('Wait for the current cellular operation to finish.');if(!allowTest&&testState().state=='running')die('Wait for the MTU test to finish.');}
+function setMtu(device,value){if(command('ip link set dev '+q(device)+' mtu '+value+' 2>/dev/null').code!=0)die('The modem interface rejected the requested MTU.');let v6path='/proc/sys/net/ipv6/conf/'+device+'/mtu';if(stat(v6path)){let f=open(v6path,'w');if(!f)die('IPv6 MTU could not be applied.');let ok=f.write(''+value)==length(''+value);f.close();if(!ok||int(trim(readfile(v6path)||'0'))!=value)die('IPv6 MTU did not match the requested value.');}if(int(trim(readfile('/sys/class/net/'+device+'/mtu')||'0'))!=value)die('The modem MTU did not match the requested value.');}
+function reload(network){if(network&&command('ubus -t 8 call network reload >/dev/null 2>&1').code!=0)die('Network settings could not reload.');if(command('/etc/init.d/firewall reload >/dev/null 2>&1').code!=0)die('Firewall settings could not reload.');}
+function restore(){let j=jsonfile(JOURNAL);if(!j.configs)return false;for(let name in CONFIGS){if(j.configs[name]==null)unlink('/etc/config/'+name);else write('/etc/config/'+name,j.configs[name]);}for(let path in FILES){if(j.files[path]==null)unlink(path);else write(path,j.files[path]);}reload(true);if(j.device&&j.mtu)setMtu(j.device,j.mtu);unlink(JOURNAL);unlink(RUN+'/applied.json');return true;}
+function own(u,config,sid,type,values){if(u.get(config,sid)&&u.get(config,sid,'chester_mtu')!='1')die('A custom section already uses '+sid+'.');if(!u.get(config,sid))u.set(config,sid,type);for(let key,value in values)u.set(config,sid,key,value);u.set(config,sid,'chester_mtu','1');}
+function put(u,sid,key,value){if(value==null)u.delete('network',sid,key);else u.set('network',sid,key,value);}
+function baseline(c){
+ let b={device:c.device,interface:c.interface,auto_mtu:c.automatic,zone:c.zone,zone_sid:c.zone_sid,zone_fix:c.zone_fix,device_sid:'',device_mtu:null,interface_mtu:{}};
+ c.u.foreach('network','device',s=>{if(s.name==c.device&&!b.device_sid){b.device_sid=s['.name'];b.device_mtu=s.mtu;}});
+ for(let name in c.related)b.interface_mtu[name]=c.u.get('network',name,'mtu');return b;
+}
+function verify(c){for(let family in [4,6]){let before=family==4?c.v4.up:c.v6.up;if(!before)continue;let target=family==4?'1.1.1.1':'2606:4700:4700::1111',ok=false;for(let attempt=0;attempt<8;attempt++)if(command('ping -'+family+' -I '+q(c.device)+' -c 1 -W 1 '+target+' >/dev/null 2>&1').code==0){ok=true;break;}else command('sleep 1');if(!ok)die('IPv'+family+' connectivity did not return with the new settings.');}}
+function smartValue(c,useTest){
+ let prior=c.u.get('chester_mtu','main','smart_network')==c.network_key?int(c.u.get('chester_mtu','main','smart_limit')||'0'):0,value=prior>=1280&&prior<=1500?prior:c.automatic,reason=prior?'Saved Verified Limit':'Carrier Default';
+ if(useTest){let job=jsonfile(RUN+'/job.json'),result=jsonfile(RUN+'/result-'+(job.token||'')+'.json'),valid=job.device==c.device&&job.network_key==c.network_key&&job.ceiling>=c.automatic&&time()-(result.timestamp||0)<300&&result.success===true,count=0,observed=c.automatic;
+  for(let family in [4,6]){if(!(family==4?c.v4.up:c.v6.up))continue;count++;let check=null;for(let item in result.checks||[])if(item.family==family)check=item;if(!check||!check.confirmed||check.verified_bytes<1280||check.verified_bytes>1500)valid=false;else if(check.verified_bytes<observed)observed=check.verified_bytes;}
+  if(valid&&count){value=observed;reason='Verified Cellular Paths';}
+ }
+ if(value>c.automatic)value=c.automatic;return {mtu:value,reason:reason};
+}
+function startTest(){guard();let c=context();if(!c.device||!c.mtu||!c.v4.up&&!c.v6.up)die('Connect cellular data before testing MTU.');let smart=c.settings.mtu_mode=='smart',ceiling=smart?c.automatic:c.mtu;
+ if(smart&&c.mtu!=ceiling)setMtu(c.device,ceiling);
+ let out=command('/usr/libexec/chester-mtu-test '+q(c.device)+' '+ceiling);if(out.code){if(smart)setMtu(c.device,c.mtu);die('The MTU test could not start.');}
+ let response=json(out.output),job=jsonfile(RUN+'/job.json');write(RUN+'/job.json',sprintf('%J',{...job,device:c.device,network_key:c.network_key,ceiling:ceiling,smart:smart}));return response;
+}
+function save(raw,internal){
+ guard(internal);let c=context();if(!c.device||!c.mtu||!c.zone_sid)die('Wait for the cellular interface to become available.');
+ if(raw.revision!=null&&raw.revision!=revision())die('Settings changed in another page. Refresh before applying.');
+ if(length(command('uci -q changes network; uci -q changes firewall; uci -q changes chester_mtu').output))die('Apply or revert pending network changes first.');
+ let s=validate(raw.settings||raw,c.automatic),b=c.managed?c.baseline:baseline(c),u=c.u;
+ if(b.device!=c.device||b.interface!=c.interface||b.zone!=c.zone)die('The cellular interface changed. Review its saved MTU configuration before applying.');
+ let smart=s.mtu_mode=='smart'?smartValue(c,!!internal):null;if(smart)s.mtu=smart.mtu;let nft=rules(s,c.device,c.zone,b.zone_fix),wanted=s.mtu_mode!='auto'?s.mtu:c.automatic;
+ mkdir(DIR,0700);chmod(DIR,0700);let backup={configs:{},files:{},device:c.device,mtu:c.mtu};for(let name in CONFIGS)backup.configs[name]=readfile('/etc/config/'+name);for(let path in FILES)backup.files[path]=readfile(path);write(JOURNAL,sprintf('%J',backup));
+ try{
+  if(readfile('/etc/config/chester_mtu')==null){write('/etc/config/chester_mtu','');u.unload('chester_mtu');u.load('chester_mtu');}
+  if(!u.get('chester_mtu','main'))u.set('chester_mtu','main','settings');
+  for(let key,value in s)u.set('chester_mtu','main',key,type(value)=='bool'?(value?'1':'0'):''+value);
+  u.set('chester_mtu','main','baseline',sprintf('%J',b));if(smart){u.set('chester_mtu','main','smart_limit',''+wanted);u.set('chester_mtu','main','smart_network',c.network_key);u.set('chester_mtu','main','smart_reason',smart.reason);}
+  for(let name in c.related)put(u,name,'mtu',s.mtu_mode!='auto'?''+wanted:b.interface_mtu[name]);
+  if(s.mtu_mode!='auto'){
+   if(b.device_sid)put(u,b.device_sid,'mtu',''+wanted);else own(u,'network','chester_mtu_device','device',{name:c.device,mtu:''+wanted});
+  }else if(b.device_sid)put(u,b.device_sid,'mtu',b.device_mtu);else if(u.get('network','chester_mtu_device','chester_mtu')=='1')u.delete('network','chester_mtu_device');
+  // Replace only this zone's standard MSS rules, retaining them for other uplinks.
+  u.set('firewall',c.zone_sid,'mtu_fix','0');
+  own(u,'firewall','chester_mtu_forward','include',{type:'nftables',path:FILES[0],position:'chain-append',chain:'mangle_forward'});
+  own(u,'firewall','chester_mtu_post','include',{type:'nftables',path:FILES[1],position:'chain-append',chain:'mangle_postrouting'});
+  write(FILES[0],nft.forward);write(FILES[1],nft.post);
+  let changed=length(u.changes('network')||{});for(let name in CONFIGS)if(!u.commit(name))die('MTU settings could not be committed.');
+  if(command('fw4 check >/dev/null 2>&1').code!=0)die('Firewall validation failed.');
+  reload(!!changed);setMtu(c.device,wanted);verify(c);
+  write(RUN+'/applied.json',sprintf('%J',{device:c.device,mtu:wanted,settings:s}));unlink(JOURNAL);if(!internal)unlink(RUN+'/job.json');
+ }catch(e){for(let name in CONFIGS)u.revert(name);restore();die('MTU changes were rolled back: '+e);}
+ if(s.mtu_mode=='smart'&&!internal)startTest();
+ return status();
+}
+function refresh(){
+ guard(true);let c=context();if(!c.device||!c.mtu||!c.zone_sid)return status();if(!c.managed)return save({settings:c.settings},true);
+ if(c.baseline.device!=c.device||c.baseline.zone!=c.zone)die('Cellular interface changed; review MTU & MSS.');
+ if(c.zone_fix)die('Another firewall setting enabled zone-wide MSS clamping. Save MTU & MSS to reconcile it.');
+ let smart=c.settings.mtu_mode=='smart',wanted=smart?(testState().state=='running'?c.automatic:smartValue(c,false).mtu):c.settings.mtu_mode=='custom'?c.settings.mtu:c.automatic;if(c.mtu!=wanted)setMtu(c.device,wanted);
+ let nft=rules(c.settings,c.device,c.zone,c.baseline.zone_fix),changed=readfile(FILES[0])!=nft.forward||readfile(FILES[1])!=nft.post;
+ if(changed){write(FILES[0],nft.forward);write(FILES[1],nft.post);}
+ if(changed||!jsonfile(RUN+'/applied.json').device){if(command('fw4 check >/dev/null 2>&1').code!=0)die('MSS firewall validation failed.');reload(false);write(RUN+'/applied.json',sprintf('%J',{device:c.device,mtu:wanted,settings:c.settings}));}
+ if(smart&&(c.v4.up||c.v6.up)&&testState().state!='running'&&jsonfile(RUN+'/job.json').network_key!=c.network_key)startTest();
+ return status();
+}
+
+function smartUpdate(token){
+ if(!match(token||'',/^[0-9]+-[0-9]+$/))die('Invalid Smart test token.');let c=context(),job=jsonfile(RUN+'/job.json');
+ if(c.settings.mtu_mode!='smart'||job.token!=token||job.network_key!=c.network_key)return {success:true,ignored:true};
+ return save({settings:c.settings},true);
+}
+let action=ARGV[0]||'status',result,locked=false;
+try{if(action=='status')result=status();else{acquire();locked=true;if(action=='recover')result={success:true,recovered:restore()};else if(readfile(JOURNAL)!=null){restore();die('Interrupted MTU changes were restored. Refresh and try again.');}else if(action=='save')result=save(json(ARGV[1]||'{}'));else if(action=='refresh')result=refresh();else if(action=='test')result=startTest();else if(action=='smart-update')result=smartUpdate(ARGV[1]);else die('Unknown MTU action.');}}catch(e){result={success:false,error:''+e};}
+if(locked)release();printf('%J\n',result||{success:true});

@@ -1,0 +1,28 @@
+#!/bin/sh
+set -eu
+umask 077
+dev=$1
+limit=$2
+case "$dev" in ''|*[!A-Za-z0-9_.-]*) exit 1;; esac
+case "$limit" in 1[2345][0-9][0-9]) ;; *) exit 1;; esac
+dir=/tmp/chester-mtu
+mkdir -p "$dir"
+token="$(date +%s)-$$"
+printf '{"token":"%s","started":%s}\n' "$token" "$(date +%s)" > "$dir/job.json.new"
+mv "$dir/job.json.new" "$dir/job.json"
+(
+ if ! /usr/libexec/chester-mtu-probe "$dev" "$limit" > "$dir/result-$token.json.new"; then
+  printf '%s\n' '{"success":false,"error":"The MTU probe could not finish."}' > "$dir/result-$token.json.new"
+ fi
+ mv "$dir/result-$token.json.new" "$dir/result-$token.json"
+ for attempt in 1 2 3 4 5 6; do
+  /usr/libexec/chester-mtu smart-update "$token" > "$dir/update-$token.json"
+  [ "$(jsonfilter -i "$dir/update-$token.json" -e @.success)" = true ] && break
+  sleep 1
+ done
+ : > "$dir/done-$token"
+ # Keep only this bounded result; no growing history or flash writes.
+ for item in "$dir"/result-*.json; do [ "$item" = "$dir/result-$token.json" ] || rm -f "$item"; done
+ for item in "$dir"/update-*.json "$dir"/done-*; do case "$item" in *"$token"|*"$token.json") ;; *) rm -f "$item";; esac; done
+) </dev/null >/dev/null 2>&1 &
+printf '{"success":true,"pending":true,"token":"%s"}\n' "$token"

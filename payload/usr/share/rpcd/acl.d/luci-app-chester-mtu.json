@@ -1,0 +1,1 @@
+{"luci-app-chester-mtu":{"description":"Manage cellular MTU and TCP MSS","read":{"ubus":{"chester.mtu":["status","test"]}},"write":{"ubus":{"chester.mtu":["save"]}}}}

@@ -1,0 +1,10 @@
+#!/bin/sh
+case "$INTERFACE" in ''|*[!A-Za-z0-9_.-]*) return 0;; esac
+[ -n "$(uci -q get "network.$INTERFACE.modem_config")" ] || return 0
+case "$RA_MTU" in 1[2345][0-9][0-9])
+ case "$1" in ''|*[!A-Za-z0-9_.-]*) return 0;; esac
+ mkdir -p /tmp/chester-mtu
+ printf '{"device":"%s","mtu":%s}\n' "$1" "$RA_MTU" > /tmp/chester-mtu/network-mtu.json.new
+ mv /tmp/chester-mtu/network-mtu.json.new /tmp/chester-mtu/network-mtu.json
+;; esac
+( /usr/libexec/chester-mtu refresh >/dev/null 2>&1 ) &

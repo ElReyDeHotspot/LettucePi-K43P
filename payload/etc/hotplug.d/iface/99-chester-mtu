@@ -1,0 +1,5 @@
+#!/bin/sh
+case "$ACTION" in ifup|ifupdate) ;; *) exit 0;; esac
+[ "$INTERFACE" = lan ] || [ -n "$(uci -q get "network.$INTERFACE.modem_config")" ] || exit 0
+( sleep 1; /etc/init.d/chester_mtu start >/dev/null 2>&1 ) &
+exit 0
