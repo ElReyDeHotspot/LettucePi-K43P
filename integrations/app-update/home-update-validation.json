@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-26",
+  "product": "K43P",
+  "live": {
+    "passed": true,
+    "signed_app_update_detected_before_install": true,
+    "status_after_real_install_and_reboot": {
+      "checking": false,
+      "release_verified": true,
+      "manifest_checked": true,
+      "update_available": false,
+      "app_update": true,
+      "latest_app": 1,
+      "installed_app": 1,
+      "latest_rev": "64",
+      "installed_rev": "64",
+      "checked_at": 1795711178
+    },
+    "package_bytes": 26474,
+    "all_six_file_hashes_verified": true,
+    "kernel_unchanged": true,
+    "new_boot_confirmed": true
+  },
+  "settings_and_network": {
+    "settings_preserved": true,
+    "files_checked": 39,
+    "byte_identical_files": 38,
+    "discovery_only_changes": [
+      "etc/config/chester_mtu"
+    ],
+    "ipv4_ipv6_ping_https": true,
+    "smart_applied": true
+  },
+  "native_fixtures_passed": true,
+  "worker_concurrency_cache_backoff_tests_passed": true,
+  "frontend_status_and_label_tests_passed": true,
+  "overview_button_opens_system_update": true,
+  "full_firmware_image_built": false
+}
