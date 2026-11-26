@@ -1,0 +1,402 @@
+{
+  "admin/network/clients": {
+    "title": "Client List",
+    "order": 110,
+    "action": {
+      "type": "view",
+      "path": "misectel-device/index"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-misectel-device"
+      ]
+    }
+  },
+  "admin/dashboard/clients": {
+    "hidden": true,
+    "action": {
+      "type": "alias",
+      "path": "admin/network/clients"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-misectel-device"
+      ]
+    }
+  },
+  "admin/dashboard": {
+    "title": "Home",
+    "order": 5,
+    "action": {
+      "type": "alias",
+      "path": "admin/dashboard/overview"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-misectel-dashboard"
+      ]
+    }
+  },
+  "admin/dashboard/overview": {
+    "title": "Home",
+    "hidden": true,
+    "action": {
+      "type": "view",
+      "path": "misectel-dashboard/overview"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-misectel-dashboard"
+      ]
+    }
+  },
+  "admin/chester/update": {
+    "hidden": true,
+    "action": {
+      "type": "alias",
+      "path": "admin/system/update"
+    }
+  },
+  "admin/dashboard/system-update": {
+    "hidden": true,
+    "action": {
+      "type": "alias",
+      "path": "admin/system/update"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-chester-update"
+      ]
+    }
+  },
+  "admin/network/guest": {
+    "title": "Guest Network",
+    "order": 105,
+    "action": {
+      "type": "view",
+      "path": "lettucepi/guest"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-chester-guest"
+      ]
+    }
+  },
+  "admin/network/vlans": {
+    "title": "VLANs",
+    "order": 115,
+    "action": {
+      "type": "view",
+      "path": "lettucepi/vlans"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-chester-vlans"
+      ]
+    }
+  },
+  "admin/chester/vlans": {
+    "hidden": true,
+    "action": {
+      "type": "alias",
+      "path": "admin/network/vlans"
+    }
+  },
+  "admin/firewall": {
+    "title": "Firewall",
+    "order": 22,
+    "action": {
+      "type": "firstchild",
+      "recurse": true
+    }
+  },
+  "admin/firewall/traffic": {
+    "title": "Live Traffic",
+    "order": 10,
+    "action": {
+      "type": "view",
+      "path": "lettucepi/traffic"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-chester-traffic"
+      ]
+    }
+  },
+  "admin/chester/traffic": {
+    "hidden": true,
+    "action": {
+      "type": "alias",
+      "path": "admin/firewall/traffic"
+    }
+  },
+  "admin/firewall/protection": {
+    "title": "Block List",
+    "order": 20,
+    "action": {
+      "type": "view",
+      "path": "lettucepi/protection"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-chester-guard"
+      ]
+    }
+  },
+  "admin/chester/protection": {
+    "hidden": true,
+    "action": {
+      "type": "alias",
+      "path": "admin/firewall/protection"
+    }
+  },
+  "admin/firewall/zapret": {
+    "title": "Zapret",
+    "order": 30,
+    "action": {
+      "type": "view",
+      "path": "chester-zapret/index"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-chester-zapret"
+      ],
+      "fs": {
+        "/usr/sbin/chester-videotest": "executable"
+      }
+    }
+  },
+  "admin/chester/zapret": {
+    "hidden": true,
+    "action": {
+      "type": "alias",
+      "path": "admin/firewall/zapret"
+    }
+  },
+  "admin/firewall/cloudflare": {
+    "title": "DNS Setup",
+    "order": 40,
+    "action": {
+      "type": "view",
+      "path": "chester-cloudflare/index"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-chester-cloudflare"
+      ]
+    }
+  },
+  "admin/chester/cloudflare": {
+    "hidden": true,
+    "action": {
+      "type": "alias",
+      "path": "admin/firewall/cloudflare"
+    }
+  },
+  "admin/firewall/dmz": {
+    "title": "DMZ",
+    "order": 50,
+    "action": {
+      "type": "view",
+      "path": "lettucepi/dmz"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-chester-dmz"
+      ]
+    }
+  },
+  "admin/network/failover": {
+    "title": "Failover",
+    "order": 108,
+    "hidden": false,
+    "action": {
+      "type": "view",
+      "path": "lettucepi/failover"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-k45p-failover"
+      ]
+    }
+  },
+  "admin/chester/failover": {
+    "hidden": true,
+    "action": {
+      "type": "alias",
+      "path": "admin/network/failover"
+    }
+  },
+  "admin/system/update": {
+    "title": "System Update",
+    "order": 4,
+    "hidden": false,
+    "action": {
+      "type": "view",
+      "path": "chester-update/index"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-chester-update"
+      ]
+    }
+  },
+  "admin/developer": {
+    "title": "LuCi Pages"
+  },
+  "admin/system/reboot": {
+    "title": "Reboot",
+    "hidden": true
+  },
+  "admin/developer/qmodem": {
+    "title": "QModem",
+    "order": 43,
+    "action": {
+      "type": "view",
+      "path": "qmodem/overview"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-qmodem-next"
+      ]
+    }
+  },
+  "admin/developer/qmodem/overview": {
+    "title": "Overview",
+    "order": 1,
+    "action": {
+      "type": "view",
+      "path": "qmodem/overview"
+    }
+  },
+  "admin/developer/qmodem/network_config": {
+    "title": "Network Configuration",
+    "order": 2,
+    "action": {
+      "type": "view",
+      "path": "qmodem/network_config"
+    }
+  },
+  "admin/developer/qmodem/debug": {
+    "title": "AT Debug",
+    "order": 3,
+    "action": {
+      "type": "view",
+      "path": "qmodem/debug"
+    }
+  },
+  "admin/developer/qmodem/config_advanced": {
+    "title": "Advanced Modem Config",
+    "order": 4,
+    "action": {
+      "type": "view",
+      "path": "qmodem/config_advanced"
+    }
+  },
+  "admin/developer/qmodem/sms": {
+    "title": "SMS Messages",
+    "order": 5,
+    "action": {
+      "type": "view",
+      "path": "qmodem/sms"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-qmodem-next"
+      ]
+    }
+  },
+  "admin/developer/qmodem/sms/conversation/*": {
+    "title": "SMS Conversation",
+    "action": {
+      "type": "view",
+      "path": "qmodem/sms_conversation"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-qmodem-next"
+      ]
+    }
+  },
+  "admin/developer/qmodem/sms_sim": {
+    "title": "SIM Card SMS",
+    "order": 5.3,
+    "action": {
+      "type": "view",
+      "path": "qmodem/sms_sim"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-qmodem-next"
+      ]
+    }
+  },
+  "admin/developer/qmodem/sms_forward": {
+    "title": "SMS Forwarder",
+    "order": 5.5,
+    "action": {
+      "type": "view",
+      "path": "qmodem/sms_forward"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-qmodem-next"
+      ]
+    }
+  },
+  "admin/developer/qmodem/sim_switch": {
+    "title": "SIM Switch",
+    "order": 5.6,
+    "action": {
+      "type": "view",
+      "path": "qmodem/sim_switch"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-qmodem-next"
+      ]
+    }
+  },
+  "admin/developer/qmodem/settings": {
+    "title": "QModem Settings",
+    "order": 6,
+    "action": {
+      "type": "view",
+      "path": "qmodem/settings"
+    }
+  },
+  "admin/developer/qmodem/monitor": {
+    "title": "Monitor",
+    "order": 7,
+    "action": {
+      "type": "view",
+      "path": "qmodem/monitor"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-qmodem-monitor"
+      ]
+    }
+  },
+  "admin/network/topology": {
+    "title": "Network Topology",
+    "order": 112,
+    "action": {
+      "type": "view",
+      "path": "lettucepi/topology"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-chester-topology",
+        "luci-app-misectel-device"
+      ]
+    }
+  },
+  "admin/system/settings/update": {
+    "hidden": true,
+    "action": {
+      "type": "alias",
+      "path": "admin/system/update"
+    }
+  }
+}
