@@ -1,0 +1,39 @@
+{
+  "validation_date": "2026-11-25",
+  "scope": "K43P and K45P shared VPN client",
+  "test_endpoints": "Temporary local VPN endpoints with isolated server interfaces; no commercial VPN provider credentials used.",
+  "wireguard": {
+    "authenticated_handshake": true,
+    "isolated_tunnel_packets": "3/3 on both boards"
+  },
+  "openvpn": {
+    "tls_authentication": true,
+    "aes_256_gcm": true,
+    "client_acceleration_enabled": true,
+    "isolated_tunnel_packets": "3/3 on both boards"
+  },
+  "ui": [
+    "Day and Night themes",
+    "Desktop and 390px mobile layouts",
+    "WireGuard/OpenVPN protocol selection",
+    "File import and disabled staging",
+    "Manual setup validation and cancel",
+    "Key generation",
+    "Peer add/remove and route switch",
+    "Profile edit and persisted rename",
+    "Enable/disable and reconnect",
+    "Delete confirmation/cancel and Save & Apply",
+    "ZeroTier configuration under LuCi Pages"
+  ],
+  "restoration": {
+    "original_network_firewall_openvpn_hashes": true,
+    "no_reboot": true,
+    "temporary_servers_profiles_namespaces_removed": true,
+    "cellular_ipv4_ipv6_restored": true
+  },
+  "firmware_built": false,
+  "payload_sha256": {
+    "www/luci-static/resources/view/misectel-vpn/chester-client.js": "9b6fb32ba99e30f60eac7161f8ffb939db9dd1730d0eacd108d083b437964e6f",
+    "www/luci-static/resources/chester-ui/vpn-client.css": "8c9b66d6f576cf377dd06f79c600db9682f7290c25ced42212530df263ead436"
+  }
+}

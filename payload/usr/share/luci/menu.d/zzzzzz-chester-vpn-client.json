@@ -2,13 +2,84 @@
   "admin/vpn": {
     "title": "VPN",
     "order": 40,
-    "action": {"type": "view", "path": "misectel-vpn/chester-client"},
-    "depends": {"acl": ["luci-app-misectel-vpn"]}
+    "action": {
+      "type": "view",
+      "path": "misectel-vpn/chester-client"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-misectel-vpn"
+      ]
+    }
   },
-  "admin/vpn/overview": {"hidden": true},
-  "admin/vpn/wireguard": {"hidden": true},
-  "admin/vpn/openvpn": {"hidden": true},
-  "admin/vpn/l2tp": {"hidden": true},
-  "admin/vpn/pptp": {"hidden": true},
-  "admin/vpn/vxlan": {"hidden": true}
+  "admin/vpn/overview": {
+    "hidden": true
+  },
+  "admin/vpn/wireguard": {
+    "hidden": true
+  },
+  "admin/vpn/openvpn": {
+    "hidden": true
+  },
+  "admin/vpn/l2tp": {
+    "hidden": true
+  },
+  "admin/vpn/pptp": {
+    "hidden": true
+  },
+  "admin/vpn/vxlan": {
+    "hidden": true
+  },
+  "admin/developer/zerotier": {
+    "title": "ZeroTier",
+    "order": 85,
+    "action": {
+      "type": "firstchild"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-zerotier"
+      ],
+      "uci": {
+        "zerotier": true
+      }
+    }
+  },
+  "admin/developer/zerotier/config": {
+    "title": "Configuration",
+    "order": 10,
+    "action": {
+      "type": "view",
+      "path": "zerotier/config"
+    }
+  },
+  "admin/developer/zerotier/interface": {
+    "title": "Interface Info",
+    "order": 20,
+    "action": {
+      "type": "view",
+      "path": "zerotier/interface"
+    }
+  },
+  "admin/vpn/zerotier": {
+    "hidden": true,
+    "action": {
+      "type": "alias",
+      "path": "admin/developer/zerotier"
+    }
+  },
+  "admin/vpn/zerotier/config": {
+    "hidden": true,
+    "action": {
+      "type": "alias",
+      "path": "admin/developer/zerotier/config"
+    }
+  },
+  "admin/vpn/zerotier/interface": {
+    "hidden": true,
+    "action": {
+      "type": "alias",
+      "path": "admin/developer/zerotier/interface"
+    }
+  }
 }

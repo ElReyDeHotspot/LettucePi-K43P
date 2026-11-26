@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+"""Stage next-BIN payload and remove retired VPN clients before squashfs packing."""
+from pathlib import Path
+import runpy
+import shutil
+import sys
+
+root = Path(sys.argv[1]).resolve()
+repo = Path(__file__).resolve().parents[1]
+assert root != Path(root.anchor) and (root / 'etc/openwrt_release').is_file()
+shutil.copytree(repo / 'payload', root, dirs_exist_ok=True)
+runpy.run_path(str(repo / 'scripts/prune-legacy-vpn.py'))['prune'](root)
+assert (root / 'www/luci-static/resources/view/misectel-vpn/chester-client.js').is_file()

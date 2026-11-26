@@ -1,0 +1,34 @@
+const fs=require('fs'),path=require('path'),assert=require('assert/strict');
+const src=fs.readFileSync(path.join(__dirname,'../payload/www/luci-static/resources/view/misectel-vpn/chester-client.js'),'utf8');
+const net=require('net');
+const validation={parseIPv4:v=>net.isIP(v)===4?[1]:null,parseIPv6:v=>net.isIP(v)===6?[1]:null};
+const helpers=new Function('_','rpc','validation',src.slice(src.indexOf('function parseWireGuard'),src.indexOf('return view.extend'))+';return {parseWireGuard,fromWireGuard,validateOpenVPN,validateProfile,validIP};')(v=>v,{declare:()=>()=>{}},validation);
+const key=Buffer.alloc(32,1).toString('base64'),peer=Buffer.alloc(32,2).toString('base64');
+const conf=`[Interface]\nPrivateKey = ${key}\nAddress = 10.77.0.2/24, fd77::2/64\nDNS = 1.1.1.1, 2606:4700:4700::1111\n[Peer]\nPublicKey = ${peer}\nAllowedIPs = 10.77.0.0/24, fd77::/64\nEndpoint = [2001:db8::1]:51820\nPersistentKeepalive = 25\n`;
+const p=helpers.fromWireGuard(conf,'Test');assert.equal(p.disabled,'1');assert.equal(p.defaultroute,'0');assert.equal(p.peers[0].route_allowed_ips,'0');assert.equal(p.peers[0].endpoint_host,'2001:db8::1');helpers.validateProfile(p);
+for(const [from,to] of [['51820','65536'],['PrivateKey =','PostUp ='],['10.77.0.2/24','10.77.0.2/33']])assert.throws(()=>helpers.validateProfile(helpers.fromWireGuard(conf.replace(from,to),'Bad')));
+assert.throws(()=>helpers.fromWireGuard(conf+'\n[Interface]\n','Duplicate'));
+assert.throws(()=>helpers.fromWireGuard('x'.repeat(65537),'Too big'));
+const ovpn='client\ndev tun\nproto udp\nremote vpn.example.test 1194\nremote-cert-tls server\n<ca>\nTEST CERTIFICATE DATA\n</ca>\n';
+assert.equal(helpers.validateOpenVPN(ovpn),ovpn);
+for(const bad of ['up /bin/sh','plugin /tmp/plugin.so','config /etc/shadow','ca /etc/shadow','auth-user-pass /etc/shadow','management 0.0.0.0 7505','setenv LD_PRELOAD /tmp/a.so','<connection>\nup /bin/sh\n</connection>'])assert.throws(()=>helpers.validateOpenVPN(ovpn+bad));
+assert.throws(()=>helpers.validateOpenVPN(ovpn+'<key>\nunterminated'));
+assert.throws(()=>helpers.validateProfile({...p,peers:[{...p.peers[0],public_key:'bad'}]}));
+console.log('PASS imports: IPv4/IPv6, multiple peers, safe disabled defaults, malformed keys/ports/prefixes, duplicate sections, size limits, executable/file directives rejected.');
+let store,files,events,applied,saved,failWrite=false;
+const uci={load:async()=>{},unload:()=>{},get:(c,s,k)=>k?store[s]?.[k]:store[s],sections:(c,t)=>Object.values(store).filter(s=>!t||s['.type']===t),add:(c,t,id)=>{id=id||'peer'+Object.keys(store).length;store[id]={'.name':id,'.type':t};return id;},set:(c,s,k,v)=>store[s][k]=v,unset:(c,s,k)=>delete store[s][k],remove:(c,s)=>delete store[s],save:async()=>{saved++}};
+const ui={changes:{init:async()=>{},apply:checked=>{assert.equal(checked,true);applied++}}};
+const rpc={declare:o=>o.method==='dump'?async()=>[]:async()=>({})};
+const fileAPI={read:async p=>files[p]||'',write:async(p,t,mode)=>{if(failWrite)throw Error('disk full');assert.equal(mode,0o600);files[p]=t;},remove:async p=>delete files[p]};
+const document={addEventListener:(name,fn)=>events.push(name)};
+const view=new Function('view','uci','ui','dom','fs','rpc','poll','validation','kit','_','document',src)({extend:o=>o},uci,ui,{},fileAPI,rpc,{},validation,{},v=>v,document);
+function setup(){store={lan:{'.name':'lan','.type':'interface',proto:'static',ipaddr:'192.168.10.1'},foreign:{'.name':'foreign','.type':'interface',proto:'wireguard',name:'Existing',disabled:'1',private_key:key,addresses:['10.88.0.2/24']}};files={};events=[];applied=0;saved=0;const ctx=Object.assign({},view,{refresh:()=>{},message:t=>ctx.error=t});return ctx;}
+(async()=>{
+ let ctx=setup();await ctx.load();const lan=JSON.stringify(store.lan),original=JSON.stringify(store.foreign);ctx.profiles.push({...p,name:'One'},{...p,name:'Two'});ctx.dirty=true;await ctx.apply();assert(!ctx.error,ctx.error);assert.equal(saved,1);assert.equal(applied,1);assert.equal(JSON.stringify(store.lan),lan);assert.equal(JSON.stringify(store.foreign),original);assert(store.vpw0001&&store.vpw0002);assert.equal(store.vpw0001.disabled,'1');assert.equal(uci.sections('network','wireguard_vpw0001').length,1);assert(events.includes('uci-applied'));
+ ctx=setup();await ctx.load();ctx.profiles.push({name:'Open',proto:'openvpn',disabled:'1',defaultroute:'0',vp:'9',metric:'0',configText:ovpn,peers:[]});ctx.dirty=true;await ctx.apply();assert(!ctx.error,ctx.error);assert.equal(saved,1);assert.equal(files[store.vpo0001.config],ovpn);assert.equal(store.vpo0001.proto,'openvpn');
+ ctx=setup();await ctx.load();ctx.profiles.push({...p,name:'Bad',private_key:'bad'});ctx.dirty=true;await ctx.apply();assert(ctx.error);assert.equal(saved,0);assert.equal(applied,0);
+ ctx=setup();await ctx.load();ctx.removed=['foreign'];ctx.profiles=[];ctx.dirty=true;await ctx.apply();assert(!store.foreign);assert(store.lan);
+ ctx=setup();await ctx.load();ctx.profiles.push({name:'Disk Failure',proto:'openvpn',disabled:'1',vp:'9',configText:ovpn,peers:[]});ctx.dirty=true;failWrite=true;await ctx.apply();failWrite=false;assert.match(ctx.error,/disk full/);assert.equal(saved,0);assert.equal(applied,0);
+ const context={original:[{id:'wg',disabled:'0'}],runtime:[{interface:'wg',up:true}]};assert.equal(view.profileState.call(context,{id:'wg',disabled:'0',proto:'wireguard'}),'Interface Up');assert.equal(view.profileState.call(context,{id:'wg',disabled:'1',proto:'wireguard'}),'Pending Apply');
+ console.log('PASS apply: unique profile names, unchanged LAN/foreign profiles, private OpenVPN files, disabled staging, peer ownership, delete scope, validation/disk failures, real runtime vs pending state.');
+})().catch(e=>{console.error(e);process.exitCode=1});
