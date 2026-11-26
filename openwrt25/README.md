@@ -1,7 +1,8 @@
 # Upgrade your Chester K43P to OpenWrt 25
 
 Your router downloads, verifies, and installs the current firmware itself.
-Allow about five minutes.
+Allow about five minutes. The installer resolves the latest published BIN on every
+run; the manifest, image and flash writer are fetched from the same Git commit.
 
 ---
 
@@ -33,7 +34,7 @@ accepting it.
 ## Step 2 — Paste this one line
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/refs/heads/main/openwrt25/install.sh | sh
 ```
 
 ## Step 3 — Type YES
@@ -50,8 +51,8 @@ Type **`YES` (ALL CAPS)** and press Enter. Anything else cancels.
 ## Step 4 — Wait
 
 The installer downloads the firmware, verifies its exact size, SHA-256
-checksum, and UBI headers, stages the correct two-bank flash writer, and then
-asks for confirmation.
+checksum, and UBI headers, checks the two-bank flash writer, and then asks
+for confirmation. The flash writer is replaced only after you confirm.
 
 After you type `YES`, do not disconnect power. The router flashes both banks
 and restarts automatically.
@@ -77,8 +78,8 @@ immediately as well.
 ## If it stops before confirmation
 
 Do not assume every error has the same effect. Failures during board, space,
-download, size, checksum, or UBI validation occur before flashing. A later
-failure may occur after the flash writer has been staged.
+download, size, checksum, or UBI validation occur before flashing. Dry-run mode and cancellation leave
+the existing flash writer unchanged.
 
 | Message | What it means |
 |---|---|

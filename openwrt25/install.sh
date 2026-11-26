@@ -22,19 +22,10 @@ set -u
 # The image is raw UBI. It is written to both banks by the staged platform.sh,
 # because this board boots the bank the stock writer ignores.
 #
-# These three are pinned to a specific published image on purpose: this is the
-# entry point from factory-stock firmware, so it has to land on a known-good
-# build rather than on whatever happens to be newest. That does mean they go
-# stale -- they still named bin 35 while the fleet was on 42 -- so bump all
-# three together whenever the published image moves, and check them against
-# openwrt25/latest.json, which is generated from the image itself.
-FW_FAMILY="Immortal-Chester-25"
-FW_NAME="ImmortalWrt (current)"
-FW_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/42-2026-09-01-ChesterK43P-25.12.bin"
-FW_SHA="570a716a774bbad226ced5ff5f07ceb765e48090d22a25aa6935ea3f73e2f5bf"
-FW_SIZE=26083328
-
-PLATFORM_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/platform.sh"
+# Resolve main once, then fetch metadata, image and writer from that immutable
+# commit. A release published mid-download cannot mix two different versions.
+RAW_BASE="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P"
+REF_URL="https://api.github.com/repos/ElReyDeHotspot/LettucePi-K43P/git/ref/heads/main"
 
 PEB=131072
 IMG=/tmp/snand-ubi.bin          # the staged path platform.sh looks for
@@ -44,6 +35,44 @@ ok(){   printf '  [ok]   %s\n' "$*"; }
 info(){ printf '         %s\n' "$*"; }
 warn(){ printf '  [!]    %s\n' "$*"; }
 die(){  printf '\n  [FAIL] %s\n\n' "$*" >&2; exit 1; }
+# jsonfilter ships on OpenWrt 21. Keep a narrow fallback for vendor builds
+# without it; every extracted value is validated before it is used.
+jget(){
+    if command -v jsonfilter >/dev/null 2>&1; then
+        jsonfilter -e "@.$1" 2>/dev/null
+    else
+        sed -n "s/.*\"${1##*.}\"[[:space:]]*:[[:space:]]*\"\{0,1\}\([^\",}]*\)\"\{0,1\}.*/\1/p" | head -1
+    fi
+}
+fetch_release(){
+    ref=$(curl -fsSL --connect-timeout 15 --max-time 45 "$REF_URL?cb=$(date +%s)") || die "could not resolve the latest published release"
+    RELEASE_REF=$(printf '%s' "$ref" | jget object.sha)
+    [ "${#RELEASE_REF}" = 40 ] || die "invalid release commit"
+    case "$RELEASE_REF" in *[!0-9a-f]*) die "invalid release commit" ;; esac
+    metadata=$(curl -fsSL --connect-timeout 15 --max-time 45 "$RAW_BASE/$RELEASE_REF/openwrt25/latest.json") || die "could not fetch the current firmware manifest"
+    FAMILY=$(printf '%s' "$metadata" | jget family)
+    BIN=$(printf '%s' "$metadata" | jget bin)
+    BUILD=$(printf '%s' "$metadata" | jget build)
+    URL=$(printf '%s' "$metadata" | jget url)
+    SHA=$(printf '%s' "$metadata" | jget sha256)
+    SIZE=$(printf '%s' "$metadata" | jget size)
+    [ "$FAMILY" = Immortal-Chester-25 ] || die "unexpected firmware family"
+    case "$BIN" in ''|*[!0-9]*) die "invalid BIN number" ;; esac
+    [ "${#BIN}" -le 4 ] || die "invalid BIN number"
+    case "$BUILD" in ''|*[!0-9]*) die "invalid build number" ;; esac
+    [ "${#BUILD}" = 14 ] || die "invalid build number"
+    [ "${#SHA}" = 64 ] || die "invalid SHA-256"
+    case "$SHA" in *[!0-9a-f]*) die "invalid SHA-256" ;; esac
+    case "$SIZE" in ''|*[!0-9]*) die "invalid image size" ;; esac
+    [ "${#SIZE}" -le 8 ] && [ "$SIZE" -ge 1000000 ] && [ "$SIZE" -le 33554432 ] || die "image size outside the K43P release limit"
+    file=${URL##*/}
+    case "$file" in *[!A-Za-z0-9._-]*) die "invalid image filename" ;; esac
+    case "$file" in "$BIN"-*-ChesterK43P-25.12.bin) ;; *) die "image filename does not match this K43P release" ;; esac
+    [ "$URL" = "$RAW_BASE/main/ChesterK43P-Bin/$file" ] || die "unexpected firmware download URL"
+    URL="$RAW_BASE/$RELEASE_REF/ChesterK43P-Bin/$file"
+    PLATFORM_URL="$RAW_BASE/$RELEASE_REF/openwrt25/platform.sh"
+    NAME="OpenWrt 25 - BIN$BIN"
+}
 
 # Everything runs inside a function so that a truncated download cannot
 # execute a half-read script: sh only runs this once the final line is read.
@@ -63,7 +92,7 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-printf '\n  Chester K43P - install %s\n' "$FW_NAME"
+printf '\n  Chester K43P - install latest OpenWrt 25\n'
 printf '  ==========================================\n\n'
 
 # ------------------------------------------------------------ sanity checks
@@ -78,7 +107,7 @@ case "$BOARD" in
     *) die "this is not a Chester K43P (board reports '$BOARD') - refusing to flash" ;;
 esac
 
-for t in curl sysupgrade; do
+for t in curl sysupgrade sha256sum; do
     command -v "$t" >/dev/null 2>&1 || die "$t not found"
 done
 
@@ -88,8 +117,9 @@ ok "flash layout looks right (ubi + ubi2)"
 
 FREE=$(df -k /tmp | awk 'NR==2{print $4}')
 
-NAME="$FW_NAME"; URL="$FW_URL"; SHA="$FW_SHA"; SIZE="$FW_SIZE"; FAMILY="$FW_FAMILY"
+fetch_release
 ok "installing: $NAME"
+info "published build: $BUILD"
 
 # Settings cannot be carried between firmware families: the two use different
 # config layouts, so a preserved /etc/config produces a router that boots to no
@@ -147,15 +177,11 @@ GOT=$(wc -c < "$IMG" | tr -d ' ')
 [ "$GOT" = "$SIZE" ] || die "wrong size: got $GOT, expected $SIZE"
 ok "size $GOT"
 
-if command -v sha256sum >/dev/null 2>&1; then
-    ACT=$(sha256sum "$IMG" | awk '{print $1}')
-    [ "$ACT" = "$SHA" ] || die "checksum mismatch - refusing to flash
+ACT=$(sha256sum "$IMG" | awk '{print $1}')
+[ "$ACT" = "$SHA" ] || die "checksum mismatch - refusing to flash
              got      $ACT
              expected $SHA"
-    ok "sha256 verified"
-else
-    warn "sha256sum not available - checksum NOT verified"
-fi
+ok "sha256 verified"
 
 # Verify the format BEFORE anything is erased. Once the flash is wiped a bad
 # image means TFTP or serial recovery, so every check happens up front.
@@ -170,12 +196,11 @@ ok "raw UBI image, ${PEB}-byte erase blocks"
 info "fetching the flash method ..."
 curl -fsSL "$PLATFORM_URL" -o /tmp/platform.sh.new || die "could not fetch platform.sh"
 grep -q 'snand_do_upgrade' /tmp/platform.sh.new || die "platform.sh looks wrong - aborting"
-cp /tmp/platform.sh.new "$PLATFORM" || die "could not stage the flash method"
-sync
-ok "flash method staged (writes both banks)"
+sh -n /tmp/platform.sh.new || die "platform.sh syntax is invalid - aborting"
+ok "flash method downloaded and checked (writes both banks)"
 
 if [ "$DRY" = 1 ]; then
-    printf '\n  Dry run: everything checked and downloaded, nothing written.\n\n'
+    printf '\n  Dry run: everything checked and downloaded; firmware and flash writer unchanged.\n\n'
     exit 0
 fi
 
@@ -194,6 +219,10 @@ if [ "$ASSUME_YES" != 1 ]; then
     fi
     [ "$REPLY" = "YES" ] || { printf '\n  Cancelled. Nothing was written.\n\n'; exit 0; }
 fi
+
+cp /tmp/platform.sh.new "$PLATFORM" || die "could not stage the flash method"
+sync
+ok "flash method staged (writes both banks)"
 
 printf '\n'
 info "flashing - do NOT unplug the router"

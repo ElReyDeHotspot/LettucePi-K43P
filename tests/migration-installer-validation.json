@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "bin": "64",
+  "image_bytes": 30277632,
+  "sha256": "50782293ab8c1b873ad51cc19c2a017863586a6edda70bea9da779a7b103ffd6",
+  "metadata_image_writer_same_immutable_commit": "a2bf41d9cd69395c5f5c29511bd0fb948c232811",
+  "real_public_download_verified": true,
+  "dry_run_flash_writer_unchanged": true,
+  "no_flash_performed": true
+}
