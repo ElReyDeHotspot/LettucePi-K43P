@@ -1,0 +1,293 @@
+#!/bin/sh
+# Backend for the Chester "System update" page.
+#
+#   chester-update status   -> JSON: installed build, latest build, whether newer
+#   chester-update install  -> download, verify, flash (settings kept)
+#
+# Kept as a shell script with a narrow command surface because the LuCI view
+# reaches it through an rpcd ACL that permits exactly these arguments.
+set -u
+
+# One firmware family, one manifest.
+#
+# There used to be two: latest.json pinned at a stepping stone for older
+# routers, and next.json for the crossing to a genuine OpenWrt 25 build.
+# That build is gone -- it never brought the modem up on some units -- so
+# there is nothing to cross to and no stepping stone to stand on. Both
+# manifests now name the same image; latest.json is kept only so a router
+# old enough to still read it lands on the current build rather than a
+# dead end.
+#
+# The path stays openwrt25/ because it is a URL baked into every router
+# already in the field. Renaming the directory would silently break every
+# deployed updater, which is a far worse outcome than a directory whose
+# name is now only historical.
+MANIFEST_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/openwrt25/next.json"
+# raw.githubusercontent caches at the edge for minutes, so a freshly published
+# release would otherwise show up late. A unique query string per check avoids
+# serving the customer a stale answer.
+cachebust() { printf '%s?cb=%s' "$1" "$(date +%s)"; }
+VERSION_FILE=/etc/chester-version
+IMG=/tmp/snand-ubi.bin
+PART=/tmp/snand-ubi.bin.part
+PART_URL=/tmp/snand-ubi.bin.url
+LOG=/tmp/chester-update.log
+JOB=/tmp/chester-update-job.json
+LOCK=/var/lock/chester-update.lock
+MIN_FREE_KIB=12288
+. /usr/lib/chester/ota-resources.sh
+# Use the branch's full ref to avoid stale responses on the historical short URL.
+MANIFEST_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/refs/heads/main/openwrt25/next.json"
+
+jget() { sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\{0,1\}\([^\",}]*\)\"\{0,1\}.*/\1/p" | head -1; }
+log()  { printf '%s %s\n' "$(date '+%H:%M:%S')" "$*" >> "$LOG" 2>/dev/null; }
+
+# Compared by BUILD ID, not by the image's own sha256: the stamp lives inside
+# the image, so stamping it changes the very hash you would compare against.
+# The manifest's sha256 is still used to verify the download.
+installed_id()  { sed -n 's/^build=//p'   "$VERSION_FILE" 2>/dev/null | head -1; }
+installed_ver() { sed -n 's/^version=//p' "$VERSION_FILE" 2>/dev/null | head -1; }
+installed_date(){ sed -n 's/^built=//p'   "$VERSION_FILE" 2>/dev/null | head -1; }
+# Older images have no bin= line at all, so this is empty rather than
+# wrong on anything built before the stamp existed.
+installed_bin() { sed -n 's/^bin=//p'     "$VERSION_FILE" 2>/dev/null | head -1; }
+
+# 1 = keep the customer's settings across the flash, 0 = wipe.
+#
+# Unset means KEEP. This is the safe direction: an unwritten option must never
+# be the reason a router comes back with its Wi-Fi name, APN and admin password
+# gone, and every unit already in the field has this unset.
+keep_settings() {
+	case "$(uci -q get chester.update.keep_settings)" in
+		0) echo 0 ;;
+		*) echo 1 ;;
+	esac
+}
+
+newer_build() {
+    case "$1:$2" in *[!0-9:]*|:*|*:) return 1;; esac
+    [ "${#1}" = 14 ] && [ "${#2}" = 14 ] && [ "$1" -gt "$2" ]
+}
+
+
+job() {
+    umask 077
+    printf '{"phase":"%s","message":"%s"}\n' "$1" "$2" > "$JOB.tmp" &&
+        mv -f "$JOB.tmp" "$JOB"
+    log "$1: $2"
+}
+
+fail() {
+    job failed "$1"
+    echo "FAIL: $1"
+    exit 1
+}
+
+read_release() {
+    m=$(curl -fsSL --max-time 25 "$(cachebust "$MANIFEST_URL")" 2>/dev/null)
+    [ -n "$m" ] || return 1
+    [ "$(printf '%s' "$m" | jget family)" = Immortal-Chester-25 ] || return 1
+    latest=$(printf '%s' "$m" | jget build)
+    url=$(printf '%s' "$m" | jget url)
+    sha=$(printf '%s' "$m" | jget sha256)
+    siz=$(printf '%s' "$m" | jget size)
+    case "$url" in
+        https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/*) ;;
+        *) return 1 ;;
+    esac
+    valid_image_metadata
+}
+
+valid_image_metadata() {
+    case "$sha" in ''|*[!0-9a-f]*) return 1;; esac
+    case "$siz" in ''|*[!0-9]*) return 1;; esac
+    [ "${#sha}" -eq 64 ] && [ "${#siz}" -le 8 ] &&
+        [ "$siz" -gt 0 ] && [ "$siz" -le 50331648 ]
+}
+
+filesize() { if [ -f "$1" ]; then stat -c %s "$1"; else echo 0; fi; }
+
+verify_image() {
+    [ "$(filesize "$1")" = "$siz" ] &&
+        [ "$(dd if="$1" bs=4 count=1 2>/dev/null)" = 'UBI#' ] &&
+        [ "$(sha256sum "$1" | cut -d ' ' -f1)" = "$sha" ]
+}
+
+cached_image() {
+    for img in "$IMG" "$PART"; do
+        if verify_image "$img"; then
+            printf '%s\n' "$img"
+            return 0
+        fi
+    done
+    return 1
+}
+
+memory_for() {
+    available=$(awk '/^MemAvailable:/ {print $2; exit}' /proc/meminfo)
+    [ -n "$available" ] && [ "$available" -ge "$(( $1 + MIN_FREE_KIB ))" ]
+}
+
+stage_remote() {
+    job checking 'Checking the release and local download.'
+    read_release || fail 'Could not read a valid K43/K43P release.'
+    [ "${1:-0}" = 1 ] || newer_build "$latest" "$(installed_id)" || fail 'No newer K43/K43P firmware is available.'
+    if img=$(cached_image); then
+        job verified 'Verified the existing firmware download.'
+    else
+        rm -f "$IMG"
+        if [ "$(cat "$PART_URL" 2>/dev/null)" != "$url" ] || [ "$(filesize "$PART")" -ge "$siz" ]; then
+            rm -f "$PART" "$PART_URL"
+        fi
+        remaining=$(( (siz - $(filesize "$PART") + 1023) / 1024 ))
+        free=$(df -k /tmp | awk 'NR==2 {print $4}')
+        [ "$free" -ge "$(( remaining + 4096 ))" ] || fail 'Not enough temporary storage for the rest of the download.'
+        job preparing 'Preparing optional services for the update.'
+        ota_prepare "$remaining" || fail 'Update preparation could not provide safe download memory. Optional services are being restored.'
+        memory_for "$remaining" || fail 'Not enough available RAM to finish the download safely.'
+        printf '%s\n' "$url" > "$PART_URL" || fail 'Could not stage the download.'
+        job downloading 'Downloading the firmware. Keep the router powered on.'
+        curl --http1.1 -fL --continue-at - --retry 12 --retry-all-errors --retry-delay 5 \
+            --connect-timeout 30 --speed-time 60 --speed-limit 1024 --max-time 1800 \
+            -o "$PART" "$url" >>"$LOG" 2>&1 &
+        OTA_DOWNLOAD_PID=$!
+        printf '%s %s\n' "$OTA_DOWNLOAD_PID" "$(ota_identity "$OTA_DOWNLOAD_PID")" > "$OTA_RES_DIR/downloader"
+        wait "$OTA_DOWNLOAD_PID" ||
+            fail 'Download interrupted. Optional services are being restored; retry Update Now.'
+        rm -f "$OTA_RES_DIR/downloader"
+        job verifying 'Checking the downloaded firmware.'
+        verify_image "$PART" || fail 'The downloaded firmware failed size, format or checksum verification.'
+        img=$PART
+    fi
+}
+
+stage_flash() {
+    case "$(cat /tmp/sysinfo/board_name)" in
+        alwaylink,m01k43|misectel,m01k43|misectel,m01k43-p|misectel,m01k43-usb|misectel,m01k43-usb-p) ;;
+        *) fail 'This firmware is for the Chester K43/K43P.' ;;
+    esac
+    for bank in ubi ubi2; do
+        blocks=$(awk -v name="\"$bank\"" '$4==name {print $2}' /proc/mtd)
+        [ -n "$blocks" ] && [ "$((0x$blocks))" -ge "$siz" ] ||
+            fail 'The firmware does not fit both K43/K43P partitions.'
+    done
+    if [ ! -d "$OTA_RES_DIR" ]; then
+        job preparing 'Preparing optional services for the update.'
+        ota_prepare 0 || fail 'Could not prepare the router safely.'
+    fi
+    memory_for 0 || fail 'Not enough available RAM to flash safely.'
+    [ "$img" = "$IMG" ] || mv -f "$img" "$IMG" || fail 'Could not stage the verified firmware.'
+    rm -f "$PART_URL"
+    job installing 'Installing the verified firmware. Do not unplug the router.'
+    # The K43/K43P case in the native platform writes both UBI banks.
+    # Raw UBI images have no fwtool metadata and were verified above.
+    printf 'flashing\n' > "$OTA_RES_DIR/phase"
+    OTA_FLASHING=1
+    if [ "$keep" = 1 ]; then
+        sysupgrade -F "$IMG" >>"$LOG" 2>&1 || { OTA_FLASHING=0; fail 'Sysupgrade did not accept the verified firmware.'; }
+    else
+        sysupgrade -F -n "$IMG" >>"$LOG" 2>&1 || { OTA_FLASHING=0; fail 'Sysupgrade did not accept the verified firmware.'; }
+    fi
+}
+
+launch() {
+    mkdir -p /var/lock
+    exec 9>"$LOCK"
+    flock -xn 9 || { echo 'FAIL: An update is already running.'; exit 1; }
+    : > "$LOG"
+    job queued 'The update is queued.'
+    setsid "$0" "$@" </dev/null >>"$LOG" 2>&1 &
+    echo 'OK: Update started.'
+}
+
+case "${1:-status}" in
+recover-resources)
+    case "${2:-}:${3:-}" in *[!0-9:]*|:*|*:) exit 2;; esac
+    ota_watch "$2" "$3"
+    ;;
+download-only)
+    mkdir -p /var/lock
+    exec 9>"$LOCK"
+    flock -xn 9 || exit 1
+    : > "$LOG"
+    stage_remote 1
+    # Diagnostic path: never calls stage_flash or sysupgrade.
+    rm -f "$IMG" "$PART" "$PART_URL"
+    ota_restore || fail 'Download verified; optional service recovery is still retrying.'
+    job verified 'Download verified. No firmware was installed.'
+    ;;
+status-local)
+    jq -n --arg iv "$(installed_ver)" --arg ib "$(installed_id)" --arg dt "$(installed_date)" \
+      --arg bin "$(installed_bin)" --arg board "$(cat /tmp/sysinfo/board_name)" \
+      --arg model "$(cat /tmp/sysinfo/model)" --arg kernel "$(uname -r)" \
+      '{ok:true,installed_version:$iv,installed_build:$ib,installed_built:$dt,installed_bin:$bin,board:$board,model:$model,kernel:$kernel}'
+    ;;
+status)
+	m=$(curl -fsSL --max-time 25 "$(cachebust "$MANIFEST_URL")" 2>/dev/null)
+	if [ -z "$m" ]; then
+		printf '{"ok":false,"error":"offline","installed_version":"%s","installed_built":"%s"}\n' \
+			"$(installed_ver)" "$(installed_date)"
+		exit 0
+	fi
+	lv=$(printf '%s' "$m" | jget version)
+	lb=$(printf '%s' "$m" | jget built)
+	li=$(printf '%s' "$m" | jget build)
+	ls=$(printf '%s' "$m" | jget sha256)
+	lz=$(printf '%s' "$m" | jget size)
+	ln=$(printf '%s' "$m" | jget notes)
+	lN=$(printf '%s' "$m" | jget bin)
+	cur=$(installed_id)
+	upd=false
+	newer_build "$li" "$cur" && upd=true
+	printf '{"ok":true,"manifest_checked":true,"installed_version":"%s","installed_built":"%s","installed_build":"%s","installed_bin":"%s","latest_version":"%s","latest_build":"%s","latest_built":"%s","latest_sha":"%s","size":"%s","latest_bin":"%s","notes":"%s","update_available":%s}\n' \
+		"$(installed_ver)" "$(installed_date)" "$cur" "$(installed_bin)" "$lv" "$li" "$lb" "$ls" "$lz" "$lN" "$ln" "$upd"
+	;;
+job-status)
+    if [ -s "$JOB" ]; then cat "$JOB"; else printf '{"phase":"idle"}\n'; fi
+    ;;
+verify-cache)
+    read_release || exit 1
+    img=$(cached_image) || exit 1
+    printf 'BIN%s cache verified (%s bytes): %s\n' "$(printf '%s' "$m" | jget bin)" "$siz" "$img"
+    ;;
+install)
+    launch run-install "$(keep_settings)"
+    ;;
+install-local)
+    # Root CLI staging for a locally built image. This action has no LuCI ACL.
+    sha=${2:-} siz=${3:-} keep=${4:-}
+    valid_image_metadata && { [ "$keep" = 0 ] || [ "$keep" = 1 ]; } || exit 2
+    launch run-local "$sha" "$siz" "$keep"
+    ;;
+run-install)
+    flock -xn 9 || exit 1
+    keep=$2
+    stage_remote
+    stage_flash
+    ;;
+run-local)
+    flock -xn 9 || exit 1
+    sha=$2 siz=$3 keep=$4
+    valid_image_metadata || fail 'Invalid local image metadata.'
+    job verifying 'Verifying the staged local firmware.'
+    img=$(cached_image) || fail 'The staged firmware failed size, format or checksum verification.'
+    stage_flash
+    ;;
+
+auto-run)
+	# The scheduled path, called by cron. Deliberately silent and deliberately
+	# conservative: it installs only when the manifest names a build different
+	# from the installed one, so a router that is already current never
+	# reflashes itself on a timer.
+	[ "$(uci -q get chester.update.auto)" = 1 ] || { log "auto-run: not enabled"; exit 0; }
+	s=$("$0" status 2>/dev/null)
+	case "$s" in
+		*'"update_available":true'*) ;;
+		*) log "auto-run: already up to date"; exit 0 ;;
+	esac
+	log "auto-run: update available, installing"
+	"$0" install >>"$LOG" 2>&1
+	;;
+*)
+	echo "usage: chester-update status|install|auto-run" >&2; exit 2 ;;
+esac

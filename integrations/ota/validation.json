@@ -1,0 +1,74 @@
+{
+  "product": "K43P",
+  "next_bin": 62,
+  "unchanged_safety_reserve_kib": 12288,
+  "extra_transport_headroom_kib": 8192,
+  "unit_failure_paths": [
+    "network download",
+    "checksum mismatch",
+    "insufficient RAM",
+    "firewall changed",
+    "SIGTERM",
+    "SIGKILL orphan",
+    "RAM pressure during download",
+    "native flash rejection",
+    "active flash handoff",
+    "transient service restart failure"
+  ],
+  "real_router_download": {
+    "passed": true,
+    "real_44MB_ota_download_verified": true,
+    "paused": [
+      "chester_sim",
+      "chester_traffic"
+    ],
+    "services_before": {
+      "chester_sim": true,
+      "chester_traffic": true,
+      "ttyd": true
+    },
+    "services_after": {
+      "chester_sim": true,
+      "chester_traffic": true,
+      "ttyd": true
+    },
+    "ipv4_ipv6_during_pause": true,
+    "ipv4_ipv6_https_after": true,
+    "wifi_web_ssh_routing_untouched": true,
+    "firewall_rules_unchanged": true,
+    "persistent_configs_unchanged": true,
+    "no_flash_or_reboot": true,
+    "phases": [
+      "checking",
+      "preparing",
+      "downloading",
+      "verifying",
+      "verified"
+    ],
+    "minimum_available_kib": 30208
+  },
+  "real_router_recovery": {
+    "error": {
+      "passed": true,
+      "original_service_states_restored": true,
+      "firewall_unchanged": true,
+      "persistent_settings_unchanged": true,
+      "ipv4_ipv6_after": true
+    },
+    "TERM": {
+      "passed": true,
+      "original_service_states_restored": true,
+      "firewall_unchanged": true,
+      "persistent_settings_unchanged": true,
+      "ipv4_ipv6_after": true
+    },
+    "KILL": {
+      "passed": true,
+      "original_service_states_restored": true,
+      "firewall_unchanged": true,
+      "persistent_settings_unchanged": true,
+      "ipv4_ipv6_after": true
+    }
+  },
+  "real_flash_in_failure_tests": false
+}
