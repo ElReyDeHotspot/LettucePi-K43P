@@ -1,0 +1,26 @@
+{
+  "luci-app-misectel-modem": {
+    "read": {
+      "ubus": {
+        "qmodem_sms": [
+          "list_sms",
+          "get_conversation",
+          "get_sms_storage",
+          "get_sim_sms",
+          "get_sent_history",
+          "get_received_history"
+        ]
+      }
+    },
+    "write": {
+      "ubus": {
+        "qmodem_sms": [
+          "send_sms",
+          "delete_sms",
+          "mark_read",
+          "set_sms_storage"
+        ]
+      }
+    }
+  }
+}

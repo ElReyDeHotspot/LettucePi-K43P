@@ -1,0 +1,36 @@
+#maincontent .st-sms{max-width:1120px}
+#maincontent .st-sms .sms-columns{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)}
+#maincontent .st-sms .sms-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}
+#maincontent .st-sms .sms-contacts{display:grid;gap:10px}
+#maincontent .st-sms .sms-contact{display:flex;align-items:center;gap:12px;padding:14px;width:100%;background:#f4f7fc;color:inherit;border:1px solid var(--st-line);border-radius:14px;text-align:left;cursor:pointer;min-height:76px}
+#maincontent#maincontent .st-sms .sms-contact[aria-pressed=true]{background:var(--ct-soft,#eef6ff)!important;color:var(--ct-text,#142034)!important;border-color:var(--ct-focus,#86bafa)!important}
+#maincontent .st-sms .sms-avatar{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:#007aff13;flex-shrink:0}
+#maincontent .st-sms .sms-contact-text{flex:1;min-width:0}
+#maincontent .st-sms .sms-contact strong,#maincontent .st-sms .sms-contact small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#maincontent .st-sms .sms-contact strong{font-size:16px;margin-bottom:4px}
+#maincontent .st-sms .sms-contact small{font-size:13px;color:var(--st-muted)}
+#maincontent .st-sms .sms-chevron{font-size:24px;color:var(--st-muted)}
+#maincontent .st-sms textarea{resize:vertical;min-height:145px;padding:14px;border:1px solid var(--st-line);border-radius:12px;background:#f6f8fc;color:inherit;font-size:16px;line-height:1.5}
+#maincontent .st-sms .sms-compose-footer{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#maincontent .st-sms .sms-messages{display:flex;flex-direction:column;gap:14px;max-height:560px;overflow-y:auto;padding:3px}
+#maincontent .st-sms .sms-bubble{align-self:flex-start;max-width:94%;padding:16px;background:#edf1f8;border:1px solid var(--st-line);border-radius:17px 17px 17px 5px;min-width:150px}
+#maincontent .st-sms .sms-bubble.is-sent{align-self:flex-end;background:#e9f3ff;border-color:#b7d9ff;border-radius:17px 17px 5px 17px}
+#maincontent .st-sms .sms-bubble.is-failed{border-color:#ecb9bd;background:#fff0f1}
+#maincontent .st-sms .sms-bubble-label{font-size:12px;color:var(--st-muted);font-weight:600}
+#maincontent .st-sms .sms-bubble p{white-space:pre-wrap;overflow-wrap:anywhere;margin:7px 0 13px;font-size:15px;line-height:1.5}
+#maincontent .st-sms .sms-bubble-meta{display:flex;justify-content:space-between;align-items:center;gap:18px;font-size:12px;color:var(--st-muted)}
+#maincontent .st-sms .sms-delete{background:transparent;border:0;color:var(--st-muted);padding:7px 9px;border-radius:8px;cursor:pointer;font-size:12px;min-height:32px}
+#maincontent .st-sms .sms-delete:hover{background:#c9454512;color:#b12d40}
+#maincontent .st-sms .sms-carrier-note{padding:14px;border:1px solid #e9d4aa;background:#fff8e9;color:#795620;font-size:13px;line-height:1.5;border-radius:12px;margin-bottom:18px}
+#maincontent .st-sms .sms-empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:32px 12px;color:var(--st-muted);font-size:14px}
+#maincontent .st-sms .sms-empty>.st-icon{width:42px;height:42px;margin-bottom:8px}
+#maincontent .st-sms .sms-storage summary{cursor:pointer;font-weight:700;font-size:18px;min-height:30px}
+#maincontent .st-sms .sms-storage .st-fields{margin:20px 0}
+#maincontent .st-sms .sms-feedback{padding:16px 20px;margin-bottom:18px;border:1px solid #b8d7ec;background:#edf8ff;color:#1a5274;border-radius:16px;font-size:15px}
+#maincontent .st-sms .sms-feedback.is-error{background:#fff1f1;border-color:#efc1c1;color:#9d2a37}
+html[data-chester-appearance=night] #maincontent .st-sms textarea,html[data-chester-appearance=night] #maincontent .st-sms .sms-contact,html[data-chester-appearance=night] #maincontent .st-sms .sms-bubble{background:#172e41;border-color:#345067;color:#edf5ff}
+html[data-chester-appearance=night] #maincontent .st-sms .sms-bubble.is-sent{background:#153f64;border-color:#3c78ad}
+html[data-chester-appearance=night] #maincontent .st-sms .sms-feedback{background:#19334c;border-color:#355e83;color:#bddfff}
+html[data-chester-appearance=night] #maincontent .st-sms .sms-feedback.is-error,html[data-chester-appearance=night] #maincontent .st-sms .sms-bubble.is-failed{background:#422831;border-color:#71414b;color:#ffb1bc}
+html[data-chester-appearance=night] #maincontent .st-sms .sms-carrier-note{background:#3a3222;border-color:#6a5931;color:#efdaa9}
+@media(max-width:800px){#maincontent .st-sms .sms-columns{grid-template-columns:1fr}#maincontent .st-sms .sms-toolbar{align-items:stretch;flex-direction:column}#maincontent .st-sms .sms-toolbar button{width:100%}}
