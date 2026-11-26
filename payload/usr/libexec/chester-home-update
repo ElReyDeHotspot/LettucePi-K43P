@@ -1,0 +1,24 @@
+#!/usr/bin/ucode
+'use strict';
+import {readfile} from 'fs';
+function status(){
+ let installed={},cached={};
+ for(let line in split(readfile('/etc/chester-version')||'','\n')){
+  let pair=split(line,'=');if(length(pair)==2)installed[pair[0]]=pair[1];
+ }
+ try{cached=json(readfile('/tmp/chester-update-summary.json')||'{}');}catch(e){}
+ if(type(cached)!='object')cached={};
+ let identity=cached.schema===2&&cached.installed_build===installed.build;
+ let age=time()-int(cached.checked_at||0),ttl=cached.ok===true&&cached.release_verified===true?900:60,fresh=identity&&age>=0&&age<ttl;
+ if(!fresh)system('/usr/libexec/chester-update-refresh </dev/null >/dev/null 2>&1 &');
+ let app=cached.app_update===true,currentApp=int(installed.app_revision||0);
+ let verified=identity&&cached.ok===true&&cached.release_verified===true&&
+  match(cached.latest_build||'',/^([0-9]{12}|[0-9]{14})$/)&&match(installed.build||'',/^([0-9]{12}|[0-9]{14})$/)&&
+  (app?cached.latest_bin===installed.bin&&cached.installed_app===currentApp&&type(cached.latest_app)=='int'&&cached.latest_app>=currentApp:cached.latest_build>=installed.build);
+ let available=!!verified&&!cached.requires_firmware&&(app?cached.update_available===true&&cached.latest_app>currentApp:cached.latest_build>installed.build);
+ return {checking:!fresh,release_verified:!!verified,manifest_checked:!!verified,update_available:available,app_update:app,
+  latest_app:verified&&app?cached.latest_app:0,installed_app:currentApp,
+  latest_rev:verified?sprintf('%s',cached.latest_bin||''):'',installed_rev:installed.bin||'',
+  checked_at:int(cached.checked_at||0)};
+}
+print(sprintf('%J\n',status()));

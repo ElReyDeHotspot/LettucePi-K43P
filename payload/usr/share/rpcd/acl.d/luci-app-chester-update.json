@@ -11,6 +11,9 @@
         ],
         "/usr/sbin/chester-update job-status": [
           "exec"
+        ],
+        "/usr/libexec/chester-home-update": [
+          "exec"
         ]
       }
     },
