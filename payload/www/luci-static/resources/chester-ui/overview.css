@@ -1,0 +1,125 @@
+/* Faithful implementation of the approved Chester Overview reference. */
+.chester-home{--ch-blue:#007aff;--ch-ink:#08090b;--ch-muted:#515660;--ch-line:#dce0e8;container-type:inline-size;font-family:Arial,Helvetica,sans-serif;color:var(--ch-ink);max-width:1600px;margin:0 auto;padding:0;background:transparent;font-size:16px;line-height:1.3;letter-spacing:-.025em}
+.chester-home *{box-sizing:border-box;min-width:0;font-family:inherit}
+.chester-home a{text-decoration:none;color:inherit}.chester-home button{font-family:inherit;cursor:pointer}
+.chester-home :is(a,button,summary):focus-visible{outline:3px solid #007aff88;outline-offset:3px}
+.chester-home .ch-icon{display:inline-flex;flex:0 0 auto;width:28px;height:28px;color:var(--ch-blue)}.chester-home .ch-icon svg{width:100%;height:100%}
+.chester-home .ch-head{display:flex;align-items:flex-start;gap:20px;margin:0 0 16px}
+.chester-home .ch-title-row{display:flex;align-items:center;gap:22px}
+.chester-home .ch-title{font-size:clamp(36px,3vw,48px)!important;font-weight:750!important;line-height:1.05;letter-spacing:-.045em;color:#050608}
+.chester-home .ch-muted{color:var(--ch-muted);margin:5px 0 0;font-size:clamp(16px,1.4vw,21px)}
+.chester-home .ch-badge{display:inline-flex;align-items:center;gap:9px;border-radius:99px;padding:5px 13px;background:#e5e5ea;color:#636366;font-size:18px;font-weight:600;white-space:nowrap;border:1px solid transparent;letter-spacing:-.02em}
+.chester-home .ch-badge:before{content:'';width:10px;height:10px;border-radius:50%;background:currentColor}
+.chester-home .ch-badge.is-online{background:linear-gradient(#e2ffdc,#ccf9ce);color:#009d00;border-color:#a7f3ac}.chester-home .ch-badge.is-offline{background:#fff0ee;color:#c13c31}
+.chester-home .ch-summary-grid{display:grid;grid-template-columns:1.18fr 1.25fr 1fr .9fr;gap:14px;margin-bottom:18px}
+.chester-home .ch-summary-card{display:flex;align-items:center;gap:16px;padding:16px 20px;background:linear-gradient(115deg,#fff,#fdfdff);border:1px solid #dfe3ed;border-radius:18px;box-shadow:0 1px 2px #12203b0a;min-height:76px;transition:border-color .15s}
+.chester-home .ch-summary-card:hover{border-color:#99c4ff}.chester-home .ch-summary-card .ch-icon{width:34px;height:34px}
+.chester-home .ch-summary-card:nth-child(1) .ch-icon,.chester-home .ch-summary-card:nth-child(3) .ch-icon{color:#00ae00}
+.chester-home .ch-summary-card strong{display:block;font-size:clamp(16px,1.45vw,23px);line-height:1.2;font-weight:750;letter-spacing:-.035em}
+.chester-home .ch-summary-card div>span{display:block;font-size:clamp(12px,1.1vw,18px);color:var(--ch-muted);margin-top:5px;line-height:1.2;letter-spacing:-.02em}
+.chester-home .ch-layout{display:grid;grid-template-columns:minmax(0,1.37fr) minmax(0,1fr);gap:16px;align-items:stretch}
+.chester-home .ch-side{display:flex;flex-direction:column;gap:16px}
+.chester-home .ch-card{background:linear-gradient(115deg,#fff,#fefeff);border:1px solid #dce1ec;border-radius:20px;padding:16px 20px;box-shadow:0 1px 2px #12203b05}
+.chester-home h3{font-size:clamp(23px,1.85vw,30px)!important;font-weight:750!important;margin:0 0 5px!important;padding:0!important;line-height:1.2;color:#08090b;letter-spacing:-.04em}
+.chester-home h4{font-size:clamp(16px,1.35vw,21px)!important;font-weight:700!important;margin:0 0 8px!important;padding:0!important;color:#08090b;line-height:1.2;letter-spacing:-.025em}
+.chester-home .ch-card-heading{display:flex;justify-content:space-between;align-items:center}
+.chester-home .ch-carrier{display:flex;align-items:center;gap:10px;margin:0 0 22px}
+.chester-home .ch-carrier>strong{font-size:clamp(18px,1.45vw,23px);font-weight:600;color:#454a52}
+.chester-home .ch-network-badge{font-size:clamp(15px,1.3vw,20px);font-weight:650;color:var(--ch-blue);background:linear-gradient(#bbd8ff,#d8e9ff);border:1px solid #a6ccff;padding:3px 10px;border-radius:99px;line-height:1.1}
+.chester-home .ch-radio-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:0 0 16px;margin:0 0 14px;border-bottom:1px solid var(--ch-line)}
+.chester-home .ch-radio-metric{text-align:left;border-left:1px solid var(--ch-line);padding:0 10px 0 20px}.chester-home .ch-radio-metric:first-child{border:0;padding-left:6px}
+.chester-home .ch-radio-metric>span{display:block;font-size:clamp(12px,1.1vw,17px);color:#434850;margin-bottom:4px}
+.chester-home .ch-radio-metric strong{font-size:clamp(18px,1.6vw,26px);white-space:nowrap;font-weight:750;letter-spacing:-.04em}
+.chester-home .ch-quality.is-good strong{color:#008b24}.chester-home .ch-quality.is-fair strong{color:#ac7500}
+.chester-home .ch-mode-section{margin:0 0 14px;padding:0 0 16px;border-bottom:1px solid var(--ch-line)}
+.chester-home .chester-mode{display:flex!important;flex-direction:column!important;gap:0!important;margin:0!important;padding:0!important;border:0!important;background:none!important;box-shadow:none!important}
+.chester-home .chester-mode__head{display:contents!important}.chester-home .chester-mode__status{order:2;font-size:12px;margin-top:5px;color:var(--ch-muted)}.chester-home .chester-mode__status:empty{display:none!important}
+.chester-home .chester-mode__row{display:flex!important;gap:0!important;box-sizing:border-box;width:100%;padding:4px!important;border:1px solid #cdd2dc!important;border-radius:12px!important;background:#f1f2f5!important;overflow:hidden;min-height:36px!important}
+.chester-home .chester-mode__btn{flex:1;height:36px!important;min-height:36px!important;max-height:36px!important;margin:0!important;padding:4px 2px!important;background:transparent!important;border:0!important;border-right:1px solid #dde0e7!important;border-radius:0!important;box-shadow:none!important;color:#22252b!important;font-size:clamp(13px,1.15vw,18px)!important;font-weight:500!important;line-height:1.2!important}
+.chester-home .chester-mode__btn:last-child{border-right:0!important}
+#maincontent#maincontent .chester-home .chester-mode__btn[aria-pressed=true] {
+    position: relative;
+    z-index: 1;
+    border-radius: 10px !important;
+    font-weight: 650 !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ct-primary, #007aff) 38%, transparent) !important;
+}
+.chester-home .ch-band-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 0;margin-top:10px}
+.chester-home .ch-band-column{padding:0 8px;border-left:1px solid var(--ch-line)}.chester-home .ch-band-column:nth-child(4n+1){border-left:0;padding-left:0}.chester-home .ch-band-column:nth-child(4n){padding-right:0}
+.chester-home .ch-band-head{display:block;background:linear-gradient(110deg,#f0f2f6,#e9edf3);border-radius:6px;color:#454a52;font-size:clamp(12px,1.05vw,17px);font-weight:500;padding:3px 9px;margin-bottom:4px;line-height:1.1}
+.chester-home .ch-band-row{display:flex;align-items:center;justify-content:space-between;gap:3px;padding:4px 6px;border-bottom:1px solid #e3e6ed;line-height:1.15}.chester-home .ch-band-row:last-child{border:0}
+.chester-home .ch-band-row>span{color:#454a52;font-size:clamp(10px,.85vw,13px);letter-spacing:-.03em}.chester-home .ch-band-row strong{font-size:clamp(12px,1.05vw,17px);white-space:nowrap;font-weight:650;letter-spacing:-.04em}
+.chester-home .ch-details{border-top:1px solid var(--ch-line);margin-top:8px;padding-top:6px}
+.chester-home summary{color:#666c77;cursor:pointer;font-size:11px;min-height:18px;list-style-position:inside}
+.chester-home .ch-description{display:grid;grid-template-columns:110px minmax(0,1fr);gap:9px;margin:14px 0 0;font-size:13px}.chester-home .ch-description dt{color:var(--ch-muted)}.chester-home .ch-description dd{margin:0;overflow-wrap:anywhere}
+.chester-home .ch-side>.ch-card:first-child{flex:1}.chester-home .ch-side h3{margin-bottom:18px!important}
+.chester-home .ch-ports{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:18px}
+.chester-home .ch-port{display:flex;flex-direction:column;align-items:center;gap:5px;margin:0!important;padding:0!important;background:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;color:#101114!important;min-height:0!important;height:auto!important;line-height:1.2}
+.chester-home .ch-port .ch-icon{width:39px;height:39px;color:#7b8089;margin-bottom:4px}.chester-home .ch-port.is-online .ch-icon,.chester-home .ch-port.is-online small{color:#00a800}
+.chester-home .ch-port strong{font-size:clamp(12px,1.1vw,17px);font-weight:650;white-space:nowrap}.chester-home .ch-port small{font-size:clamp(10px,.95vw,15px);color:#555c67;white-space:nowrap}
+.chester-home .ch-shortcuts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;border-top:1px solid var(--ch-line);padding-top:16px}
+.chester-home .ch-shortcut{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:linear-gradient(#eef5ff,#e3eeff);border:1px solid #bad5ff;color:var(--ch-blue);border-radius:10px;min-height:58px;font-size:clamp(13px,1.1vw,18px);font-weight:500;padding:5px 2px;line-height:1.2}.chester-home .ch-shortcut .ch-icon{width:25px;height:25px}
+.chester-home .ch-shortcut.is-neutral{background:linear-gradient(#f8f9fb,#f1f2f6);border-color:#dce0e8;color:#3a3d44}.chester-home .ch-shortcut.is-neutral .ch-icon{color:inherit}
+.chester-home .ch-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.chester-home .ch-side>.ch-card:last-child h3{margin-bottom:12px!important}
+.chester-home .ch-control,.chester-home .ch-control.is-off{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:88px!important;height:auto!important;padding:8px 3px!important;margin:0!important;border:1px solid #dce0e8!important;border-radius:18px!important;background:linear-gradient(110deg,#fff,#fcfcff)!important;color:#08090b!important;box-shadow:none!important;line-height:1.1}
+.chester-home .ch-control .ch-icon,.chester-home .ch-control.is-off .ch-icon{width:30px;height:30px;color:var(--ch-blue)}.chester-home .ch-control strong{font-size:clamp(14px,1.2vw,20px);font-weight:700}.chester-home .ch-control-state{font-size:clamp(13px,1.1vw,18px);color:#626873}
+.chester-home .ch-system-bar{display:grid;grid-template-columns:.9fr 1fr 1.15fr 1.05fr 1.15fr;background:linear-gradient(115deg,#fff,#fdfdff);border:1px solid #dce1ec;border-radius:20px;margin-top:16px;padding:16px 10px;min-height:84px}
+.chester-home .ch-system-metric{display:flex;align-items:flex-start;justify-content:center;gap:14px;border-left:1px solid var(--ch-line);padding:0 8px}.chester-home .ch-system-metric:first-child{border:0}.chester-home .ch-system-metric .ch-icon{width:27px;height:27px;margin-top:3px}
+.chester-home .ch-system-metric div>span{display:block;color:#3d434d;font-size:clamp(12px,1vw,17px);margin-bottom:3px}.chester-home .ch-system-metric strong{display:block;font-size:clamp(21px,1.75vw,29px);font-weight:750;line-height:1.15;letter-spacing:-.04em}.chester-home .ch-system-metric small{display:block;font-size:11px;color:var(--ch-muted);margin-top:2px}
+.chester-home .ch-network-details{padding:8px 16px;background:#ffffff70;border:1px solid var(--ch-line);border-radius:12px}.chester-home .ch-detail-columns{display:grid;grid-template-columns:1fr 1fr;gap:24px;padding-top:14px}.chester-home .ch-loading{color:var(--ch-muted);padding:12px 0}
+@media(min-width:1450px){.chester-home .ch-card{padding:18px 22px}.chester-home .ch-summary-card{min-height:88px}.chester-home .ch-radio-grid{padding-bottom:20px;margin-bottom:16px}.chester-home .ch-carrier{margin-bottom:24px}.chester-home .ch-mode-section{padding-bottom:18px;margin-bottom:16px}.chester-home .ch-band-row{padding:6px}.chester-home .ch-shortcut{min-height:66px}.chester-home .ch-control,.chester-home .ch-control.is-off{min-height:100px!important}.chester-home .ch-system-bar{min-height:94px}}
+@media(max-width:1000px){.chester-home .ch-layout{grid-template-columns:1fr}.chester-home .ch-side{display:grid;grid-template-columns:1fr 1fr}.chester-home .ch-summary-card{padding:12px;gap:10px}.chester-home .ch-summary-card .ch-icon{width:28px;height:28px}.chester-home .ch-radio-metric strong{font-size:23px}.chester-home .ch-band-row strong{font-size:16px}}
+@media(max-width:650px){.chester-home .ch-title{font-size:34px!important}.chester-home .ch-badge{font-size:14px;padding:4px 10px}.chester-home .ch-title-row{gap:14px}.chester-home .ch-head{margin-bottom:14px}.chester-home .ch-muted{font-size:15px}.chester-home .ch-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.chester-home .ch-summary-card{min-height:76px;padding:12px 10px;gap:9px;border-radius:14px}.chester-home .ch-summary-card .ch-icon{width:25px;height:25px}.chester-home .ch-summary-card strong{font-size:15px}.chester-home .ch-summary-card div>span{font-size:11px}.chester-home .ch-layout,.chester-home .ch-side{grid-template-columns:1fr;gap:14px}.chester-home .ch-card{padding:16px 12px;border-radius:18px}.chester-home h3{font-size:24px!important}.chester-home h4{font-size:17px!important}.chester-home .ch-carrier>strong{font-size:18px}.chester-home .ch-radio-metric{padding:0 6px}.chester-home .ch-radio-metric strong{font-size:16px}.chester-home .ch-radio-metric>span{font-size:12px}.chester-home .ch-band-column{padding:0 5px}.chester-home .ch-band-head{font-size:12px;padding:4px 5px}.chester-home .ch-band-row{flex-direction:column;align-items:flex-start;gap:3px;padding:5px 4px}.chester-home .ch-band-row>span{font-size:10px}.chester-home .ch-band-row strong{font-size:13px}.chester-home .ch-system-bar{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 0}.chester-home .ch-system-metric{justify-content:flex-start;padding:0 12px;gap:9px}.chester-home .ch-system-metric:nth-child(odd){border-left:0}.chester-home .ch-system-metric strong{font-size:23px}.chester-home .ch-detail-columns{grid-template-columns:1fr}.chester-home .ch-description{grid-template-columns:85px minmax(0,1fr)}.chester-home .ch-port .ch-icon{width:42px;height:42px}.chester-home .ch-port strong{font-size:14px}.chester-home .ch-port small{font-size:12px}.chester-home .ch-shortcut{font-size:15px}.chester-home .ch-control strong{font-size:16px}.chester-home .ch-control-state{font-size:14px}}
+
+/* Match the reference's compact main row and strong table hierarchy. */
+.chester-home .ch-side>.ch-card:first-child{flex:0 0 auto}
+.chester-home .ch-side>.ch-card:last-child{flex:1}
+.chester-home .ch-radio-grid{padding-bottom:16px!important;margin-bottom:12px!important}
+.chester-home .ch-mode-section{padding-bottom:14px!important;margin-bottom:12px!important}
+.chester-home .ch-band-row{display:grid;grid-template-columns:43% minmax(0,1fr);padding:5px 6px!important}
+.chester-home .ch-carrier{margin-bottom:20px!important}
+.chester-home .ch-modem-details{margin-top:5px;padding-top:3px}
+.chester-home .ch-ports{margin-top:24px;margin-bottom:26px}
+.chester-home .ch-port .ch-icon{width:46px;height:46px}
+.chester-home .ch-port small{font-size:clamp(12px,1.05vw,17px)}
+.chester-home .ch-side>.ch-card:first-child{padding-bottom:17px}
+.chester-home .ch-summary-grid{margin-bottom:20px}
+@media(max-width:650px){.chester-home .ch-band-row{display:flex;padding:5px 4px!important}.chester-home .ch-side>.ch-card:last-child{flex:auto}.chester-home .ch-port small{font-size:12px}}
+
+.chester-home .ch-band-row>strong{font-family:Arial,Helvetica,sans-serif!important}
+.chester-home .ch-port>small{font-family:Arial,Helvetica,sans-serif!important}
+.chester-home .ch-control strong{font-weight:750!important}
+
+.chester-home .ch-port>small{font-size:clamp(12px,1.05vw,17px)!important;line-height:1.2!important}
+.chester-home .ch-control-state{font-size:clamp(14px,1.1vw,18px)!important;line-height:1.15!important}
+@media(min-width:1450px){.chester-home .ch-carrier{margin-bottom:16px!important}.chester-home .ch-band-row{padding-top:4px!important;padding-bottom:4px!important}}
+@media(max-width:650px){.chester-home .ch-port>small{font-size:12px!important}.chester-home .ch-control-state{font-size:14px!important}}
+
+/* Ethernet card settings shortcut. */
+.chester-home .ch-card-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
+.chester-home .ch-card-heading h3{margin:0}
+.chester-home .ch-port-settings{display:flex;align-items:center;justify-content:center;flex:0 0 36px;width:36px;height:36px;border-radius:11px;color:var(--ct-accent,#007aff);background:var(--ct-inset,#f3f6fb);text-decoration:none}
+.chester-home .ch-port-settings .st-icon,.chester-home .ch-port-settings svg{display:block;width:20px;height:20px}
+.chester-home .ch-port-settings:hover{background:var(--ct-soft,#e8f2ff)}
+.chester-home .ch-port-settings:focus-visible{outline:2px solid var(--ct-primary,#007aff);outline-offset:3px}
+
+/* Home links reuse Quick Controls surfaces, type and icon colors. */
+.chester-home .ch-shortcuts{gap:8px;padding-top:16px}
+.chester-home .ch-shortcuts .ch-shortcut.ch-control{gap:8px!important;min-height:100px!important}
+.chester-home .ch-shortcut-label{display:flex;align-items:center;justify-content:center;min-height:34px;max-width:100%;white-space:normal;text-wrap:balance;text-align:center;line-height:1.15}
+.chester-home .ch-shortcuts .ch-control strong{font-size:clamp(14px,1.2vw,20px)}
+@media(max-width:650px){.chester-home .ch-shortcuts{gap:7px}.chester-home .ch-shortcuts .ch-control strong{font-size:13px}}
+
+/* Activity follows live PWM output; the control remains a navigation link. */
+#maincontent#maincontent .chester-home .ch-fan-control.is-running{background:var(--ch-blue,#007aff)!important;border-color:var(--ch-blue,#007aff)!important;color:#fff!important}
+#maincontent#maincontent .chester-home .ch-fan-control.is-running :is(.ch-icon,strong,.ch-control-state){color:#fff!important}
+.chester-home .ch-fan-control.is-running .ch-icon{animation:ch-fan-active 2s linear infinite;transform-origin:center}
+@keyframes ch-fan-active{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.chester-home .ch-fan-control.is-running .ch-icon{animation:none}}
+
+.chester-home .ch-shortcut.ch-update-shortcut{position:relative}
+.chester-home .ch-update-shortcut .ch-shortcut-label{min-height:18px}
+.chester-home .ch-update-state{font-size:11px;line-height:1.15;text-align:center;color:var(--ct-muted,#626873);max-width:100%;text-wrap:balance}
+.chester-home .ch-update-shortcut.is-available:after{content:'';position:absolute;top:9px;right:10px;width:7px;height:7px;border-radius:50%;background:var(--ch-blue,#007aff)}
+#maincontent#maincontent .chester-home .ch-update-shortcut.is-available .ch-update-state{color:var(--ch-blue,#007aff)!important}
