@@ -7,5 +7,5 @@
   "sha256": "aa5a6a0bef3ea88e2f75242ca9c3a3051ad8bf762c936bb5feac4f665fac6cce",
   "size": "44040192",
   "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/61-2026-11-26-ChesterK43P-25.12.bin",
-  "notes": "Smart MTU & MSS controls, per-link M-Lab speed tests and updated Speeds layout. Updated IPv6 and VPN controls, safer full LTE/5G scans, Zapret2 and corrected client topology."
+  "notes": "Smart MTU and MSS controls; per-link M-Lab tests; updated Speeds layout; IPv6 and VPN controls; safer LTE/5G scans; Zapret2; corrected client topology."
 }
