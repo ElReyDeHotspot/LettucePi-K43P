@@ -76,3 +76,21 @@ wc -c    < /tmp/your-image.bin
 against the `sha256` and `size` in
 [`openwrt25/next.json`](openwrt25/next.json).
 
+---
+
+## 5. Downgrading to OpenWrt 21 — Not Recommended
+
+Returning to OpenWrt 21 may be technically possible with the correct vendor
+firmware for your exact K43P board, but **our OpenWrt 25 → 21 downgrade path has
+not been verified**. There is currently no tested downgrade one-liner.
+
+**OpenWrt 21.02 is end-of-life and no longer receives upstream updates,
+including security fixes.** We recommend staying on the current Chester
+firmware. See [OpenWrt's official support notice](https://openwrt.org/releases/21.02/start).
+
+A downgrade would require a compatible full firmware image and a validated
+flash procedure, with settings erased and the router configured again. The
+upgrade installer above only installs the latest OpenWrt 25 build; it does not
+perform a downgrade. Factory reset also does not restore OpenWrt 21, because
+the migration overwrites both firmware banks.
+
