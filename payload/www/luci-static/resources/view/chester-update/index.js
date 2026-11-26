@@ -14,7 +14,7 @@ function releaseNotes(value){
  const notes=Array.isArray(value)?value:typeof value==='string'?value.split(/\n+|\.\s+(?=[A-Z])/):[];
  return notes.filter(v=>typeof v==='string').map(v=>v.replace(/^\s*[-*#]+\s*/,'').replace(/\bBin\s+(\d+)/g,'Bin $1').trim()).filter(Boolean);
 }
-function versionLabel(info,prefix){const v=info[prefix+'_version'],bin=info[prefix+'_bin'];return v?('Version '+v+(bin?' · Bin '+bin:'')):'Not reported';}
+function versionLabel(info,prefix){if(info.app_update)return 'App Update '+(info[prefix+'_app']||0)+' · Firmware '+(info[prefix+'_bin']||'');const v=info[prefix+'_version'],bin=info[prefix+'_bin'];return v?('Version '+v+(bin?' · Bin '+bin:'')):'Not reported';}
 function releaseDate(value){if(!value)return 'Not reported';const d=/^\d{4}-\d{2}-\d{2}$/.test(value)?new Date(value+'T00:00:00'):new Date(value);return isNaN(d.getTime())?String(value):d.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'});}
 function fileSize(value){const n=Number(value);return n>0?(n/1048576).toFixed(2)+' MiB':'Not reported';}
 function line(label,value,extra){return E('div',{'class':'up-line'},[E('span',{'class':'st-muted'},[label]),E('strong',{'class':extra||''},[value||'Not Reported'])]);}
@@ -53,24 +53,24 @@ return view.extend({
   this.pill.className='up-pill '+(checking?'is-checking':newer?'is-new':verified?'is-current':'is-unavailable');
   this.pill.textContent=checking?'Checking':newer?'Update available':verified?'Up to date':'Check unavailable';
   this.statusTitle.textContent=checking?'Checking for Updates…':newer?'A fresh update is ready.':verified?'Your software is up to date.':'We couldn’t check for updates.';
-  this.statusCopy.textContent=checking?'Looking for the latest published release for your K43P.':newer?versionLabel(info,'latest')+' is available for your router.':verified?'No newer K43P release is available.':(info.error==='offline'?'The router could not reach the update server.':info.error)||'Check your internet connection and try again.';
+  this.statusCopy.textContent=info.requires_firmware?info.error:checking?'Looking for the latest published release for your K43P.':newer?versionLabel(info,'latest')+' is available for your router.':verified?'No newer K43P release is available.':(info.error==='offline'?'The router could not reach the update server.':info.error)||'Check your internet connection and try again.';
   this.installButton.hidden=!newer;this.installButton.disabled=!newer||this.preferencesUnavailable;
   this.checkedNode.textContent=this.checkedAt?(verified?'Last checked ':'Last attempt ')+this.checkedAt.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'Updates are checked securely against the published release.';
-  dom.content(this.installedBody,[E('div',{'class':'up-version'},[info.installed_version||'Reading details…']),line('Bin',info.installed_bin?'Bin '+info.installed_bin:'Not reported'),line('Built',releaseDate(info.installed_built)),line('OpenWrt',info.os_version),line('Kernel',info.kernel),line('Device',info.model||'Chester K43P')]);
+  dom.content(this.installedBody,[E('div',{'class':'up-version'},[info.installed_version||'Reading details…']),line('Firmware',info.installed_bin?'BIN'+info.installed_bin:'Not Reported'),...(info.app_update?[line('App Revision',String(info.installed_app||0))]:[]),line('Built',releaseDate(info.installed_built)),line('OpenWrt',info.os_version),line('Kernel',info.kernel),line('Device',info.model||'Chester K43P')]);
   const latest=checking?[E('p',{'class':'st-muted up-checking'},['Checking the published release…'])]:verified?[
    E('div',{'class':'up-version'},[info.latest_version||'Not reported']),
-   line('Bin',info.latest_bin?'Bin '+info.latest_bin:'Not reported'),line('Released',releaseDate(info.latest_built)),line('Download Size',fileSize(info.size)),
+   line('Firmware',info.latest_bin?'BIN'+info.latest_bin:'Not Reported'),...(info.app_update?[line('App Revision',String(info.latest_app||0)),line('Update Type','Signed App Update')]:[]),line('Released',releaseDate(info.latest_built)),line('Download Size',fileSize(info.size)),
    line('Compatibility',info.release_board&&info.board&&info.release_board===info.board?'Matches this K43P':'Checked before installation')
   ]:[E('p',{'class':'st-muted'},['Release details will appear after a successful update check.']),settings.button('Try Again',()=>this.checkForUpdates(),{'class':'st-button secondary'})];
   dom.content(this.latestBody,latest);
   const notes=verified?releaseNotes(info.notes):[];
   this.changesSub.textContent=verified?versionLabel(info,'latest'):'Latest published release';
   dom.content(this.changesBody,checking?[E('p',{'class':'st-muted'},['Release notes are being checked.'])]:notes.length?[E('ul',{},notes.map(note=>E('li',{},[note])))]:[E('p',{'class':'st-muted'},[verified?'No release notes were supplied for this image.':'Check for updates to see what’s changed.'])]);
-  dom.content(this.detailsBody,[line('Device',info.model||'Chester K43P'),line('Board',String(info.board||'').replace(/^misectel,/i,'').toUpperCase()),line('Installed Build',info.installed_build),line('Release Build',verified?info.latest_build:'Not checked'),line('Release Verification',verified?'K43P manifest checked':'Not checked'),line('Image SHA-256',verified?info.latest_sha:'Available after a successful check','up-hash')]);
+  dom.content(this.detailsBody,[line('Device',info.model||'Chester K43P'),line('Board',String(info.board||'').replace(/^misectel,/i,'').toUpperCase()),line('Installed Build',info.installed_build),line('Release Build',verified?info.latest_build:'Not checked'),line('Release Verification',verified?info.app_update?'Ed25519 Signature Verified':'K43P manifest checked':'Not checked'),line('Image SHA-256',verified?info.latest_sha:'Available after a successful check','up-hash')]);
  },
  render(data){
   this.info=data?.[0]||{};const prefs=data?.[1]||{};this.preferencesUnavailable=prefs.unavailable===true;this.zone=prefs.timezone||'UTC';
-  this.keepInput=E('input',{type:'checkbox',checked:prefs.keep_settings!==false?'checked':null,disabled:this.preferencesUnavailable?'disabled':null});
+  this.keepInput=E('input',{type:'checkbox',checked:this.info.app_update||prefs.keep_settings!==false?'checked':null,disabled:this.preferencesUnavailable?'disabled':null});
   this.autoInput=E('input',{type:'checkbox',checked:prefs.auto===true?'checked':null,disabled:this.preferencesUnavailable?'disabled':null});
   this.timeInput=E('input',{type:'time',value:prefs.time||'03:00',disabled:this.preferencesUnavailable||prefs.auto!==true?'disabled':null,'aria-label':'Automatic Update Time'});
   this.autoInput.addEventListener('change',()=>{this.timeInput.disabled=!this.autoInput.checked;});
@@ -85,7 +85,7 @@ return view.extend({
   const latest=infoCard('Latest Release','Firmware for Chester K43P.',[this.latestBody],'shield');
   const changes=E('section',{'class':'st-card up-changes'},[E('div',{'class':'up-changes-head'},[settings.icon('plus'),E('div',{},[E('h3',{},['What’s Changed']),this.changesSub])]),this.changesBody]);
   const preferenceCard=infoCard('Update Options','Choose how updates are installed.',[
-   E('div',{'class':'up-option-grid'},[settings.toggle('Keep My Settings',this.keepInput,'Preserve Wi-Fi, APN, passwords and router settings. Turn off for a fresh setup.'),
+   E('div',{'class':'up-option-grid'},[this.info.app_update?E('p',{class:'st-muted'},'App updates always preserve your settings.'):settings.toggle('Keep My Settings',this.keepInput,'Preserve Wi-Fi, APN, passwords and router settings. Turn off for a fresh setup.'),
    settings.toggle('Automatic Updates',this.autoInput,'Install available K43P releases daily at the selected time.')]),
    E('div',{'class':'up-schedule'},[settings.field('Install At',this.timeInput,'Router timezone: '+this.zone)]),
    settings.footer(settings.button('Save Options',async ev=>{const b=ev.currentTarget;b.disabled=true;try{await this.savePreferences();}catch(e){}finally{b.disabled=this.preferencesUnavailable;}},{disabled:this.preferencesUnavailable?'disabled':null}),this.preferenceNote)
@@ -96,13 +96,13 @@ return view.extend({
    E('section',{'class':'st-card up-hero','aria-live':'polite'},[E('div',{'class':'up-hero-copy'},[E('div',{'class':'up-hero-icon'},[E('img',{src:'/luci-static/misectel/green-leaf.svg',alt:'',width:38,height:38})]),E('div',{},[this.pill,this.statusTitle,this.statusCopy])]),E('div',{'class':'up-actions'},[this.checkButton,this.installButton])]),
    this.checkedNode,E('div',{'class':'up-columns'},[installed,latest]),changes,preferenceCard,
    E('details',{'class':'st-advanced up-details'},[E('summary',{},['Firmware Details']),this.detailsBody]),
-   E('p',{'class':'st-muted up-footnote'},['Updates verify the image size, checksum and firmware format before installation. The router restarts to finish.'])
+   E('p',{'class':'st-muted up-footnote'},[this.info.app_update?'App updates verify an independent signature, exact firmware compatibility and file checksums. An interrupted installation is rolled back at boot.':'Updates verify the image size, checksum and firmware format before installation. The router restarts to finish.'])
   ],'up-page');
   this.paintStatus(this.info,true);const resumed=progress.resume({product:'K43P'});if(!resumed)Promise.resolve().then(()=>this.checkForUpdates());return page;
  },
  handleInstall(keep){
   ui.showModal('Update Firmware',[
-   E('p',{},'The router will download, verify and install the update, then restart.'),
+   E('p',{},this.info.app_update?'The router will download a small signed app package, verify every changed file and restart. The kernel and calibration remain unchanged.':'The router will download, verify and install the firmware, then restart.'),
    E('p',{},keep?'Your saved router settings will be kept.':'Your saved settings, Wi-Fi name and password, APN and admin password will be erased.'),
    E('p',{},'Keep the router powered on. The status window will stay open while the router restarts.'),
    E('div',{class:'up-actions'},[

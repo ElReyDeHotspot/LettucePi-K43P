@@ -16,3 +16,8 @@ for folder in ['usr/libexec', 'usr/sbin', 'usr/bin', 'etc/init.d', 'etc/hotplug.
             (root / source.relative_to(repo / 'payload')).chmod(0o755)
 runpy.run_path(str(repo / 'scripts/prune-legacy-vpn.py'))['prune'](root)
 assert (root / 'www/luci-static/resources/view/misectel-vpn/chester-client.js').is_file()
+
+rc=root / "etc/rc.d/S04chester_app_recover"
+rc.parent.mkdir(parents=True, exist_ok=True)
+if not rc.exists():
+    rc.symlink_to("../init.d/chester_app_recover")

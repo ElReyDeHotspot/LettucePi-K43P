@@ -1,0 +1,21 @@
+{
+  "product": "K43P",
+  "bin": 63,
+  "public_image_checksum_verified": true,
+  "browser_ota": {
+    "first_attempt": "Returned to previous firmware; mismatch correctly reported",
+    "retry": "Native trace confirmed both UBI banks flashed successfully",
+    "window_remained_rendered": true,
+    "no_automatic_navigation": true,
+    "new_boot_and_expected_version_confirmed": true
+  },
+  "postboot": {
+    "smart_mtu_mss": true,
+    "ipv4_and_ipv6_ping_https": true,
+    "lan_ipv4_and_ipv6_https": true,
+    "customer_settings_preserved": true,
+    "vendor_kernel_and_factory_calibration_unchanged": true
+  },
+  "temporary_native_trace_removed": true,
+  "k45p_firmware_built_or_flashed": false
+}

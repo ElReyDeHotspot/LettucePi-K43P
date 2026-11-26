@@ -7,6 +7,19 @@
 # Kept as a shell script with a narrow command surface because the LuCI view
 # reaches it through an rpcd ACL that permits exactly these arguments.
 set -u
+# Routine updates use the independently signed app channel after bootstrap.
+# The full-image path remains explicit for changes to the firmware base.
+case "${1:-status}" in
+ status|status-local)
+  if [ -x /usr/libexec/chester-app-update ]; then exec /usr/libexec/chester-app-update "${1:-status}"; fi;;
+ install)
+  if [ -x /usr/libexec/chester-app-update ]; then
+   app_id=${2:-$(tr -d '-' < /proc/sys/kernel/random/uuid)}
+   exec /usr/libexec/chester-app-update install "$app_id"
+  fi;;
+ firmware-status) shift; set -- status "$@";;
+ firmware-install) shift; set -- install "$@";;
+esac
 
 # One firmware family, one manifest.
 #

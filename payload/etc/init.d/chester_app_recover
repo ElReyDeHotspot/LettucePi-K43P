@@ -1,0 +1,5 @@
+#!/bin/sh /etc/rc.common
+# Recover an interrupted app transaction before the management services start.
+START=04
+boot() { /usr/libexec/chester-app-update recover; }
+start() { /usr/libexec/chester-app-update recover; }
