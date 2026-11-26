@@ -12,4 +12,6 @@ m={'format':1,'product':fields['product'],'board':a.board,'kernel':a.kernel,'bas
    'notes':'All current app updates are included in this firmware. Your settings are preserved during routine app updates.'}
 raw=(json.dumps(m,sort_keys=True,separators=(',',':'))+'\n').encode();dest=Path(a.channel)/'bases'/fields['build'];dest.mkdir(parents=True,exist_ok=True)
 (dest/'latest.json').write_bytes(raw);(dest/'latest.json.sig').write_bytes(base64.b64encode(key.sign(raw))+b'\n')
+envelope={'manifest':base64.b64encode(raw).decode(),'signature':base64.b64encode(key.sign(raw)).decode()}
+(dest/'latest.signed.json').write_bytes((json.dumps(envelope,separators=(',',':'))+'\n').encode())
 print('Signed app baseline prepared for',fields['product'],fields['build'])

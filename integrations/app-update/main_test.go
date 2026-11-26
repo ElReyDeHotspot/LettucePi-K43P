@@ -7,10 +7,12 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 )
 
@@ -209,5 +211,114 @@ func TestSignedBaselineAndStateReset(t *testing.T) {
 	raw, _ = json.Marshal(m)
 	if _, err := verifyManifest(raw, ed25519.Sign(key, raw), pub); err == nil {
 		t.Fatal("baseline with payload accepted")
+	}
+}
+
+func TestMinutePrecisionVendorBaseline(t *testing.T) {
+	e, m, _ := fixture(t)
+	m.Base = "202611260019"
+	m.Target.Built = "2026-11-26"
+	m.Target.Build = m.Base
+	m.Revision = 0
+	m.Size = 0
+	m.Files = nil
+	m.URL = ""
+	m.SHA = bytesHash(nil)
+	pub, key, _ := ed25519.GenerateKey(rand.Reader)
+	raw, _ := json.Marshal(m)
+	if _, err := verifyManifest(raw, ed25519.Sign(key, raw), pub); err != nil {
+		t.Fatal(err)
+	}
+	_ = e
+}
+
+func TestInsufficientFlashDoesNotTouchFiles(t *testing.T) {
+	e, m, p := fixture(t)
+	var st syscall.Statfs_t
+	if err := syscall.Statfs(e.dir(), &st); err != nil {
+		t.Fatal(err)
+	}
+	// A sparse metadata file makes the rollback budget exceed free flash without
+	// consuming that space or writing a large payload.
+	if err := os.Truncate(e.path("etc/chester-version"), int64(st.Bavail)*st.Bsize+(2<<20)); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.apply(m, p); err == nil {
+		t.Fatal("insufficient rollback space accepted")
+	}
+	got, _ := os.ReadFile(e.path(m.Files[0].Path))
+	if string(got) != "old UI" {
+		t.Fatal("file changed before flash-space preflight")
+	}
+	if _, err := os.Stat(filepath.Join(e.tx(), "journal.json")); !os.IsNotExist(err) {
+		t.Fatal("transaction started despite insufficient space")
+	}
+}
+
+func TestInterruptedVersionAndRevisionAreRolledBack(t *testing.T) {
+	e, m, _ := fixture(t)
+	oldVersion, _ := os.ReadFile(e.path("etc/chester-version"))
+	oldState := []byte(`{"revision":0,"base_build":"20261126145149","files":{}}`)
+	write(t, e.path("etc/chester-app-update/state.json"), oldState)
+	oldFiles := map[string][]byte{m.Files[0].Path: []byte("old UI"), "etc/chester-version": oldVersion, "etc/chester-app-update/state.json": oldState}
+	j := Journal{}
+	for path, data := range oldFiles {
+		write(t, filepath.Join(e.tx(), "old", path), data)
+		j.Old = append(j.Old, Old{Path: path, Exists: true, Mode: 0644})
+	}
+	if err := saveJSON(filepath.Join(e.tx(), "journal.json"), j); err != nil {
+		t.Fatal(err)
+	}
+	for path := range oldFiles {
+		write(t, e.path(path), []byte("interrupted update"))
+	}
+	if err := e.recover(); err != nil {
+		t.Fatal(err)
+	}
+	for path, data := range oldFiles {
+		got, _ := os.ReadFile(e.path(path))
+		if !bytes.Equal(got, data) {
+			t.Fatal("rollback mismatch", path)
+		}
+	}
+	if e.state().Revision != 0 {
+		t.Fatal("app counter advanced after rollback")
+	}
+}
+
+func TestCoherentEnvelopeAndPinnedWorkerRelease(t *testing.T) {
+	e, m, _ := fixture(t)
+	m.URL = "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/refs/heads/main/apps/releases/test/package.tgz"
+	pub, key, _ := ed25519.GenerateKey(rand.Reader)
+	write(t, filepath.Join(e.dir(), "public.key"), []byte(base64.StdEncoding.EncodeToString(pub)))
+	raw, _ := json.Marshal(m)
+	sig := ed25519.Sign(key, raw)
+	blob, _ := json.Marshal(Envelope{Manifest: raw, Signature: sig})
+	write(t, e.path("tmp/chester-app-channel.json"), blob)
+	id := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	if _, err := e.pinRequest(id); err != nil {
+		t.Fatal(err)
+	}
+	next := m
+	next.Revision = 2
+	next.Target.Build = "20261126170000"
+	nextRaw, _ := json.Marshal(next)
+	nextSig := ed25519.Sign(key, nextRaw)
+	nextBlob, _ := json.Marshal(Envelope{Manifest: nextRaw, Signature: nextSig})
+	write(t, e.path("tmp/chester-app-channel.json"), nextBlob)
+	pinned, err := e.readRelease(e.requestPath(id))
+	if err != nil || pinned.Revision != 1 {
+		t.Fatal("worker release was replaced by another client check", err)
+	}
+	latest, err := e.cached()
+	if err != nil || latest.Revision != 2 {
+		t.Fatal("current channel did not advance", err)
+	}
+	mixed, _ := json.Marshal(Envelope{Manifest: raw, Signature: nextSig})
+	if _, err := e.decodeRelease(mixed); err == nil {
+		t.Fatal("mixed metadata and signature accepted")
+	}
+	if _, err := e.decodeRelease(bytes.Repeat([]byte{'x'}, 262145)); err == nil {
+		t.Fatal("oversized channel accepted")
 	}
 }

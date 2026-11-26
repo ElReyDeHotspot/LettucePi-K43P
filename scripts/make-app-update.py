@@ -59,5 +59,7 @@ def main():
     sig=base64.b64encode(key.sign(raw))+b'\n'
     release=out/name;release.mkdir(parents=True)
     (release/'package.tgz').write_bytes(package);(release/'manifest.json').write_bytes(raw);(release/'manifest.json.sig').write_bytes(sig)
+    envelope={'manifest':base64.b64encode(raw).decode(),'signature':sig.decode().strip()}
+    (release/'manifest.signed.json').write_bytes((json.dumps(envelope,separators=(',',':'))+'\n').encode())
     print(json.dumps({'release':str(release),'bytes':len(package),'files':len(entries),'expanded_bytes':sum(x['size'] for x in entries)}))
 if __name__=='__main__':main()

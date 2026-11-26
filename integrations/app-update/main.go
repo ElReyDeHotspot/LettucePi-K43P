@@ -66,7 +66,7 @@ type Journal struct {
 }
 type Engine struct{ Root string }
 
-var digits = regexp.MustCompile(`^[0-9]{14}$`)
+var digits = regexp.MustCompile(`^[0-9]{12}([0-9]{2})?$`)
 var safePath = regexp.MustCompile(`^[A-Za-z0-9_./+-]+$`)
 var digest = regexp.MustCompile(`^[a-f0-9]{64}$`)
 var requestID = regexp.MustCompile(`^[a-f0-9]{32}$`)
@@ -226,7 +226,9 @@ func verifyManifest(b, sig, pub []byte) (Manifest, error) {
 		return m, errors.New("Invalid app release metadata")
 	}
 	if _, err := time.Parse("2006-01-02T15:04Z", m.Target.Built); err != nil {
-		return m, errors.New("Invalid app build date")
+		if _, dayErr := time.Parse("2006-01-02", m.Target.Built); dayErr != nil {
+			return m, errors.New("Invalid app build date")
+		}
 	}
 	if m.Revision == 0 {
 		if m.Target.Build != m.Base || m.Size != 0 || m.URL != "" || m.SHA != bytesHash(nil) || len(m.Files) != 0 {
@@ -517,20 +519,21 @@ func (e Engine) repo() (string, error) {
 	}
 	return "", errors.New("Unsupported router")
 }
-func (e Engine) cached() (Manifest, error) {
-	b, err := os.ReadFile(e.path("/tmp/chester-app-manifest.json"))
-	if err != nil {
-		return Manifest{}, err
+
+type Envelope struct {
+	Manifest  []byte `json:"manifest"`
+	Signature []byte `json:"signature"`
+}
+
+func (e Engine) decodeRelease(blob []byte) (Manifest, error) {
+	if len(blob) > 262144 {
+		return Manifest{}, errors.New("App channel exceeds the size limit")
 	}
-	s, err := os.ReadFile(e.path("/tmp/chester-app-manifest.sig"))
-	if err != nil {
+	var envelope Envelope
+	if err := json.Unmarshal(blob, &envelope); err != nil {
 		return Manifest{}, err
 	}
 	pub, err := os.ReadFile(filepath.Join(e.dir(), "public.key"))
-	if err != nil {
-		return Manifest{}, err
-	}
-	sig, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(s)))
 	if err != nil {
 		return Manifest{}, err
 	}
@@ -538,7 +541,7 @@ func (e Engine) cached() (Manifest, error) {
 	if err != nil {
 		return Manifest{}, err
 	}
-	m, err := verifyManifest(b, sig, key)
+	m, err := verifyManifest(envelope.Manifest, envelope.Signature, key)
 	if err != nil {
 		return m, err
 	}
@@ -551,24 +554,69 @@ func (e Engine) cached() (Manifest, error) {
 	}
 	return m, nil
 }
+func (e Engine) readRelease(path string) (Manifest, error) {
+	blob, err := os.ReadFile(path)
+	if err != nil {
+		return Manifest{}, err
+	}
+	return e.decodeRelease(blob)
+}
+func (e Engine) cached() (Manifest, error) {
+	return e.readRelease(e.path("/tmp/chester-app-channel.json"))
+}
+func (e Engine) requestPath(id string) string {
+	return e.path("/tmp/chester-app-request-" + id + ".json")
+}
+func (e Engine) pinRequest(id string) (Manifest, error) {
+	if !requestID.MatchString(id) {
+		return Manifest{}, errors.New("Invalid update request")
+	}
+	blob, err := os.ReadFile(e.path("/tmp/chester-app-channel.json"))
+	if err != nil {
+		return Manifest{}, err
+	}
+	m, err := e.decodeRelease(blob)
+	if err == nil {
+		err = e.compatible(m)
+	}
+	if err != nil {
+		return m, err
+	}
+	if err = atomic(e.requestPath(id), blob, 0600); err != nil {
+		return m, err
+	}
+	return m, nil
+}
 func (e Engine) fetch() (Manifest, error) {
 	repo, err := e.repo()
 	if err != nil {
 		return Manifest{}, err
 	}
-	nonce := "?cb=" + strconv.FormatInt(time.Now().UnixNano(), 10)
 	base := fields(e.path("/rom/etc/chester-version"))["build"]
 	if !digits.MatchString(base) {
 		return Manifest{}, errors.New("Invalid firmware base")
 	}
-	channel := repo + "/bases/" + base
-	if err = curl(channel+"/latest.json"+nonce, e.path("/tmp/chester-app-manifest.json"), 131072); err != nil {
+	f, err := os.CreateTemp(e.path("/tmp"), "chester-app-channel.*")
+	if err != nil {
 		return Manifest{}, err
 	}
-	if err = curl(channel+"/latest.json.sig"+nonce, e.path("/tmp/chester-app-manifest.sig"), 1024); err != nil {
+	temp := f.Name()
+	f.Close()
+	defer os.Remove(temp)
+	url := repo + "/bases/" + base + "/latest.signed.json?cb=" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	if err = curl(url, temp, 262144); err != nil {
 		return Manifest{}, err
 	}
-	return e.cached()
+	m, err := e.readRelease(temp)
+	if err != nil {
+		return m, err
+	}
+	// A unique completed file keeps metadata and signature coherent even when
+	// two clients check different cached channel revisions concurrently.
+	if err = os.Rename(temp, e.path("/tmp/chester-app-channel.json")); err != nil {
+		return m, err
+	}
+	return m, nil
 }
 func (e Engine) status(localOnly bool) {
 	local := fields(e.path("/etc/chester-version"))
@@ -577,6 +625,11 @@ func (e Engine) status(localOnly bool) {
 	board, _ := os.ReadFile(e.path("/tmp/sysinfo/board_name"))
 	model, _ := os.ReadFile(e.path("/tmp/sysinfo/model"))
 	out := map[string]any{"ok": false, "app_update": true, "installed_version": local["version"], "installed_build": local["build"], "installed_built": local["built"], "installed_bin": rom["bin"], "installed_app": e.state().Revision, "kernel": strings.TrimSpace(string(kernel)), "board": strings.TrimSpace(string(board)), "model": strings.TrimSpace(string(model))}
+	out["release_verified"] = false
+	out["manifest_checked"] = false
+	out["update_available"] = false
+	out["requires_firmware"] = false
+	out["error"] = ""
 	out["os_version"] = strings.Trim(fields(e.path("/etc/os-release"))["VERSION_ID"], "\"")
 	if localOnly {
 		out["ok"] = true
@@ -597,6 +650,8 @@ func (e Engine) status(localOnly bool) {
 	}
 	out["ok"] = true
 	out["manifest_checked"] = true
+	out["release_verified"] = true
+	out["release_board"] = m.Board
 	out["latest_version"] = m.Target.Version
 	out["latest_build"] = m.Target.Build
 	out["latest_built"] = m.Target.Built
@@ -662,17 +717,19 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-	case "install":
-		if len(os.Args) != 3 || !requestID.MatchString(os.Args[2]) {
-			os.Exit(2)
-		}
+	case "verify-cache":
 		m, err := e.cached()
 		if err == nil {
 			err = e.compatible(m)
 		}
 		if err != nil {
-			fmt.Println("FAIL:", err)
+			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
+		}
+		fmt.Println("OK: Signed app release is compatible.")
+	case "install":
+		if len(os.Args) != 3 || !requestID.MatchString(os.Args[2]) {
+			os.Exit(2)
 		}
 		f, err := lock()
 		if err != nil {
@@ -680,9 +737,14 @@ func main() {
 			os.Exit(1)
 		}
 		defer f.Close()
+		if _, err = e.pinRequest(os.Args[2]); err != nil {
+			fmt.Println("FAIL:", err)
+			os.Exit(1)
+		}
 		exe, _ := os.Executable()
 		log, err := os.OpenFile("/tmp/chester-app-update.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 		if err != nil {
+			_ = os.Remove(e.requestPath(os.Args[2]))
 			os.Exit(1)
 		}
 		defer log.Close()
@@ -692,6 +754,7 @@ func main() {
 		cmd.Stderr = log
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 		if err = cmd.Start(); err != nil {
+			_ = os.Remove(e.requestPath(os.Args[2]))
 			fmt.Println("FAIL:", err)
 			os.Exit(1)
 		}
@@ -710,7 +773,8 @@ func main() {
 			os.Exit(2)
 		}
 		e.job(id, "preparing", "Checking app compatibility and rollback space.")
-		m, err := e.cached()
+		m, err := e.readRelease(e.requestPath(id))
+		_ = os.Remove(e.requestPath(id))
 		if err == nil {
 			err = e.compatible(m)
 		}
