@@ -13,7 +13,8 @@
     "RAM pressure during download",
     "native flash rejection",
     "active flash handoff",
-    "transient service restart failure"
+    "transient service restart failure",
+    "bounded transport headroom fallback"
   ],
   "real_router_download": {
     "passed": true,
@@ -70,5 +71,6 @@
       "ipv4_ipv6_after": true
     }
   },
-  "real_flash_in_failure_tests": false
+  "real_flash_in_failure_tests": false,
+  "minimum_transport_headroom_kib": 4096
 }

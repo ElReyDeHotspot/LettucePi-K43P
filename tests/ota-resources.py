@@ -125,6 +125,7 @@ with tempfile.TemporaryDirectory(prefix='chester-ota-tests-') as tmp:
     top = Path(tmp)
     for mode, memory, gain, off in [
         ('success', 18000, 12000, ('ttyd',)),
+        ('soft-headroom', 18000, 0, ()),
         ('download-failure', 18000, 12000, ()),
         ('checksum-failure', 18000, 12000, ()),
         ('insufficient-memory', 10000, 1000, ()),
@@ -134,7 +135,7 @@ with tempfile.TemporaryDirectory(prefix='chester-ota-tests-') as tmp:
         env, sha, size = fixture(root, mode, memory, gain, off)
         result = subprocess.run([str(root / 'update'), 'download-only'], env=env,
                                 capture_output=True, text=True, timeout=15)
-        assert (result.returncode == 0) == (mode == 'success'), (mode, result.stdout, result.stderr)
+        assert (result.returncode == 0) == (mode in ['success', 'soft-headroom']), (mode, result.stdout, result.stderr)
         wait_for(lambda: not (root / 'state').exists())
         restored(root, off)
         events = (root / 'events').read_text()

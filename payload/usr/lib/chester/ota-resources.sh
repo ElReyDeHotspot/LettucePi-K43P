@@ -4,6 +4,7 @@ OTA_RES_DIR=${OTA_RES_DIR:-/tmp/chester-ota-resources}
 OTA_INIT_DIR=${OTA_INIT_DIR:-/etc/init.d}
 OTA_RESTORE_RESERVE=12288
 OTA_DOWNLOAD_OVERHEAD=8192
+OTA_MIN_DOWNLOAD_OVERHEAD=4096
 
 ota_available() { awk '/^MemAvailable:/ {print $2; exit}' /proc/meminfo; }
 ota_identity() { awk '{print $22}' "/proc/$1/stat" 2>/dev/null; }
@@ -152,6 +153,14 @@ ota_prepare() {
         [ "$ota_after_rules" = "$ota_before_rules" ] || { ota_note 'Firewall rules changed; aborting preparation.'; return 1; }
         ota_reclaim_cache
     done
+    # The larger target is desirable, but the reserve plus bounded transport
+    # overhead is sufficient after all optional services have been considered.
+    # The watchdog still cancels a download if the 12 MiB reserve is crossed.
+    if [ "$(ota_available)" -lt "$ota_wanted" ] &&
+       [ "$(ota_available)" -ge "$(( $1 + OTA_RESTORE_RESERVE + OTA_MIN_DOWNLOAD_OVERHEAD ))" ]; then
+        ota_note 'Prepared optional services with bounded transport headroom; live RAM monitoring remains active.'
+        return 0
+    fi
     [ "$(ota_available)" -ge "$ota_wanted" ] || {
         ota_note "Need $ota_wanted KiB including the unchanged safety reserve; have $(ota_available) KiB."
         return 1
