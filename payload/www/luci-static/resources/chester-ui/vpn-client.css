@@ -1,0 +1,6 @@
+/* Keep vendor profile tables inside the shared Chester card palette. */
+body.theme-misectel #maincontent#maincontent .st-vpn-client :is(.cbi-map,.cbi-section,.cbi-section-node){background:transparent!important;color:var(--ct-text,#1f2937)!important;border-color:var(--ct-border,#dce1ea)!important}
+body.theme-misectel #maincontent#maincontent .st-vpn-client .cbi-section>h3{background:transparent!important;color:var(--ct-text,#1f2937)!important;padding:0 0 14px!important}
+body.theme-misectel #maincontent#maincontent .st-vpn-client :is(th,.th,.cbi-section-table-titles){background:var(--ct-inset,#f1f5f9)!important;color:var(--ct-muted,#606975)!important;-webkit-text-fill-color:currentColor!important}
+body.theme-misectel #maincontent#maincontent .st-vpn-client :is(td,.td){color:var(--ct-text,#1f2937)!important;border-color:var(--ct-border,#dce1ea)!important}
+body.theme-misectel #maincontent#maincontent .st-vpn-client .cbi-section{border-radius:16px;padding:18px!important}

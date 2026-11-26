@@ -187,9 +187,10 @@ return view.extend({
 			el.classList.add('st-button', 'secondary');
 		});
 		return kit.sheet([
+			E('link', {rel: 'stylesheet', href: L.resource('chester-ui/vpn-client.css') + '?v=20261125-1'}),
 			kit.head(_('VPN'), _('Set up a WireGuard or OpenVPN client.'), 'shield'),
 			kit.card(_('Client Setup'), null, controls, 'shield'),
 			kit.card(_('VPN Profiles'), null, [profiles], 'network')
-		]);
+		], 'st-vpn-client');
 	}
 });
