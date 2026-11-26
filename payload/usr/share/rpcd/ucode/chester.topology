@@ -1,0 +1,43 @@
+#!/usr/bin/ucode
+'use strict';
+import {open,readfile,mkdir,rename,unlink,popen,chmod,rmdir,stat} from 'fs';
+import {cursor} from 'uci';
+const DIR='/etc/chester-topology',PATH=DIR+'/map.json';
+function blank(){return {schema:1,nodes:[],links:[],positions:{},parents:{},rooms:{},remembered:[]};}
+function readmap(){let f=open(PATH,'r');if(!f)return {map:blank(),revision:0};let s=f.read(196800);f.close();try{let x=json(s);if(type(x)=='object'&&x.map.schema==1)return x;}catch(e){}return {map:blank(),revision:0,error:'The saved map could not be read. Restore a map export before saving.'};}
+function id(s){return type(s)=='string'&&match(s,/^(router|internet|lan|port:(lan[1-4]|wan)|wifi:[A-Za-z0-9_.-]{1,40}|device:([0-9A-F]{2}:){5}[0-9A-F]{2}|custom:[A-Za-z0-9_-]{1,48})$/);}
+function txt(s,n){return type(s)=='string'&&length(s)<=n&&!match(s,/[[:cntrl:]]/);}
+function valid(m){
+ if(type(m)!='object'||m.schema!=1||type(m.nodes)!='array'||length(m.nodes)>128||type(m.links)!='array'||length(m.links)>512||type(m.remembered)!='array'||length(m.remembered)>512)return false;
+ let seen={};for(let n in m.nodes){if(type(n)!='object'||!id(n.id)||index(n.id,'custom:')!=0||seen[n.id]||!txt(n.name,64)||trim(n.name)==''||index(['switch','accesspoint','router','server','device'],n.icon)<0)return false;seen[n.id]=true;}
+ for(let l in m.links)if(type(l)!='object'||!id(l.from)||!id(l.to)||l.from==l.to||!txt(l.label,64))return false;
+ for(let key in ['positions','parents','rooms']){if(type(m[key])!='object'||length(keys(m[key]))>768)return false;for(let k,v in m[key]){if(!id(k))return false;if(key=='positions'){if(type(v)!='object'||(type(v.x)!='int'&&type(v.x)!='double')||(type(v.y)!='int'&&type(v.y)!='double')||v.x < -20000||v.x>20000||v.y < -20000||v.y>20000)return false;}else if(key=='parents'){if(!id(v)||v==k||k=='router'||k=='internet')return false;}else if(!txt(v,64))return false;}}
+ for(let k,v in m.parents){let visited={};visited[k]=true;while(v){if(visited[v])return false;visited[v]=true;v=m.parents[v];}}
+ for(let d in m.remembered)if(type(d)!='object'||!id('device:'+d.mac)||!txt(d.hostname,64)||!txt(d.ipaddr,64)||!txt(d.interface,40)||!txt(d.ssid,64)||!txt(d.band,24)||index(['wired','wireless','static'],d.connection)<0||(type(d.lastSeen)!='int'&&type(d.lastSeen)!='double')||d.lastSeen<0)return false;
+ return true;
+}
+// Linux bridge FDB entries are 16 bytes; only learned unicast clients are useful.
+function decodeFDB(data, ports) {
+ let out=[],seen={};
+ for(let i=0;i+16<=length(data)&&length(out)<2048;i+=16){
+  if(ord(data,i+7)!=0||(ord(data,i)&1))continue;
+  let dev=ports[ord(data,i+6)+256*ord(data,i+12)];if(!dev)continue;
+  let bytes=[];for(let j=0;j<6;j++)push(bytes,sprintf('%02X',ord(data,i+j)));
+  let mac=join(':',bytes),key=mac+'@'+dev;if(mac=='00:00:00:00:00:00'||seen[key])continue;
+  seen[key]=true;push(out,{mac:mac,device:dev});
+ }
+ return out;
+}
+function sysfsFDB(lan, ports) {
+ if(!match(lan,/^[A-Za-z0-9_.-]{1,40}$/))return [];
+ let numbers={};for(let port in ports){let raw=readfile('/sys/class/net/'+port.device+'/brport/port_no');if(raw!=null)numbers[int(trim(raw),16)]=port.device;}
+ let f=open('/sys/class/net/'+lan+'/brforward','r');if(!f)return [];
+ let data=f.read(65536);f.close();return type(data)=='string'?decodeFDB(data,numbers):[];
+}
+return {'chester.topology':{
+ read:{call:function(){let out=readmap(),u=cursor(),lan=u.get('network','lan','device')||'br-lan',members=[];u.foreach('network','device',function(s){if(s.name==lan)members=s.ports||[];});out.hostname=u.get('system','@system[0]','hostname')||'Chester K43P';out.address=u.get('network','lan','ipaddr')||'';if(type(out.address)=='array')out.address=out.address[0];let labels={};for(let entry in (u.get('misectel','clients','port_labels')||[])){let a=split(entry,'=');if(length(a)==2)labels[a[0]]=a[1];}let hidden=u.get('misectel','clients','hidden_ports')||[];
+if(type(hidden)=='string')hidden=split(hidden,/\s+/);
+out.ports=[];for(let dev in ['lan1','lan2','lan3','lan4','wan']){if(index(hidden,dev)>=0)continue;let base='/sys/class/net/'+dev;if(readfile(base+'/ifindex')==null)continue;push(out.ports,{device:dev,label:labels[dev]||uc(dev),carrier:trim(readfile(base+'/carrier')||'')=='1',speed:int(readfile(base+'/speed')||0),role:index(members,dev)>=0?'lan':'wan'});}out.fdb=[];let p=stat('/usr/sbin/bridge')?popen('/usr/sbin/bridge -j fdb show 2>/dev/null','r'):null;if(p){let s=p.read(262145);p.close();if(length(s)<=262144)try{for(let f in json(s))if(length(out.fdb)<2048&&index(['lan1','lan2','lan3','lan4','wan'],f.ifname)>=0&&f.state!='permanent'&&index(f.flags||[],'self')<0&&match(uc(f.mac||''),/^[0-9A-F][02468ACE]:([0-9A-F]{2}:){4}[0-9A-F]{2}$/))push(out.fdb,{mac:uc(f.mac),device:f.ifname});}catch(e){}}if(!length(out.fdb))out.fdb=sysfsFDB(lan,out.ports);return out;}},
+ save:{args:{map:'String',revision:0},call:function(req){let a=req.args;if(length(a.map||'')>196608)return {success:false,error:'The map is too large.'};let m;try{m=json(a.map);}catch(e){return {success:false,error:'Invalid map JSON.'};}if(!valid(m))return {success:false,error:'Invalid map. Check devices, uplinks and size limits.'};
+ mkdir(DIR,0700);chmod(DIR,0700);let lock='/tmp/chester-topology-save.lock';if(!mkdir(lock,0700))return {success:false,error:'Another map save is in progress. Try again.'};let tmp=DIR+'/.saving',f=open(tmp,'w',0600);if(!f){rmdir(lock);return {success:false,error:'Could not write the map.'};}let current=readmap();if(current.error||a.revision!=current.revision){f.close();unlink(tmp);rmdir(lock);return {success:false,error:current.error||'The map changed in another window. Reload before saving.'};}let next={map:m,revision:current.revision+1},body=sprintf('%J',next);let ok=f.write(body)==length(body);if(!f.close())ok=false;if(!ok||!rename(tmp,PATH)){unlink(tmp);rmdir(lock);return {success:false,error:'Could not save the network map.'};}rmdir(lock);return {success:true,revision:next.revision};}}
+}};

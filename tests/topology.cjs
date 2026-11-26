@@ -1,0 +1,11 @@
+const fs=require('fs'),path=require('path'),assert=require('assert/strict');
+const src=fs.readFileSync(path.join(__dirname,'../payload/www/luci-static/resources/chester-ui/topology-model.js'),'utf8');
+const model=new Function('baseclass',src)({extend:o=>o});
+const runtime={hostname:'Chester K43P',address:'192.168.100.1',ports:[{device:'lan4',label:'LAN1',carrier:true,speed:1000,role:'lan'},{device:'lan3',label:'LAN2',carrier:false,speed:-1,role:'lan'}],fdb:[{mac:'E8:EA:6A:95:A6:F4',device:'lan4'}]};
+const devices=[{mac:'E8:EA:6A:95:A6:F4',hostname:'Desktop',connection:'wired',tone:'online',ipaddr:'192.168.100.2'}];
+let graph=model.build(runtime,devices,{},model.empty());let desktop=graph.nodes.find(n=>n.kind==='client');assert.equal(graph.edges.find(e=>e.to===desktop.id).from,'port:lan4');assert.match(desktop.evidence,/LAN1/);assert(!desktop.evidence.includes('LAN4'));assert.equal(graph.nodes.find(n=>n.id==='port:lan4').name,'LAN1');assert(model.safeID('port:lan4'));
+const ambiguous={...runtime,fdb:[...runtime.fdb,{mac:devices[0].mac,device:'lan3'}]};graph=model.build(ambiguous,devices,{},model.empty());assert.equal(graph.edges.find(e=>e.to===desktop.id).from,'lan');
+const map=model.empty();map.parents[desktop.id]='port:lan3';graph=model.build(runtime,devices,{},map);assert.equal(graph.edges.find(e=>e.to===desktop.id).from,'port:lan3');
+assert.deepEqual(model.validate(map).parents,map.parents);
+graph=model.build(runtime,[{...devices[0],tone:'offline'}],{},model.empty());assert.equal(graph.edges.find(e=>e.to===desktop.id).from,'lan');
+console.log('PASS K43P LAN1/lan4 desktop attachment, physical labels, lan4 map persistence, ambiguous FDB, offline clients and manual uplink overrides.');
