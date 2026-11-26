@@ -1,0 +1,18 @@
+{
+  "admin/vpn": {
+    "title": "VPN",
+    "order": 40,
+    "action": { "type": "view", "path": "misectel-vpn/chester-client" },
+    "depends": { "acl": ["luci-app-misectel-vpn"] }
+  },
+  "admin/vpn/wireguard": {
+    "hidden": true,
+    "action": { "type": "view", "path": "misectel-vpn/wireguard" },
+    "depends": { "acl": ["luci-app-misectel-vpn"] }
+  },
+  "admin/vpn/openvpn": {
+    "hidden": true,
+    "action": { "type": "view", "path": "misectel-vpn/openvpn" },
+    "depends": { "acl": ["luci-app-misectel-vpn"] }
+  }
+}
