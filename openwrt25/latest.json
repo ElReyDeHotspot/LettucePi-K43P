@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-11-26T14:51Z",
-  "build": "20261126145149",
-  "bin": "63",
-  "sha256": "51be49086b789bc015fb503d69ffe5ff09d647ba7ea53a4ab1a105c112d2eacd",
-  "size": "44040192",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/63-2026-11-26-ChesterK43P-25.12.bin",
-  "notes": "Persistent update status window; clear reconnect instructions; installed-version confirmation; automatic service recovery."
+  "built": "2026-11-26T15:29Z",
+  "build": "20261126152923",
+  "bin": "64",
+  "sha256": "50782293ab8c1b873ad51cc19c2a017863586a6edda70bea9da779a7b103ffd6",
+  "size": "30277632",
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/64-2026-11-26-ChesterK43P-25.12.bin",
+  "notes": "Smaller firmware with all apps retained; signed app update channel; compact native tools; vendor kernel and calibration preserved."
 }

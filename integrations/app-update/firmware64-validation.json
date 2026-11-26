@@ -1,0 +1,36 @@
+{
+  "passed": true,
+  "bin": 64,
+  "build": "20261126152923",
+  "bytes": 30277632,
+  "mib": 28.875,
+  "sha256": "50782293ab8c1b873ad51cc19c2a017863586a6edda70bea9da779a7b103ffd6",
+  "new_boot": true,
+  "smart_mtu_mss": true,
+  "ipv4_ipv6_ping_https": true,
+  "firewall_and_bidirectional_mss_valid": true,
+  "customer_settings_preserved": {
+    "network": true,
+    "wireless": true,
+    "firewall": true,
+    "chester_ipv6": true,
+    "failover": true,
+    "qmodem": true,
+    "misectel": true,
+    "system": true
+  },
+  "vendor_kernel_modules_and_calibration_preserved": true,
+  "native_suite_hash_verified": true,
+  "all_native_aliases_verified": true,
+  "both_vendor_profiles_reconstructed_exactly": true,
+  "recovery_service_enabled": true,
+  "no_pending_transaction_or_resource_journal": true,
+  "lan_ipv4_ipv6_https": true,
+  "nearby_scan": {
+    "passed": true,
+    "nearby_background_worker_completed": true,
+    "no_full_scan_or_deregistration_requested": true,
+    "cells": 5
+  },
+  "all_existing_apps_retained": true
+}
