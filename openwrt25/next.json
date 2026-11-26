@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-11-26T13:46Z",
-  "build": "20261126134619",
-  "bin": "62",
-  "sha256": "aacb6bcd9b459be1c30a18e149b29d5c0df3f49a72920785b08753f551ba8703",
+  "built": "2026-11-26T14:51Z",
+  "build": "20261126145149",
+  "bin": "63",
+  "sha256": "51be49086b789bc015fb503d69ffe5ff09d647ba7ea53a4ab1a105c112d2eacd",
   "size": "44040192",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/62-2026-11-26-ChesterK43P-25.12.bin",
-  "notes": "Automatic OTA preparation; pauses optional services when needed; restores services after failed or interrupted updates; keeps memory and image safety checks."
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/63-2026-11-26-ChesterK43P-25.12.bin",
+  "notes": "Persistent update status window; clear reconnect instructions; installed-version confirmation; automatic service recovery."
 }

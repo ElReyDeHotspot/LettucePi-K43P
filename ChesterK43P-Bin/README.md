@@ -32,7 +32,8 @@ folder.** This is an archive for reference and rollback.
 | 49 | 2026-10-14 | [49-2026-10-14-ChesterK43P-25.12.bin](49-2026-10-14-ChesterK43P-25.12.bin) | 33.75 MiB | Previous OTA image. |
 | 60 | 2026-11-25 | [60-2026-11-25-ChesterK43P-25.12.bin](60-2026-11-25-ChesterK43P-25.12.bin) | 37.50 MiB | Previous OTA image. Quick Start and LuCI login verified after a clean flash on K43P. |
 | 61 | 2026-11-26 | [61-2026-11-26-ChesterK43P-25.12.bin](61-2026-11-26-ChesterK43P-25.12.bin) | 42.00 MiB | Previous OTA image. Smart MTU & MSS, per-link Speeds, updated IPv6 and VPN. |
-| 62 | 2026-11-26 | [62-2026-11-26-ChesterK43P-25.12.bin](62-2026-11-26-ChesterK43P-25.12.bin) | 42.00 MiB | **Current OTA image.** Automatic OTA preparation and service recovery. |
+| 62 | 2026-11-26 | [62-2026-11-26-ChesterK43P-25.12.bin](62-2026-11-26-ChesterK43P-25.12.bin) | 42.00 MiB | Previous OTA image. Automatic OTA preparation and service recovery. |
+| 63 | 2026-11-26 | [63-2026-11-26-ChesterK43P-25.12.bin](63-2026-11-26-ChesterK43P-25.12.bin) | 42.00 MiB | **Current OTA image.** Persistent update window and verified restart confirmation. |
 
 ## SHA-256
 
@@ -55,6 +56,7 @@ ddcc0a8c86ff8de8fe0e249c6e4ae721b1c250fd2f12ae05b86511a779230811  14-2026-08-24-
 17f301c5488070e76e8884966ed9b09aebe86888d5689dc74b0d2e410f33ccfa  60-2026-11-25-ChesterK43P-25.12.bin
 aa5a6a0bef3ea88e2f75242ca9c3a3051ad8bf762c936bb5feac4f665fac6cce  61-2026-11-26-ChesterK43P-25.12.bin
 aacb6bcd9b459be1c30a18e149b29d5c0df3f49a72920785b08753f551ba8703  62-2026-11-26-ChesterK43P-25.12.bin
+51be49086b789bc015fb503d69ffe5ff09d647ba7ea53a4ab1a105c112d2eacd  63-2026-11-26-ChesterK43P-25.12.bin
 ```
 
 ## Two different formats in here
