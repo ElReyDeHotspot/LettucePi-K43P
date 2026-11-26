@@ -59,14 +59,14 @@ return view.extend({
   dom.content(this.installedBody,[E('div',{'class':'up-version'},[info.installed_version||'Reading details…']),line('Firmware',info.installed_bin?'BIN'+info.installed_bin:'Not Reported'),...(info.app_update?[line('App Revision',String(info.installed_app||0))]:[]),line('Built',releaseDate(info.installed_built)),line('OpenWrt',info.os_version),line('Kernel',info.kernel),line('Device',info.model||'Chester K43P')]);
   const latest=checking?[E('p',{'class':'st-muted up-checking'},['Checking the published release…'])]:verified?[
    E('div',{'class':'up-version'},[info.latest_version||'Not reported']),
-   line('Firmware',info.latest_bin?'BIN'+info.latest_bin:'Not Reported'),...(info.app_update?[line('App Revision',String(info.latest_app||0)),line('Update Type','Signed App Update')]:[]),line('Released',releaseDate(info.latest_built)),line('Download Size',fileSize(info.size)),
+   line('Firmware',info.latest_bin?'BIN'+info.latest_bin:'Not Reported'),...(info.app_update?[line('App Revision',String(info.latest_app||0)),line('Update Type','Signed App Update')]:[]),line('Released',releaseDate(info.latest_built)),line('Download Size',info.app_update&&Number(info.latest_app)===0?'Included in Firmware':fileSize(info.size)),
    line('Compatibility',info.release_board&&info.board&&info.release_board===info.board?'Matches this K43P':'Checked before installation')
   ]:[E('p',{'class':'st-muted'},['Release details will appear after a successful update check.']),settings.button('Try Again',()=>this.checkForUpdates(),{'class':'st-button secondary'})];
   dom.content(this.latestBody,latest);
   const notes=verified?releaseNotes(info.notes):[];
   this.changesSub.textContent=verified?versionLabel(info,'latest'):'Latest published release';
   dom.content(this.changesBody,checking?[E('p',{'class':'st-muted'},['Release notes are being checked.'])]:notes.length?[E('ul',{},notes.map(note=>E('li',{},[note])))]:[E('p',{'class':'st-muted'},[verified?'No release notes were supplied for this image.':'Check for updates to see what’s changed.'])]);
-  dom.content(this.detailsBody,[line('Device',info.model||'Chester K43P'),line('Board',String(info.board||'').replace(/^misectel,/i,'').toUpperCase()),line('Installed Build',info.installed_build),line('Release Build',verified?info.latest_build:'Not checked'),line('Release Verification',verified?info.app_update?'Ed25519 Signature Verified':'K43P manifest checked':'Not checked'),line('Image SHA-256',verified?info.latest_sha:'Available after a successful check','up-hash')]);
+  dom.content(this.detailsBody,[line('Device',info.model||'Chester K43P'),line('Board',String(info.board||'').replace(/^misectel,/i,'').toUpperCase()),line('Installed Build',info.installed_build),line('Release Build',verified?info.latest_build:'Not checked'),line('Release Verification',verified?info.app_update?'Ed25519 Signature Verified':'K43P manifest checked':'Not checked'),line(info.app_update?'Package SHA-256':'Image SHA-256',verified?(info.app_update&&Number(info.latest_app)===0?'No Package Required':info.latest_sha):'Available after a successful check','up-hash')]);
  },
  render(data){
   this.info=data?.[0]||{};const prefs=data?.[1]||{};this.preferencesUnavailable=prefs.unavailable===true;this.zone=prefs.timezone||'UTC';
