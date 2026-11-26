@@ -1,0 +1,868 @@
+#!/bin/sh
+# =============================================================================
+# zapret2-speedtest — optimizer A/B speed comparison (app-like, raw numbers)
+# =============================================================================
+# Measures three download phases FROM THE ROUTER ITSELF against a streaming
+# content CDN (fast.com) plus a raw-connection reference:
+#
+#   1. reference : Cloudflare speed endpoint (DUAL-STACK, so it rides v6 when
+#                  the pinned device has it), speedtest.net (Ookla, v4-only)
+#                  burst as fallback — the class of traffic ISPs usually
+#                  DON'T throttle. Tells "slow line" apart from "CDN
+#                  throttled" when read next to the fast.com numbers.
+#   2. with      : fast.com, the CONFIGURED RECIPE applied via a temporary
+#                  standalone nfqws2 on a private queue: this is how you find
+#                  out WHETHER to enable the optimizer without enabling it.
+#
+# While a run is in progress the LIVE optimizer is stopped, so the clean
+# (reference/without) legs measure the un-desynced line instead of the engine's
+# output, and it is restarted when the run ends. The UI warns the user first.
+#   3. without   : fast.com, NO desync applied — a clean download.
+#
+# fast.com is a PARALLEL test: the API returns several signed CDN targets and
+# the official apps load them concurrently. Measuring only one target (older
+# builds) reads a per-connection share (~0.7 Mbps) instead of the line speed,
+# so WITH and WITHOUT both collapsed to the same tiny number on any link. This
+# build downloads ALL targets concurrently (Busybox-compatible: one background
+# curl per target, waited by PID, aggregates bytes over the max elapsed time)
+# and reports a `single_mbps` diagnostic per leg alongside the aggregate.
+#
+# Why a throwaway engine instead of the live one: the whole point of the
+# comparison is to test BEFORE turning the optimizer on. The home-grown nfqws2
+# gets the exact same argv the service would use (config NFQWS2_OPT with the
+# <HOSTLIST*>/<HOSTLIST_NOAUTO> markers stripped — the target IP scoping is
+# done by the temporary rule instead), just on a private, collision-free queue
+# number derived from QNUM. The CDN IPs of ALL targets are fed into that queue
+# for the measure, then the rules and the daemon are torn down. `--queue-bypass`
+# keeps the download alive even if the throwaway dies mid-test.
+#
+# What if the optimizer IS already running? Its NFQUEUE rules also see the
+# router's own locally-generated packets, so a plain curl would already ride
+# the engine. The run therefore PAUSES the live service first (and restarts it
+# when done, trap-guarded even on abort), so reference/WITHOUT measure the raw
+# line. This replaced an earlier attempt to out-bypass the engine with an
+# iptables ACCEPT rule: an iptables rule cannot beat an nft chain that hooks at
+# a later priority, and it never set the engine's mark, so the "clean" legs
+# silently stayed desynced. WITH brings up its own throwaway nfqws2 on a
+# private queue and feeds the CDN IPs into it via dedicated nft tables.
+#
+# Numbers, not verdicts: each leg is reported as raw Mbps (plus a single_mbps
+# diagnostic on the fast.com legs) and `improvement` as the signed percent of
+# WITH vs WITHOUT. The UI shows those numbers as-is — deciding whether a leg is
+# throttled is the user's call, never the script's. A large positive percent
+# with a healthy reference is the optimizer lifting a depressed CDN; a flat row
+# (percent ~ 0) on a healthy line means the strategy does not apply to that
+# traffic class.
+#
+# Requirements: the nfqws2 binary from the zapret2 install must exist (curl,
+# jq, nslookup, nft). The optimizer service is paused for the run and restored
+# afterwards; a run with the optimizer already stopped is normal.
+#
+# Contract (marker json /tmp/zapret2_speedtest.json):
+#   running:   {"status":"running","interface":DEV,"phase":"reference|with|without",
+#               "reference":{...}|null,"with":{...}}
+#   complete:  {"status":"complete","timestamp":T,"interface":DEV,"engine_running":B,
+#               "streams":N,
+#               "with":{"speed_mbps":M,"single_mbps":M},
+#               "without":{"speed_mbps":M,"single_mbps":M},
+#               "reference":{"speed_mbps":N,"source":"speedtest|cloudflare"},
+#               "improvement":"+N%"}
+#              reference is null only when both reference sources are down.
+#              Phases run reference -> with (optimized) -> without (clean).
+#   error:     {"status":"error","message":M,"detail":D}
+#
+# The egress is pinned to a user-chosen uplink device (eth1/usb0/usb1):
+# every measurement runs curl --interface DEV and the private feed tables are
+# scoped oifname DEV, so the comparison measures that specific link in spite of
+# mwan3 policy routing. `interfaces` prints the live list of configured
+# uplinks [{device,v4:[...],v6:[...],up:0|1}] for the LuCI UI.
+#
+# Usage: zapret2-speedtest start <device> | interfaces | ensure_enable |
+#        packets | (internal) --run
+#   start <device>  launch a background run pinned to that egress device
+#                   (safe to repeat, single instance; validates device first)
+#   interfaces      print the available uplink interfaces as JSON
+#   ensure_enable   set NFQWS2_ENABLE=1 in /opt/zapret2/config (idempotent;
+#                   used by the LuCI Service control so "Start" really starts)
+#   packets         print total packets queued to the engine (sum of the
+#                   nfqws2 queue-rule netfilter counters; 0 when not running)
+# Install location: /usr/sbin/zapret2-speedtest
+# =============================================================================
+
+export PATH="/usr/sbin:/usr/bin:/sbin:/bin"
+
+DPI_VERIFY_FILE="/tmp/zapret2_speedtest.json"
+DPI_VERIFY_PID="/tmp/zapret2_speedtest.pid"
+DPI_VERIFY_IFACE="/tmp/zapret2_speedtest.iface"
+ENGINE_PAUSED_MARK="/tmp/zapret2_speedtest.engine_paused"
+DPI_PKT_STATE="/tmp/zapret2_speedtest.pkt"
+DPI_EXCLUDE_LOG="/tmp/zapret2_speedtest.rules"
+DPI_NFQWS_PID="/tmp/zapret2_speedtest.nfqws.pid"
+DPI_NFQWS_LOG="/tmp/zapret2_speedtest.nfqws.log"
+DPI_SAMPLE_SECS="15"
+DPI_MIN_SIZE="100000"
+DPI_FAST_API="https://api.fast.com/netflix/speedtest/v2?https=true&token=YXNkZmFzZGxmbnNkYWZoYXNkZmhrYWxm"
+DPI_REF_OOKLA_API="https://www.speedtest.net/api/js/servers?engine=js&limit=1"
+DPI_REF_CLOUDFLARE_URL="https://speed.cloudflare.com/__down?bytes=25000000"
+# parallel fast.com scratch: one per-target result file + a pid list for the
+# PID-scoped wait (bare `wait` would also block on the throwaway engine)
+DPI_PAR_PIDS="/tmp/zapret2_speedtest.par.pids"
+DPI_PAR_DIR="/tmp/zapret2_speedtest.par"
+DPI_PAR_URLS="/tmp/zapret2_speedtest.urls"
+
+# ZAPRET_BASE derivation mirrors /etc/init.d/zapret2 (symlink chain
+# <base>/init.d/openwrt/zapret2), so a relocated install is picked up.
+SCRIPT=$(readlink /etc/init.d/zapret2 2>/dev/null)
+if [ -n "$SCRIPT" ]; then
+	ZAPRET_BASE=$(dirname "$(dirname "$(dirname "$SCRIPT")")")
+else
+	ZAPRET_BASE=/opt/zapret2
+fi
+ENGINE_BIN="$ZAPRET_BASE/nfq2/nfqws2"
+
+# Self path for the background --run respawn: honour the invocation path
+# (install = /usr/sbin/zapret2-speedtest, drop-in test = /tmp/...), fall back
+# to a PATH lookup so `zapret2-speedtest start` from anywhere still works.
+SELF="$0"
+case "$SELF" in
+	*/*) ;;
+	*) SELF=$(command -v zapret2-speedtest 2>/dev/null || printf '/usr/sbin/zapret2-speedtest') ;;
+esac
+
+# --- small helpers ------------------------------------------------------------
+
+_write() {
+	# In-place write — the LuCI app reads this file directly; a tmp+mv
+	# would create a window where the file is missing.
+	printf '%s\n' "$1" > "$DPI_VERIFY_FILE"
+}
+
+_error() {
+	_write "$(jq -n --arg m "$1" --arg d "${2:-}" '{status:"error",message:$m,detail:$d}')"
+	rm -f "$DPI_VERIFY_PID"
+	exit 1
+}
+
+_cleanup_excludes() {
+	# Delete every rule we inserted (the WITH leg's NFQUEUE feed tables), in
+	# the exact recorded form.
+	while read -r line; do
+		[ -n "$line" ] && eval "$line" 2>/dev/null
+	done < "$DPI_EXCLUDE_LOG"
+	rm -f "$DPI_EXCLUDE_LOG"
+}
+
+_emergency_cleanup() {
+	# Safety net on any exit path: tear down the private feed tables, kill a
+	# stray throwaway engine, and — most important — bring the live optimizer
+	# back if this run paused it. The resume is marker-gated, so it runs at
+	# most once across the normal and trap paths.
+	nft delete table ip zapret_speed 2>/dev/null
+	nft delete table ip6 zapret_speed 2>/dev/null
+	pkill -f "nfqws2.*--qnum=$TEST_QNUM" 2>/dev/null
+	_engine_resume
+	rm -f "$DPI_EXCLUDE_LOG" "$DPI_NFQWS_PID" "$DPI_PAR_PIDS" "$DPI_PAR_URLS" "$DPI_PAR_DIR".*
+}
+
+# --- config / recipe ----------------------------------------------------------
+
+_load_config() {
+	# Read the install's config exactly the way the init/service does. The
+	# file is plain KEY=value shell syntax shipped by the package (only the
+	# device's own config — same trust level as the init script that sources
+	# it). QNUM/DESYNC_MARK/MODE_FILTER fall back to the documented defaults.
+	local cf
+	cf="$ZAPRET_BASE/config"
+	[ -f "$cf" ] || cf="$ZAPRET_BASE/config.default"
+	. "$cf" 2>/dev/null
+	QNUM="${QNUM:-300}"
+	DESYNC_MARK="${DESYNC_MARK:-0x40000000}"
+	MODE_FILTER="${MODE_FILTER:-none}"
+	# private queue number, far away from the engine's (which would collide
+	# only if the engine itself runs on the same QNUM — derived, not fixed)
+	TEST_QNUM=$(( QNUM + 10700 ))
+}
+
+_recipe() {
+	# NFQWS2_OPT minus the <HOSTLIST*>/<HOSTLIST_NOAUTO> markers. In the real
+	# service those become --hostlist=... nfqws2 options scoping WHICH hosts
+	# get desynced; here the private nft feed rule scopes the traffic instead,
+	# so the markers are dropped. The desync payload/lua options survive
+	# untouched.
+	printf '%s' "$NFQWS2_OPT" 2>/dev/null | tr '\n' ' ' | \
+		sed -e 's/[[:space:]]\+/ /g' -e 's/<HOSTLIST_NOAUTO>//g' -e 's/<HOSTLIST>//g' -e 's/  \+/ /g'
+}
+
+_lua_init_args() {
+	# Base options mirror init.d/openwrt/zapret2 (NFQWS2_OPT_BASE), minus the
+	# --user privilege drop (throwaway runs as root). Only lua helpers that
+	# actually exist are passed, so a barebones install still works.
+	local a f
+	a=""
+	for f in lua/zapret-lib.lua lua/zapret-antidpi.lua lua/zapret-auto.lua; do
+		[ -f "$ZAPRET_BASE/$f" ] && a="$a --lua-init=@$ZAPRET_BASE/$f"
+	done
+	printf '%s' "$a"
+}
+
+# --- engine state (pause around a run; resume on exit) ------------------------
+
+_engine_running() {
+	pgrep -f "$ENGINE_BIN" >/dev/null 2>&1
+}
+
+_engine_rules_present() {
+	nft list ruleset 2>/dev/null | grep -q " queue " && return 0
+	return 1
+}
+
+_engine_pause() {
+	# Stop the live optimizer so the reference/WITHOUT legs measure the raw
+	# line instead of the engine's desynced output. The marker records that WE
+	# stopped it, so _engine_resume restarts exactly what we took down and only
+	# once, whether the run ends normally or through the trap. Returns 0 when
+	# it actually paused (the engine was live).
+	local i
+	_engine_running || return 1
+	_engine_rules_present || return 1
+	: > "$ENGINE_PAUSED_MARK" 2>/dev/null || true
+	/etc/init.d/zapret2 stop >/dev/null 2>&1
+	# wait for the queue rules to actually clear; if they linger the clean
+	# legs would still be desynced, which is the bug we are fixing
+	for i in 1 2 3 4 5; do
+		_engine_rules_present || break
+		sleep 1
+	done
+	return 0
+}
+
+_engine_resume() {
+	# Bring the optimizer back iff we paused it. Idempotent: safe from the
+	# normal exit path and from _emergency_cleanup (whichever fires first
+	# clears the marker, the other becomes a no-op).
+	[ -f "$ENGINE_PAUSED_MARK" ] || return 0
+	rm -f "$ENGINE_PAUSED_MARK"
+	/etc/init.d/zapret2 start >/dev/null 2>&1
+	return 0
+}
+
+_ensure_enable() {
+	# Make "Start" in the LuCI Service control really start the engine:
+	# the init start begins zero daemons while NFQWS2_ENABLE != 1. Write
+	# the enabled flag (the same value "Save & Apply" produces).
+	local cfile tmp
+	_load_config
+	cfile="$ZAPRET_BASE/config"
+	if [ ! -f "$cfile" ] && [ -f "$ZAPRET_BASE/config.default" ]; then
+		cp "$ZAPRET_BASE/config.default" "$cfile"
+	fi
+	[ -f "$cfile" ] || { echo "zapret2 config not found" >&2; return 1; }
+	if ! grep -q '^NFQWS2_ENABLE=' "$cfile"; then
+		printf '\nNFQWS2_ENABLE=1\n' >> "$cfile"
+	elif ! grep -q '^NFQWS2_ENABLE=1$' "$cfile"; then
+		tmp="${cfile}.new"
+		sed 's/^NFQWS2_ENABLE=.*/NFQWS2_ENABLE=1/' "$cfile" > "$tmp" && mv "$tmp" "$cfile"
+	fi
+	return 0
+}
+
+# --- host resolution ----------------------------------------------------------
+
+_host_ips() {
+	# All A/AAAA records for a host, one per line, via the system resolver.
+	# Busybox nslookup prints the resolver address first (in the Server:
+	# block); we only collect Address lines that follow a Name: line, strip an
+	# optional #port, and validate to bare IPv4/IPv6 literals.
+	nslookup "$1" 2>/dev/null | awk '
+		/^Name:/ { have = 1; next }
+		have && /^Address/ {
+			line = $0
+			sub(/^Address[0-9]*:[ \t]*/, "", line)
+			print line
+		}
+	' | sed 's/#.*//' | sort -u |
+		grep -E '^[0-9]+(\.[0-9]+){3}$|^[0-9a-fA-F:]+$'
+}
+
+_host_ips4() {
+	_host_ips "$1" | grep -E '^[0-9]+(\.[0-9]+){3}$'
+}
+
+_host_ips6() {
+	_host_ips "$1" | grep -E '^[0-9a-fA-F:]+$'
+}
+
+# --- interface enumeration ----------------------------------------------------
+
+# TFACE / CURL_IFACE are set at the top of _run, from the interface the user
+# chose in LuCI. TFACE scopes the private feed tables; CURL_IFACE makes
+# every measurement egress that specific device (curl --interface) regardless
+# of mwan3 policy routing.
+TFACE=""
+CURL_IFACE=""
+
+_rdev() {
+	# Resolve a uci device value to a real device name: a bare name, or an
+	# @interface reference chained through the uci store (wan1_6 -> @wan1 ->
+	# usb0).
+	local d
+	d="$1"
+	while [ -n "$d" ]; do
+		case "$d" in
+			@*) d=$(uci -q get "network.${d#@}.device") ;;
+			*) printf '%s' "$d"; return 0 ;;
+		esac
+	done
+	return 1
+}
+
+_iface_up() {
+	# 1 when the device exists, is up (operstate up or unknown) and holds at
+	# least one IPv4 address; 0 otherwise.
+	local st
+	st=$(cat "/sys/class/net/$1/operstate" 2>/dev/null)
+	case "$st" in
+		up|unknown) ;;
+		*) return 1 ;;
+	esac
+	ip -4 addr show dev "$1" 2>/dev/null | grep -q 'inet .*scope global'
+}
+
+_wan_zone_members() {
+	# Logical interface names listed in any firewall zone whose name starts
+	# with "wan" (case-insensitive), one per line, deduplicated. The WAN
+	# firewall is the authoritative uplink set for everything this tool does.
+	uci -q show firewall 2>/dev/null | sed -n 's/^firewall\.\([^=]*\)=zone$/\1/p' | while read -r zone; do
+		name=$(uci -q get "firewall.$zone.name")
+		case "$name" in
+			[Ww][Aa][Nn]*)
+				uci -q get "firewall.$zone.network" | tr ' \t' '\n' | sed '/^$/d'
+				;;
+		esac
+	done | sort -u
+}
+
+_wan_interfaces() {
+	# Every uplink logical interface, one per line as "device family
+	# logical". Uplink = membership of a wan-named firewall zone (covers
+	# every proto in the wild: dhcp ECM/RNDIS, static, pppoe, qmi/mbim,
+	# ... and v6 alias companions incl. "unmanaged"/proto-none entries like
+	# wan1_6 -> @wan1). Family is read off the proto first; an undecided
+	# member is taken as the v6 pairing of its WAN device when it is an
+	# @-alias reference or its device already carries a v4 member, else v4.
+	local cfg proto dev devref fam list v4devs entry
+	list=""
+	for cfg in $(_wan_zone_members); do
+		proto=$(uci -q get "network.$cfg.proto")
+		dev=$(uci -q get "network.$cfg.device")
+		[ -z "$dev" ] && dev=$(uci -q get "network.$cfg.ifname")
+		[ -n "$dev" ] || continue
+		dev=$(_rdev "$dev")
+		[ -n "$dev" ] || continue
+		list="$list $dev|$proto|$cfg"
+	done
+	v4devs=""
+	for entry in $list; do
+		dev=$(printf '%s' "$entry" | cut -d'|' -f1)
+		proto=$(printf '%s' "$entry" | cut -d'|' -f2)
+		cfg=$(printf '%s' "$entry" | cut -d'|' -f3)
+		case "$proto" in
+			dhcpv6|static6|6in4|6to4|6rd|dslite|map)
+				fam=v6
+				;;
+			*)
+				devref=$(uci -q get "network.$cfg.device")
+				if [ "${devref#@}" = "$devref" ] && case " $v4devs " in *" $dev "*) false ;; *) true ;; esac; then
+					fam=v4
+					v4devs="$v4devs $dev"
+				else
+					fam=v6
+				fi
+				;;
+		esac
+		printf '%s %s %s\n' "$dev" "$fam" "$cfg"
+	done
+}
+
+_iface_valid() {
+	# 0 when $1 is a known uplink device (present in uci right now), else 1.
+	local dev
+	_wan_interfaces | grep -q "^$1 "
+}
+
+_interfaces_json() {
+	# [{device,v4:[...],v6:[...],up:0|1}] for the LuCI Interfaces section and
+	# the speed test interface select. Derived from uci every call, so modems
+	# added/removed show up automatically; no literals anywhere.
+	_wan_interfaces | while read -r dev fam logical; do
+		_up=0
+		_iface_up "$dev" && _up=1
+		printf '{"device":%s,"family":%s,"logical":%s,"up":%s}\n' \
+			"$(printf '%s' "$dev" | jq -R .)" \
+			"$(printf '%s' "$fam" | jq -R .)" \
+			"$(printf '%s' "$logical" | jq -R .)" \
+			"$_up"
+	done | jq -s '
+		reduce .[] as $i (
+			{devices:{}};
+			$i.device as $d |
+			.devices[$d].device = $d |
+			.devices[$d].up = ($i.up == 1) |
+			.devices[$d][$i.family] = ((.devices[$d][$i.family] // []) + [$i.logical])
+		) | .devices | [ .[] | {device, v4:(.v4 // []), v6:(.v6 // []), up} ] | sort_by(.device)
+	'
+}
+
+# --- throwaway queue feed -----------------------------------------------------
+
+_add_queue_feed() {
+	# $* = hosts. Route every host's tcp/443 traffic into the throwaway's queue
+	# (pos 1), ahead of a running engine's rules. --queue-bypass keeps
+	# connectivity if the daemon dies. Feed rules live in dedicated nft tables:
+	# this device's iptables build ships no NFQUEUE target extension
+	# (iptables-nft rejects --queue-num), so the classic iptables NFQUEUE rule
+	# can't be used. Cleanup is table-level (logged once per family).
+	local host ips4 ips6 ip extra ok
+	extra=""
+	ok=""
+	[ -n "$TFACE" ] && extra="oifname \"$TFACE\""
+	nft delete table ip zapret_speed 2>/dev/null
+	nft delete table ip6 zapret_speed 2>/dev/null
+	: > "$DPI_EXCLUDE_LOG"
+	nft add table ip zapret_speed 2>/dev/null
+
+	for host in "$@"; do
+		for ip in $(_host_ips4 "$host"); do
+			nft add chain ip zapret_speed post '{ type filter hook postrouting priority mangle; }' 2>/dev/null
+			nft insert rule ip zapret_speed post $extra ip daddr "$ip" tcp dport 443 queue num "$TEST_QNUM" bypass comment "zapret2_speed" || continue
+			ok=1
+		done
+	done
+	if [ -n "$ok" ]; then
+		printf 'nft delete table ip zapret_speed\n' >> "$DPI_EXCLUDE_LOG"
+	fi
+	for host in "$@"; do
+		for ip in $(_host_ips6 "$host"); do
+			nft add table ip6 zapret_speed 2>/dev/null
+			nft add chain ip6 zapret_speed post '{ type filter hook postrouting priority mangle; }' 2>/dev/null
+			nft insert rule ip6 zapret_speed post $extra ip6 daddr "$ip" tcp dport 443 queue num "$TEST_QNUM" bypass comment "zapret2_speed" || continue
+			ok=1
+		done
+	done
+	if [ -n "$ok" ]; then
+		printf 'nft delete table ip6 zapret_speed\n' >> "$DPI_EXCLUDE_LOG"
+	fi
+	[ -n "$ok" ] || return 1
+	return 0
+}
+
+# --- throwaway engine ---------------------------------------------------------
+
+_throwaway_up() {
+	local args
+	[ -f "$DPI_NFQWS_PID" ] && kill -0 "$(cat "$DPI_NFQWS_PID" 2>/dev/null)" 2>/dev/null && return 0
+	rm -f "$DPI_NFQWS_PID"
+	[ -x "$ENGINE_BIN" ] || return 1
+	args="$(_lua_init_args) --fwmark=$DESYNC_MARK --qnum=$TEST_QNUM --bind-fix4 --bind-fix6 $RECIPE"
+	setsid "$ENGINE_BIN" $args </dev/null >"$DPI_NFQWS_LOG" 2>&1 &
+	echo $! > "$DPI_NFQWS_PID"
+	sleep 1
+	kill -0 "$(cat "$DPI_NFQWS_PID" 2>/dev/null)" 2>/dev/null || return 1
+	return 0
+}
+
+_throwaway_down() {
+	local p
+	[ -f "$DPI_NFQWS_PID" ] || return 0
+	p=$(cat "$DPI_NFQWS_PID" 2>/dev/null)
+	[ -n "$p" ] && kill -9  "$p" 2>/dev/null
+	rm -f "$DPI_NFQWS_PID"
+}
+
+# --- download phases ----------------------------------------------------------
+
+_curl_bw() {
+	# One download -> bytes/s, or nothing. Capped at DPI_SAMPLE_SECS: a
+	# timeout (exited 28) still yields a valid rate (bytes elapsed / time),
+	# a failed connect yields speed 0 and counts as failure. 100 KB floor
+	# rejects barely-started or error samples.
+	local url out bw size
+	url="$1"
+	out=$(curl -ksS -m "$DPI_SAMPLE_SECS" $CURL_IFACE -o /dev/null -w '%{speed_download} %{size_download}' "$url" 2>/dev/null) || true
+	bw=$(printf '%s' "$out" | awk '{print $1}')
+	size=$(printf '%s' "$out" | awk '{print $2}')
+	case "$bw" in
+		''|0|0.*|*[!0-9.]*) return 1 ;;
+	esac
+	[ "${size:-0}" -gt "$DPI_MIN_SIZE" ] || return 1
+	printf '%s' "$bw"
+}
+
+_curl_bw_parallel() {
+	# $1 = file with one URL per line. Downloads ALL of them concurrently,
+	# each capped at DPI_SAMPLE_SECS, and prints "<agg_bps> <single_bps>".
+	# agg = sum(bytes) / max(elapsed) — the app-like total the fast.com UI
+	# shows. single = the first target alone (what older builds measured,
+	# kept as the per-connection diagnostic). The aggregated byte count must
+	# clear DPI_MIN_SIZE. Busybox `wait` is used with PID arguments ONLY: a
+	# bare `wait` would also block on the throwaway engine background job.
+	local urlf k seed i agg_b agg_t tmp b t s_b s_t
+	urlf="$1"
+	rm -f "$DPI_PAR_PIDS" "$DPI_PAR_DIR".*
+	k=0
+	seed=0
+	while read -r u; do
+		[ -n "$u" ] || continue
+		( curl -ksS -m "$DPI_SAMPLE_SECS" $CURL_IFACE -o /dev/null -w '%{size_download} %{time_total}' "$u" 2>/dev/null || printf '0 15' ) > "$DPI_PAR_DIR.$seed" &
+		echo $! >> "$DPI_PAR_PIDS"
+		seed=$((seed + 1))
+		k=$((k + 1))
+	done < "$urlf"
+	[ "$k" -gt 0 ] || return 1
+	# shellcheck disable=SC2046
+	wait $(cat "$DPI_PAR_PIDS") 2>/dev/null
+	agg_b=0
+	agg_t=0
+	s_b=0
+	s_t=0
+	i=0
+	while [ "$i" -lt "$k" ]; do
+		set -- $(cat "$DPI_PAR_DIR.$i")
+		b=${1:-0}
+		t=${2:-15}
+		agg_b=$((agg_b + b))
+		tmp=$(printf '%.0f' "$t" 2>/dev/null)
+		[ -n "$tmp" ] && [ "$tmp" -gt "$agg_t" ] && agg_t="$tmp"
+		if [ "$i" -eq 0 ]; then
+			s_b=$b
+			s_t=$t
+		fi
+		i=$((i + 1))
+	done
+	[ "$agg_b" -gt "$DPI_MIN_SIZE" ] || return 1
+	[ "$agg_t" -gt 0 ] || agg_t=1
+	printf '%s %s' \
+		"$(awk -v s="$agg_b" -v t="$agg_t" 'BEGIN { printf "%.0f", s / t }')" \
+		"$(awk -v b="$s_b" -v t="$s_t" 'BEGIN { printf "%.0f", (t > 0) ? b / t : 0 }')"
+}
+
+_fast_urls() {
+	# ALL fast.com targets, one per line (the app loads them concurrently;
+	# older builds measured only .targets[0] and read a per-connection share).
+	local api
+	api=$(curl -ksS -m 15 $CURL_IFACE "$DPI_FAST_API" 2>/dev/null) || return 1
+	printf '%s\n' "$api" | jq -r '.targets[].url // empty' 2>/dev/null | grep -E '^https?://' || return 1
+}
+
+_hosts_of_urls() {
+	# unique http(s) hosts (scheme, path, and explicit :port stripped) for a
+	# file with one URL per line
+	sed -n 's#^https\?://##p' "$1" | sed 's#/.*##; s#:[0-9]*$##' | sort -u
+}
+
+_reference_url() {
+	# "<url> <source>". Primary reference is Cloudflare's documented speed
+	# endpoint because it is DUAL-STACK: the raw baseline then rides v6 when
+	# the pinned device has it, exactly like a normal connection. The Ookla JS
+	# burst is a v4-only fallback (see _reference_fallback_url).
+	printf '%s %s' "$DPI_REF_CLOUDFLARE_URL" "cloudflare"
+}
+
+_reference_fallback_url() {
+	# "<url> <source>" for the Ookla JS server list (speedtest.net's own pool):
+	# the top server's random2000x2000.jpg, Ookla's classic burst. v4-only, so
+	# it is used only when the dual-stack primary produced nothing.
+	local api url base
+	api=$(curl -ksS -m 15 $CURL_IFACE "$DPI_REF_OOKLA_API" 2>/dev/null)
+	url=$(printf '%s' "$api" | jq -r 'if type == "array" then .[0].url else empty end' 2>/dev/null)
+	case "$url" in
+		*/upload.php)
+			base=${url%/upload.php}
+			printf '%s %s' "${base}/random2000x2000.jpg" "speedtest"
+			;;
+	esac
+}
+
+_measure_plain() {
+	# Clean solo download (reference leg). The live engine was paused for the
+	# whole run, so this is just a plain curl on the pinned device.
+	local bw
+	bw=$(_curl_bw "$1")
+	[ -n "$bw" ] || return 1
+	printf '%s' "$bw"
+}
+
+_measure_plain_parallel() {
+	# Clean parallel download of every target in $1 (WITHOUT leg). Engine
+	# paused for the run, so no exclusion dance — plain curl is the raw line.
+	local out
+	out=$(_curl_bw_parallel "$1")
+	[ -n "$out" ] || return 1
+	printf '%s' "$out"
+}
+
+_measure_optimized_parallel() {
+	# Parallel download through the throwaway engine on the private queue.
+	# Always uses the throwaway (never the live service) so the comparison is
+	# identical whether or not the optimizer is enabled.
+	local urlf out
+	urlf="$1"
+	_throwaway_up || return 1
+	_add_queue_feed $(_hosts_of_urls "$urlf") || { _throwaway_down; return 1; }
+	out=$(_curl_bw_parallel "$urlf")
+	_cleanup_excludes
+	_throwaway_down
+	[ -n "$out" ] || return 1
+	printf '%s' "$out"
+}
+
+# --- the run ------------------------------------------------------------------
+
+_run() {
+	local url ref_out ref_url ref_src host without_mbps with_mbps reference_mbps
+	local without_single_mbps with_single_mbps
+	local reference_source bw ts er imp
+	local RECIPE
+
+	trap _emergency_cleanup EXIT INT TERM HUP
+
+	_load_config
+	RECIPE=$(_recipe)
+
+	# pin the egress interface the user picked in LuCI; refuse a stale or
+	# down link up front
+	TFACE=$(cat "$DPI_VERIFY_IFACE" 2>/dev/null)
+	case "$TFACE" in
+		[a-zA-Z0-9_]*) ;;
+		*) _error "interface required" "No interface selected — pick one in the Speed comparison section and run again." ;;
+	esac
+	_iface_valid "$TFACE" || _error "interface unknown" "The selected interface is no longer configured on this router."
+	_iface_up "$TFACE" || _error "interface down" "The selected interface is not currently up."
+	CURL_IFACE="--interface $TFACE"
+
+	_write "$(jq -n --arg if "$TFACE" '{status:"running",interface:$if,phase:"reference"}')"
+
+	# the optimizer is paused for the run so the reference/WITHOUT legs read the
+	# raw line; er records whether it WAS live (the UI warns the user, and the
+	# result notes the optimizer was running). _engine_pause() is a no-op when
+	# the engine is already off.
+	er=0
+	_engine_running && _engine_rules_present && er=1
+	[ "$er" = 1 ] && _engine_pause
+
+	# --- reference: the raw connection ----------------------------------------
+	reference_mbps=""
+	reference_source=""
+	bw=""
+	ref_out=$(_reference_url) || ref_out=""
+	if [ -n "$ref_out" ]; then
+		set -- $ref_out
+		ref_url=$1
+		reference_source=$2
+		bw=$(_measure_plain "$ref_url") || bw=$(_measure_plain "$ref_url")
+		# the dual-stack primary can still fail — fall back to the v4-only
+		# Ookla burst so the raw baseline, the number that gives the fast.com
+		# legs their meaning, is never lost.
+		if [ -z "$bw" ]; then
+			ref_out=$(_reference_fallback_url) || ref_out=""
+			if [ -n "$ref_out" ]; then
+				set -- $ref_out
+				reference_source=$2
+				bw=$(_measure_plain "$1") || bw=$(_measure_plain "$1")
+			fi
+		fi
+	fi
+	if [ -n "$bw" ]; then
+		reference_mbps=$(awk -v b="$bw" 'BEGIN { printf "%.1f", b * 8 / 1000000 }')
+	fi
+
+	# stream the raw-connection result the moment it lands — the frontend
+	# shows it while phase "with" (the optimized leg) is still running
+	if [ -n "$reference_mbps" ]; then
+		_write "$(jq -n \
+			--arg if "$TFACE" \
+			--argjson rb "$reference_mbps" \
+			--arg rs "$reference_source" \
+			'{status:"running",interface:$if,phase:"with",reference:{speed_mbps:$rb,source:$rs}}')"
+	else
+		_write "$(jq -n --arg if "$TFACE" '{status:"running",interface:$if,phase:"with",reference:null}')"
+	fi
+
+	# --- fast.com targets (all of them; the app loads them concurrently) ------
+	urls_n=0
+	if ! _fast_urls > "$DPI_PAR_URLS"; then
+		sleep 5
+		_fast_urls > "$DPI_PAR_URLS" || _error "fast.com API unreachable" \
+			"The test needs a working internet connection — retry in a moment."
+	fi
+	urls_n=$(wc -l < "$DPI_PAR_URLS" 2>/dev/null)
+	[ "${urls_n:-0}" -gt 0 ] || _error "fast.com API unreachable" \
+		"The test needs a working internet connection — retry in a moment."
+
+	# --- with optimizer (throwaway engine, configured recipe) -------------------
+	set -- $(_measure_optimized_parallel "$DPI_PAR_URLS")
+	if [ -z "${1:-}" ]; then
+		set -- $(_measure_optimized_parallel "$DPI_PAR_URLS")
+	fi
+	[ -n "${1:-}" ] || _error "download failed" "Phase WITH optimizer produced no result."
+	with_mbps=$(awk -v b="$1" 'BEGIN { printf "%.1f", b * 8 / 1000000 }')
+	with_single_mbps=$(awk -v b="${2:-0}" 'BEGIN { printf "%.1f", b * 8 / 1000000 }')
+
+	# stream the WITH result right away (WITHOUT still running below)
+	if [ -n "$reference_mbps" ]; then
+		_write "$(jq -n \
+			--arg if "$TFACE" \
+			--argjson rb "$reference_mbps" \
+			--arg rs "$reference_source" \
+			--argjson w "$with_mbps" \
+			--argjson ws "$with_single_mbps" \
+			'{status:"running",interface:$if,phase:"without",reference:{speed_mbps:$rb,source:$rs},with:{speed_mbps:$w,single_mbps:$ws}}')"
+	else
+		_write "$(jq -n \
+			--arg if "$TFACE" \
+			--argjson w "$with_mbps" \
+			--argjson ws "$with_single_mbps" \
+			'{status:"running",interface:$if,phase:"without",reference:null,with:{speed_mbps:$w,single_mbps:$ws}}')"
+	fi
+
+	# --- without optimizer -----------------------------------------------------
+	set -- $(_measure_plain_parallel "$DPI_PAR_URLS")
+	if [ -z "${1:-}" ]; then
+		set -- $(_measure_plain_parallel "$DPI_PAR_URLS")
+	fi
+	[ -n "${1:-}" ] || _error "download failed" "Phase WITHOUT optimizer produced no result."
+	without_mbps=$(awk -v b="$1" 'BEGIN { printf "%.1f", b * 8 / 1000000 }')
+	without_single_mbps=$(awk -v b="${2:-0}" 'BEGIN { printf "%.1f", b * 8 / 1000000 }')
+
+	# --- improvement: WITH vs WITHOUT, signed percent (data, not a verdict) ---
+	# positive = the optimizer lifted the CDN; ~0 = it changed nothing; a
+	# negative value means it measured slower on that run.
+	imp=$(awk -v w="$with_mbps" -v b="$without_mbps" 'BEGIN { if (b > 0) printf "%.0f", (w / b - 1) * 100; else print "nan" }')
+	if [ "$imp" = "nan" ]; then
+		imp="—"
+	else
+		case "$imp" in -*) ;; *) imp="+$imp" ;; esac
+		imp="$imp%"
+	fi
+
+	# --- result ----------------------------------------------------------------
+	ts=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%S)
+	if [ -n "$reference_mbps" ]; then
+		_write "$(jq -n \
+			--arg ts "$ts" \
+			--arg if "$TFACE" \
+			--argjson er "$er" \
+			--argjson n "$urls_n" \
+			--argjson w "$with_mbps" \
+			--argjson ws "$with_single_mbps" \
+			--argjson wb "$without_mbps" \
+			--argjson wbs "$without_single_mbps" \
+			--argjson rb "$reference_mbps" \
+			--arg rs "$reference_source" \
+			--arg imp "$imp" \
+			'{status:"complete",timestamp:$ts,interface:$if,engine_running:$er,streams:$n,with:{speed_mbps:$w,single_mbps:$ws},without:{speed_mbps:$wb,single_mbps:$wbs},reference:{speed_mbps:$rb,source:$rs},improvement:$imp}')"
+	else
+		_write "$(jq -n \
+			--arg ts "$ts" \
+			--arg if "$TFACE" \
+			--argjson er "$er" \
+			--argjson n "$urls_n" \
+			--argjson w "$with_mbps" \
+			--argjson ws "$with_single_mbps" \
+			--argjson wb "$without_mbps" \
+			--argjson wbs "$without_single_mbps" \
+			--arg imp "$imp" \
+			'{status:"complete",timestamp:$ts,interface:$if,engine_running:$er,streams:$n,with:{speed_mbps:$w,single_mbps:$ws},without:{speed_mbps:$wb,single_mbps:$wbs},reference:null,improvement:$imp}')"
+	fi
+
+	# result is written — bring the optimizer back before anything else can
+	# observe the box, then detach the trap
+	_engine_resume
+	rm -f "$DPI_VERIFY_PID"
+	trap - EXIT INT TERM HUP
+	exit 0
+}
+
+_packets() {
+	# Total packets queued toward the engine, summed from the netfilter
+	# counter added to the nfqws2 queue rules by the fw scripts. Mirrors the
+	# addon's "packets processed" UX (there: an iptables REDIRECT counter).
+	# CUMULATIVE ACROSS RULE RE-CREATES: each start/restart rebuilds the rules
+	# and the nft counters reset to 0, which made the LuCI card read 0 right
+	# after pressing Start. We keep a baseline in /tmp: when a fresh reading
+	# is BELOW the previous one the rules were re-created, so the previous
+	# reading is folded into the baseline and the total keeps counting up.
+	# Clears on reboot — the engine is off at boot anyway.
+	local table="${ZAPRET_NFT_TABLE:-zapret2}"
+	local state="$DPI_PKT_STATE"
+	local cur last base prev
+	cur=$(nft list table inet "$table" 2>/dev/null \
+		| grep "queue flags bypass to" \
+		| grep -oE "packets [0-9]+ bytes" \
+		| awk '{ s += $2 } END { print s + 0 }')
+	cur="${cur:-0}"
+	base=0
+	if [ -f "$state" ]; then
+		read -r last base < "$state" 2>/dev/null
+		base="${base:-0}"
+	fi
+	if [ "$cur" -lt "${last:-0}" ]; then
+		base=$(( base + last ))
+	fi
+	printf '%s %s\n' "$cur" "$base" > "$state"
+	echo $(( base + cur ))
+}
+
+# --- front door ---------------------------------------------------------------
+
+verb="${1:-start}"
+case "$verb" in
+	start)
+		# $2 = egress device to pin the run to (eth1/usb0/usb1). Validate it
+		# here so LuCI gets a visible error instead of a silent no-op.
+		dev="$2"
+		case "$dev" in
+			[a-zA-Z0-9_]*) ;;
+			*) _write "$(jq -n --arg m 'Interface required' '{status:"error",message:$m}')"; exit 2 ;;
+		esac
+		if ! _iface_valid "$dev"; then
+			_write "$(jq -n --arg m "Unknown interface: $dev" '{status:"error",message:$m}')"
+			exit 2
+		fi
+		if ! _iface_up "$dev"; then
+			_write "$(jq -n --arg m "Interface $dev is not up" '{status:"error",message:$m}')"
+			exit 2
+		fi
+		if [ -f "$DPI_VERIFY_PID" ] && kill -0 "$(cat "$DPI_VERIFY_PID" 2>/dev/null)" 2>/dev/null; then
+			exit 0
+		fi
+		printf '%s\n' "$dev" > "$DPI_VERIFY_IFACE"
+		rm -f "$DPI_VERIFY_PID"
+		# Synchronous setup state: write the running json BEFORE backgrounding
+		# so the frontend's first read after `start` never lands on a deleted
+		# file. _run() overwrites this with phase:"reference" at entry.
+		_write "$(jq -n --arg if "$dev" '{status:"running",interface:$if,phase:"setup"}')"
+		setsid "$SELF" --run </dev/null >/dev/null 2>&1 &
+		echo $! > "$DPI_VERIFY_PID"
+		exit 0
+		;;
+	interfaces)
+		_interfaces_json
+		exit 0
+		;;
+	ensure_enable)
+		_ensure_enable
+		exit 0
+		;;
+	packets)
+		_packets
+		exit 0
+		;;
+	--run)
+		_run
+		;;
+	*)
+		echo "usage: zapret2-speedtest start <device> | interfaces | ensure_enable | packets" >&2
+		exit 2
+		;;
+esac

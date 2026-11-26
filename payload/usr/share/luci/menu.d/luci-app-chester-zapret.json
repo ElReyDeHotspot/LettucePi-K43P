@@ -1,0 +1,19 @@
+{
+  "admin/apps/zapret": {
+    "title": "4K/HD Video",
+    "order": 30,
+    "action": {
+      "type": "view",
+      "path": "chester-zapret/streaming"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-zapret2"
+      ],
+      "fs": {
+        "/etc/init.d/zapret2": "executable",
+        "/opt/zapret2/config": "file"
+      }
+    }
+  }
+}

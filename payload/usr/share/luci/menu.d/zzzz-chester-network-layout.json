@@ -151,18 +151,19 @@
     }
   },
   "admin/firewall/zapret": {
-    "title": "Zapret",
+    "title": "Zapret2",
     "order": 30,
     "action": {
       "type": "view",
-      "path": "chester-zapret/index"
+      "path": "chester-zapret/streaming"
     },
     "depends": {
       "acl": [
-        "luci-app-chester-zapret"
+        "luci-app-zapret2"
       ],
       "fs": {
-        "/usr/sbin/chester-videotest": "executable"
+        "/etc/init.d/zapret2": "executable",
+        "/opt/zapret2/nfq2/nfqws2": "executable"
       }
     }
   },

@@ -1,0 +1,5 @@
+config zapret2 'main'
+	option enabled '0'
+	option scope 'hostlist'
+	option strategy 'tls http quic'
+	option host 'youtube.com googlevideo.com ytimg.com ggpht.com youtu.be facebook.com fbcdn.net instagram.com cdninstagram.com tiktok.com tiktokcdn.com tiktokv.com snapchat.com sc-cdn.net netflix.com nflxvideo.net disneyplus.com cloudfront.net akamaized.net speedtest.net ookla.com'

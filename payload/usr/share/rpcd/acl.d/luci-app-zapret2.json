@@ -1,0 +1,22 @@
+{
+  "luci-app-zapret2": {
+    "description": "Grant access to Zapret2 status and service control",
+    "read": {
+      "file": {
+        "/opt/zapret2/config": [ "read" ],
+        "/etc/init.d/zapret2": [ "exec" ],
+        "/opt/zapret2/nfq2/nfqws2": [ "exec" ],
+        "/usr/sbin/zapret2-speedtest": [ "exec" ],
+        "/tmp/zapret2_speedtest.json": [ "read" ]
+      },
+      "uci": [ "zapret2" ],
+      "ubus": {
+        "luci": [ "getInitList", "setInitAction" ],
+        "service": [ "list" ]
+      }
+    },
+    "write": {
+      "uci": [ "zapret2" ]
+    }
+  }
+}

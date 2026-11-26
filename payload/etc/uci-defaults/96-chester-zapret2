@@ -1,0 +1,8 @@
+#!/bin/sh
+# Reconcile the boot links after a clean flash or a settings-preserving OTA.
+[ -x /etc/init.d/chester-tpws ] && /etc/init.d/chester-tpws disable
+if [ "$(uci -q get zapret2.main.enabled)" = 1 ]; then
+    /etc/init.d/zapret2 enable
+else
+    /etc/init.d/zapret2 disable
+fi

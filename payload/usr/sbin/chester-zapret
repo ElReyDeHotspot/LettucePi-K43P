@@ -1,0 +1,66 @@
+#!/bin/sh
+# Shared control for Overview and the carp4 Zapret2 application.
+set -u
+BIN=/opt/zapret2/nfq2/nfqws2
+INIT=/etc/init.d/zapret2
+STATE=/tmp/chester-zapret.state
+LOG=/tmp/chester-zapret.log
+engine_present() { [ -x "$BIN" ] && [ -x "$INIT" ] && [ -f /lib/modules/"$(uname -r)"/nfnetlink_queue.ko ] && [ -f /lib/modules/"$(uname -r)"/nft_queue.ko ]; }
+engine_running() { pidof nfqws2 >/dev/null 2>&1; }
+engine_enabled() { "$INIT" enabled >/dev/null 2>&1; }
+json_status() {
+ hosts=$(uci -q get zapret2.main.host | wc -w)
+ printf '{"ok":true,"present":%s,"running":%s,"enabled":%s,"engine":"Zapret2","version":"1.0.5.2","hosts":%s}\n' \
+  "$(engine_present && echo true || echo false)" "$(engine_running && echo true || echo false)" "$(engine_enabled && echo true || echo false)" "$hosts"
+}
+do_install() {
+ : > "$LOG"
+ echo stage:starting > "$STATE"
+ if ! engine_present; then echo 'Zapret2 or the matching kernel modules are missing' >> "$LOG"; echo stage:failed > "$STATE"; return 1; fi
+ # The legacy proxy must never intercept alongside nfqws2.
+ legacy=0
+ legacy_enabled=0
+ pidof tpws >/dev/null 2>&1 && legacy=1
+ if [ -x /etc/init.d/chester-tpws ]; then
+  /etc/init.d/chester-tpws enabled && legacy_enabled=1
+  /etc/init.d/chester-tpws stop >> "$LOG" 2>&1
+  if pidof tpws >/dev/null 2>&1; then
+   echo 'The legacy proxy is still running' >> "$LOG"
+   echo stage:failed > "$STATE"
+   return 1
+  fi
+  /etc/init.d/chester-tpws disable >> "$LOG" 2>&1
+ fi
+ uci set zapret2.main.enabled=1
+ uci commit zapret2
+ "$INIT" enable >> "$LOG" 2>&1
+ "$INIT" restart >> "$LOG" 2>&1
+ i=0
+ while [ "$i" -lt 5 ]; do engine_running && break; i=$((i+1)); sleep 1; done
+ if engine_running && nft list table inet zapret2 >/dev/null 2>&1; then echo stage:done > "$STATE"; return 0; fi
+ "$INIT" stop >> "$LOG" 2>&1
+ "$INIT" disable >> "$LOG" 2>&1
+ uci set zapret2.main.enabled=0; uci commit zapret2
+ [ "$legacy_enabled" = 0 ] || /etc/init.d/chester-tpws enable
+ [ "$legacy" = 0 ] || /etc/init.d/chester-tpws start >> "$LOG" 2>&1
+ echo 'Zapret2 did not start; see /tmp/chester-zapret.log' >> "$LOG"
+ echo stage:failed > "$STATE"
+ return 1
+}
+case "${1:-status}" in
+ status) json_status ;;
+ install) if do_install; then json_status; else printf '{"ok":false,"enabled":false,"error":"Zapret2 did not start; see /tmp/chester-zapret.log"}\n'; fi ;;
+ install-start) (do_install >/dev/null 2>&1 &) >/dev/null 2>&1; printf '{"ok":true,"started":true}\n' ;;
+ install-status)
+  stage=$(sed -n 's/^stage://p' "$STATE" 2>/dev/null | head -1); stage=${stage:-idle}
+  case "$stage" in
+   done) printf '{"ok":true,"done":true,"success":true,"stage":"done","message":"Zapret2 is running."}\n' ;;
+   failed) printf '{"ok":true,"done":true,"success":false,"stage":"failed","message":"Zapret2 failed; see /tmp/chester-zapret.log"}\n' ;;
+   *) printf '{"ok":true,"done":false,"stage":"%s"}\n' "$stage" ;;
+  esac ;;
+ uninstall)
+  "$INIT" stop >/dev/null 2>&1; "$INIT" disable >/dev/null 2>&1
+  uci set zapret2.main.enabled=0; uci commit zapret2
+  rm -f "$STATE"; json_status ;;
+ *) printf '{"ok":false,"error":"unknown verb"}\n'; exit 1 ;;
+esac

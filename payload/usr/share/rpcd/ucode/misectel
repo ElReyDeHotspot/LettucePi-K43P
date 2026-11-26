@@ -1,0 +1,1109 @@
+#!/usr/bin/ucode
+'use strict';
+
+import { open, popen, stat } from 'fs';
+import { cursor } from 'uci';
+
+const APN_DEFAULT_DIR = '/usr/share/misectel/apn-presets/defaults';
+const APN_USER_DIR = '/etc/misectel/apn-presets';
+const APN_FALLBACK_COUNTRY = 'unknown';
+
+function quoteArg(value) {
+	return `'${replace(value, "'", "'\\''")}'`;
+}
+
+function trimSafe(value) {
+	return trim(value || '');
+}
+
+function normalizeCountry(value) {
+	let normalized = lc(trimSafe(value));
+
+	if (!match(normalized, /^[a-z0-9_-]+$/))
+		return APN_FALLBACK_COUNTRY;
+
+	return normalized || APN_FALLBACK_COUNTRY;
+}
+
+function readApnCountryConfig() {
+	let ctx = cursor();
+	let value = null;
+
+	if (ctx)
+		value = ctx.get('misectel', 'main', 'apn_country');
+
+	return normalizeCountry(value);
+}
+
+function fileExists(path) {
+	try {
+		stat(path);
+		return true;
+	}
+	catch (err) {
+		return false;
+	}
+}
+
+function readFile(path) {
+	let file = open(path, 'r');
+
+	if (!file)
+		return null;
+
+	let content = file.read('all') || '';
+	file.close();
+
+	return content;
+}
+
+function writeFile(path, content) {
+	let file = open(path, 'w');
+
+	if (!file)
+		return false;
+
+	file.write(content);
+	file.close();
+
+	return true;
+}
+
+function ensureApnUserDir() {
+	let fd = popen(`mkdir -p ${quoteArg(APN_USER_DIR)} 2>/dev/null`, 'r');
+
+	if (fd)
+		fd.close();
+}
+
+function parseJsonSafe(content) {
+	if (!content)
+		return null;
+
+	try {
+		return json(content);
+	}
+	catch (err) {
+		return null;
+	}
+}
+
+function readChesterOption(section, option) {
+	let ctx = cursor();
+
+	if (!ctx || !section || !option)
+		return null;
+
+	return ctx.get('misectel', section, option);
+}
+
+function boostGpioBase(gpio) {
+	let name = trimSafe(gpio);
+
+	if (!match(name, /^[A-Za-z0-9_.:-]+$/))
+		return null;
+
+	return `/sys/class/gpio/${name}`;
+}
+
+function readBoostGpio(gpio) {
+	let base = boostGpioBase(gpio);
+	let direction = null;
+	let value = null;
+
+	if (!base) {
+		return {
+			exists: false,
+			message: 'invalid gpio name'
+		};
+	}
+
+	if (!fileExists(`${base}/direction`) && !fileExists(`${base}/value`)) {
+		return {
+			exists: false,
+			path: base,
+			message: 'gpio sysfs path not found'
+		};
+	}
+
+	direction = trimSafe(readFile(`${base}/direction`));
+	value = trimSafe(readFile(`${base}/value`));
+
+	return {
+		exists: true,
+		path: base,
+		direction: direction,
+		value: value
+	};
+}
+
+function normalizeBoostMode(value) {
+	return trimSafe(value) == 'manual' ? 'manual' : 'auto';
+}
+
+function normalizeBoostValue(value) {
+	return trimSafe(value) == '1' ? '1' : '0';
+}
+
+function persistBoostConfig(mode, value) {
+	let ctx = cursor();
+
+	if (!ctx)
+		return {
+			result: false,
+			code: -8,
+			message: 'failed to open uci cursor'
+		};
+
+	ctx.set('misectel', 'main', null, 'main');
+	ctx.set('misectel', 'main', 'boost_mode', mode);
+	ctx.set('misectel', 'main', 'boost_manual_value', value);
+
+	if (ctx.commit('misectel') !== true)
+		return {
+			result: false,
+			code: -9,
+			message: 'failed to commit boost uci config'
+		};
+
+	return {
+		result: true,
+		code: 0
+	};
+}
+
+function sanitizeApnPreset(entry, indexValue) {
+	let preset = type(entry) == 'object' ? entry : {};
+	let operator = trimSafe(preset.operator);
+	let id = trimSafe(preset.id);
+
+	if (!operator)
+		operator = `apn${indexValue + 1}`;
+
+	if (!id)
+		id = replace(lc(operator), /[^a-z0-9]+/g, '-');
+
+	id = replace(replace(replace(id, /[^A-Za-z0-9_-]+/g, '-'), /^-+/, ''), /-+$/, '');
+
+	if (!id)
+		id = `apn-${indexValue + 1}`;
+
+	return {
+		id: id,
+		operator: operator,
+		apn: trimSafe(preset.apn),
+		auth: trimSafe(preset.auth) || 'none',
+		username: trimSafe(preset.username),
+		password: trimSafe(preset.password)
+	};
+}
+
+function sanitizeApnPresets(value) {
+	let source = type(value) == 'array' ? value : [];
+	let presets = [];
+
+	for (let i = 0; i < length(source); i++)
+		push(presets, sanitizeApnPreset(source[i], i));
+
+	return presets;
+}
+
+function defaultApnPath(country) {
+	let normalized = normalizeCountry(country);
+	let path = `${APN_DEFAULT_DIR}/${normalized}.json`;
+
+	if (fileExists(path))
+		return path;
+
+	return `${APN_DEFAULT_DIR}/${APN_FALLBACK_COUNTRY}.json`;
+}
+
+function userApnPath(country) {
+	return `${APN_USER_DIR}/${normalizeCountry(country)}.json`;
+}
+
+function resolveApnCountry(country) {
+	let normalized = normalizeCountry(country);
+
+	if (fileExists(userApnPath(normalized)) || fileExists(`${APN_DEFAULT_DIR}/${normalized}.json`))
+		return normalized;
+
+	return APN_FALLBACK_COUNTRY;
+}
+
+function readApnDocument(path, country) {
+	let parsed = parseJsonSafe(readFile(path));
+	let docCountry = '';
+
+	if (type(parsed) != 'object')
+		parsed = {};
+
+	docCountry = normalizeCountry(parsed.country);
+
+	return {
+		country: docCountry || normalizeCountry(country),
+		presets: sanitizeApnPresets(parsed.presets)
+	};
+}
+
+function ensureApnPresetDocument(country) {
+	let normalized = resolveApnCountry(country);
+	let userPath = userApnPath(normalized);
+	let usedDefault = false;
+
+	if (!fileExists(userPath)) {
+		let defaultContent = readFile(defaultApnPath(normalized));
+
+		ensureApnUserDir();
+
+		if (defaultContent != null)
+			writeFile(userPath, defaultContent);
+
+		usedDefault = true;
+	}
+
+	let doc = readApnDocument(userPath, normalized);
+
+	return {
+		country: normalized,
+		path: userPath,
+		used_default: usedDefault,
+		presets: doc.presets
+	};
+}
+
+function writeApnPresetDocument(country, presets) {
+	let normalized = resolveApnCountry(country);
+	let path = userApnPath(normalized);
+	let document = {
+		country: normalized,
+		presets: sanitizeApnPresets(presets)
+	};
+
+	ensureApnUserDir();
+
+	if (!writeFile(path, sprintf('%J', document)))
+		return null;
+
+	return document;
+}
+
+function parseInteger(value, fallback) {
+	let matches = match(trimSafe(value), /^-?\d+$/);
+
+	if (!matches)
+		return fallback;
+
+	let parsed = +matches[0];
+	return type(parsed) == 'int' ? parsed : fallback;
+}
+
+function readCommandOutput(command) {
+	let fd = popen(command, 'r');
+
+	if (!fd)
+		return null;
+
+	let output = trimSafe(fd.read('all') || '');
+	fd.close();
+
+	return output || null;
+}
+
+function runCommand(command) {
+	let code = system(command);
+
+	return {
+		result: code === 0,
+		code: code
+	};
+}
+
+function parseNeighborLine(line, defaultDevice) {
+	line = trimSafe(line);
+
+	if (!line)
+		return null;
+
+	let fields = split(line, /[ \t]+/);
+	let entry = {
+		ipaddr: fields[0],
+		device: defaultDevice || '',
+		state: fields[length(fields) - 1],
+		macaddr: null
+	};
+
+	for (let i = 1; i < length(fields); i++) {
+		switch (fields[i]) {
+		case 'dev':
+			entry.device = fields[i + 1];
+			break;
+
+		case 'lladdr':
+			entry.macaddr = fields[i + 1];
+			break;
+		}
+	}
+
+	if (!entry.macaddr || entry.macaddr == '00:00:00:00:00:00')
+		return null;
+
+	entry.family = match(entry.ipaddr, /:/) ? 'ipv6' : 'ipv4';
+	entry.online = (index([ 'FAILED', 'INCOMPLETE', 'NOARP' ], entry.state) < 0);
+
+	return entry;
+}
+
+function parseLeaseLine(line, now) {
+	line = trimSafe(line);
+
+	if (!line)
+		return null;
+
+	let fields = split(line, /[ 	]+/);
+	let expires = parseInteger(fields[0], null);
+	let macaddr = fields[1];
+
+	if (expires == null || !macaddr || macaddr == '00:00:00:00:00:00')
+		return null;
+
+	return {
+		expires: expires,
+		remaining: expires > 0 ? (expires > now ? expires - now : 0) : null,
+		macaddr: macaddr,
+		ipaddr: fields[2] || '',
+		hostname: fields[3] == '*' ? '' : (fields[3] || ''),
+		clientid: fields[4] == '*' ? '' : (fields[4] || '')
+	};
+}
+
+const methods = {
+	// TTL / hop-limit rewriting. The init script interpolates the value
+	// into an nft file that fw4 parses, so a non-numeric value takes down
+	// the whole firewall -- it is range-checked before being committed.
+ runtime_metrics: {
+  call: function() {
+   try { return json(readCommandOutput('/usr/sbin/chester-runtime-metrics')); }
+   catch (e) { return {}; }
+  }
+ },
+	ttl_status: {
+		call: function() {
+			try { return json(readCommandOutput('/usr/sbin/chester-ttl status')); }
+			catch (e) { return { enabled: false, applied: false, message: 'TTL/HL status unavailable' }; }
+		}
+	},
+	set_ttl: {
+		args: { enabled: 'String' },
+		call: function(request) {
+			let ctx = cursor();
+			let ttl = ctx ? ctx.get('qmodem_ttl', 'main', 'ttl') : '64';
+			let hl = ctx ? ctx.get('qmodem_ttl', 'main', 'hl') : null;
+			if (!match(ttl || '', /^[1-9][0-9]{0,2}$/) || +ttl > 255) ttl = '64';
+			if (!match(hl || '', /^[1-9][0-9]{0,2}$/) || +hl > 255) hl = ttl;
+			let want = lc(trimSafe(request.args.enabled));
+			let on = (want == '0' || want == 'false' || want == 'off') ? '0' : '1';
+			try { return json(readCommandOutput('/usr/sbin/chester-ttl apply ' + on + ' ' + ttl + ' ' + hl)); }
+			catch (e) { return { success: false, message: 'TTL/HL apply failed' }; }
+		}
+	},
+	set_ttl_values: {
+		args: { enabled: 'String', ttl: 'String', hl: 'String' },
+		call: function(request) {
+			let args = request.args;
+			if (!(args.enabled == '0' || args.enabled == '1') ||
+			    !match(args.ttl || '', /^[1-9][0-9]{0,2}$/) || +args.ttl > 255 ||
+			    !match(args.hl || '', /^[1-9][0-9]{0,2}$/) || +args.hl > 255)
+				return { success: false, message: 'TTL and HL must be whole numbers from 1 to 255.' };
+			try { return json(readCommandOutput('/usr/sbin/chester-ttl apply ' + args.enabled + ' ' + args.ttl + ' ' + args.hl)); }
+			catch (e) { return { success: false, message: 'TTL/HL apply failed' }; }
+		}
+	},
+	internet_status: {
+		call: function() {
+			let targets = [
+				{ name: 'Cloudflare', ip: '1.1.1.1' },
+				{ name: 'Google', ip: '8.8.8.8' },
+				{ name: 'Quad9', ip: '9.9.9.9' }
+			];
+
+			for (let target in targets) {
+				let cmd = `ping -c 1 -W 1 ${quoteArg(target.ip)} 2>/dev/null`;
+				let fd = popen(cmd, 'r');
+				let output = '';
+
+				if (!fd)
+					continue;
+
+				output = fd.read('all') || '';
+				fd.close();
+
+				if (!match(output, /1 packets transmitted,\s*1 packets received|1 packets transmitted,\s*1 received|1 transmitted,\s*1 received/))
+					continue;
+
+				let latency = match(output, /time=([0-9.]+)/);
+
+				return {
+					online: true,
+					target: target.name,
+					ip: target.ip,
+					latency: latency ? `${latency[1]} ms` : null
+				};
+			}
+
+			return {
+				online: false,
+				target: null,
+				ip: null,
+				latency: null
+			};
+		}
+	},
+	// Modem temperature. The reading is produced by chester-modem-temp,
+	// which asks qmodem for it and caches the answer.
+	//
+	// This method must never read it inline: qmodem is served by rpcd, so
+	// an rpcd method that calls `ubus call qmodem ...` deadlocks rpcd
+	// against itself and the request times out. The refresh is therefore
+	// detached and this returns whatever the last good reading was.
+	// The 4K/HD engine (tpws). Carriers throttle video by reading
+	// the TLS SNI; tpws splits the ClientHello so the hostname is
+	// never intact in one packet. Toggling it also sets the boot
+	// flag, so the switch means the same thing after a reboot.
+	// The 2.5G socket can act as a WAN uplink or as another LAN
+	// port. misectel-optional-wan reads optional_wan_mode at boot
+	// to decide; wan_role only NAMES which network interface it is
+	// (default 'wan') and is not the switch -- setting that instead
+	// changes nothing and looks like the toggle is broken.
+	wan_to_lan: {
+		call: function() {
+			let ctx = cursor();
+			let mode = ctx ? ctx.get('misectel', 'network_defaults',
+				'optional_wan_mode') : null;
+
+			return { enabled: (mode == 'lan') };
+		}
+	},
+
+	set_wan_to_lan: {
+		args: { enabled: 'String' },
+		call: function(request) {
+			let want = trimSafe(request.args.enabled);
+			let on = !(want == '0' || lc(want) == 'false' || lc(want) == 'off');
+			let ctx = cursor();
+
+			if (!ctx)
+				return { success: false, message: 'failed to open uci cursor' };
+
+			ctx.set('misectel', 'network_defaults', null, 'network');
+			ctx.set('misectel', 'network_defaults', 'optional_wan_mode', on ? 'lan' : 'wan');
+			ctx.commit('misectel');
+
+			// Detached, and deliberately so: this reloads the
+			// network, which drops the very connection that asked
+			// for it when the caller is plugged into that socket.
+			// Answering first at least lets the UI report success
+			// before the link goes.
+			readCommandOutput('(/etc/init.d/misectel-optional-wan restart; /etc/init.d/network reload) >/dev/null 2>&1 &');
+
+			return { success: true, enabled: on };
+		}
+	},
+
+	video_engine: {
+		call: function() {
+			let status = {};
+			try { status = json(readCommandOutput('/usr/sbin/chester-zapret status')); } catch (e) {}
+			return {
+				installed: !!status.present,
+				enabled: !!status.enabled,
+				running: !!status.running,
+				engine: 'Zapret2',
+				version: status.version || ''
+			};
+		}
+	},
+
+	set_video_engine: {
+		args: { enabled: 'String' },
+		call: function(request) {
+			let want = trimSafe(request.args.enabled);
+			let on = !(want == '0' || lc(want) == 'false' || lc(want) == 'off');
+
+			let status = {};
+			try { status = json(readCommandOutput('/usr/sbin/chester-zapret ' + (on ? 'install' : 'uninstall'))); } catch (e) {}
+			return { success: !!status.ok, enabled: !!status.enabled, message: status.error || '' };
+		}
+	},
+
+	modem_temp: {
+		call: function() {
+			readCommandOutput('/usr/sbin/chester-modem-temp refresh >/dev/null 2>&1 &');
+
+			let value = trimSafe(readFile('/tmp/chester-modem-temp'));
+
+			return {
+				available: length(value) > 0,
+				value: length(value) > 0 ? value : null
+			};
+		}
+	},
+
+	temp_status: {
+		args: {
+			node: 'String'
+		},
+		call: function(request) {
+			let node = trimSafe(request.args.node);
+			let raw = node ? readCommandOutput(`cat ${quoteArg(node)} 2>/dev/null`) : null;
+
+			return {
+				available: raw != null,
+				node: node,
+				raw: raw,
+				value: raw,
+				temperature: raw
+			};
+		}
+	},
+	system_time: {
+		call: function() {
+			let localEpoch = parseInteger(readCommandOutput(`date '+%s' 2>/dev/null`), null);
+			let uptime = parseInteger(readCommandOutput(`cut -d. -f1 /proc/uptime 2>/dev/null`), null);
+			let bootEpoch = (localEpoch != null && uptime != null) ? localEpoch - uptime : null;
+			let bootTime = bootEpoch != null
+				? readCommandOutput(`date -d @${bootEpoch} '+%Y-%m-%d %H:%M:%S %Z' 2>/dev/null`)
+				: null;
+
+			return {
+				local_epoch: localEpoch,
+				boot_epoch: bootEpoch,
+				local_time: readCommandOutput(`date '+%Y-%m-%d %H:%M:%S %Z' 2>/dev/null`),
+				boot_time: bootTime
+			};
+		}
+	},
+	oem_model_name: {
+		call: function() {
+			let value = readCommandOutput('fw_printenv -n owrt_oem_model_name 2>/dev/null');
+
+			if (value == null)
+				value = readCommandOutput(`fw_printenv owrt_oem_model_name 2>/dev/null | sed -n 's/^owrt_oem_model_name=//p' | head -n 1`);
+
+			return {
+				model_name: trimSafe(value)
+			};
+		}
+	},
+	neighbors: {
+		args: {
+			devices: 'devices'
+		},
+		call: function(request) {
+			let devices = [];
+			let result = [];
+
+			if (type(request.args.devices) == 'string')
+				devices = filter(split(request.args.devices, /[,\s]+/), (device) => length(trimSafe(device)));
+
+			if (!length(devices))
+				devices = [ '' ];
+
+			for (let device in devices) {
+				let cmd = trimSafe(device)
+					? `ip neigh show dev ${quoteArg(device)}`
+					: 'ip neigh show';
+				let fd = popen(cmd, 'r');
+
+				if (!fd)
+					continue;
+
+				for (let line = fd.read('line'); line; line = fd.read('line')) {
+					let entry = parseNeighborLine(line, device);
+
+					if (entry)
+						push(result, entry);
+				}
+
+				fd.close();
+			}
+
+			return { neighbors: result };
+		}
+	},
+	dhcp_leases: {
+		call: function() {
+			let now = parseInteger(readCommandOutput(`date '+%s' 2>/dev/null`), 0);
+			let fd = popen('cat /tmp/dhcp.leases 2>/dev/null', 'r');
+			let result = [];
+
+			if (!fd)
+				return { leases: result };
+
+			for (let line = fd.read('line'); line; line = fd.read('line')) {
+				let lease = parseLeaseLine(line, now);
+
+				if (lease)
+					push(result, lease);
+			}
+
+			fd.close();
+
+			return { leases: result };
+		}
+	},
+	tcp_connections: {
+		call: function() {
+			let fd = popen(`awk 'FNR > 1 && $4 != "0A" { c++ } END { print c + 0 }' /proc/net/tcp /proc/net/tcp6 2>/dev/null`, 'r');
+			let count = 0;
+
+			if (!fd)
+				return { count: count };
+
+			count = parseInteger(fd.read('all'), 0);
+			fd.close();
+
+			return { count: count };
+		}
+	},
+	restart_modem_dial: {
+		call: function() {
+			let result = runCommand('[ -x /etc/init.d/qmodem_network ] && /etc/init.d/qmodem_network restart >/dev/null 2>&1');
+
+			return {
+				result: result.result,
+				code: result.code,
+				service: 'qmodem_network',
+				action: 'restart',
+				message: result.result ? null : 'qmodem_network restart failed'
+			};
+		}
+	},
+	modem_boost_info: {
+		call: function() {
+			let boostCap = trimSafe(readChesterOption('main', 'boost_cap'));
+			let boostGpio = trimSafe(readChesterOption('main', 'boost_gpio'));
+			let mode = normalizeBoostMode(readChesterOption('main', 'boost_mode'));
+			let value = normalizeBoostValue(readChesterOption('main', 'boost_manual_value'));
+			let supported = boostCap == '1' && !!boostGpio;
+			let gpio = supported ? readBoostGpio(boostGpio) : {};
+
+			return {
+				result: supported,
+				supported: supported,
+				boost_cap: boostCap,
+				boost_gpio: boostGpio,
+				mode: mode,
+				value: value,
+				target_bands: [ 'N5', 'N8', 'N28' ],
+				gpio: gpio,
+				message: supported ? (gpio.message || null) : 'signal boost is disabled by device capability'
+			};
+		}
+	},
+	modem_boost_apply: {
+		args: {
+			mode: '',
+			value: ''
+		},
+		call: function(request) {
+			let boostCap = trimSafe(readChesterOption('main', 'boost_cap'));
+			let boostGpio = trimSafe(readChesterOption('main', 'boost_gpio'));
+			let mode = normalizeBoostMode(request.args.mode);
+			let value = normalizeBoostValue(request.args.value);
+
+			if (boostCap != '1' || !boostGpio) {
+				return {
+					result: false,
+					code: -2,
+					supported: false,
+					message: 'signal boost is disabled by device capability'
+				};
+			}
+
+			let saveResult = persistBoostConfig(mode, value);
+
+			if (saveResult.result !== true) {
+				return {
+					result: false,
+					code: saveResult.code || -8,
+					supported: true,
+					boost_gpio: boostGpio,
+					message: saveResult.message || 'failed to save boost settings'
+				};
+			}
+
+			return {
+				result: true,
+				code: 0,
+				supported: true,
+				boost_cap: boostCap,
+				boost_gpio: boostGpio,
+				mode: mode,
+				value: value
+			};
+		}
+	},
+	apn_presets_get: {
+		call: function() {
+			let configCountry = readApnCountryConfig();
+			let country = resolveApnCountry(configCountry);
+			let result = ensureApnPresetDocument(country);
+
+			result.config_country = configCountry;
+			result.fallback = country == APN_FALLBACK_COUNTRY && configCountry != APN_FALLBACK_COUNTRY;
+
+			return result;
+		}
+	},
+	apn_presets_save: {
+		args: {
+			presets: []
+		},
+		call: function(request) {
+			let country = resolveApnCountry(readApnCountryConfig());
+			let presets = request.args.presets;
+			let document = null;
+
+			if (type(presets) != 'array') {
+				return {
+					result: false,
+					code: -2,
+					message: 'invalid apn presets payload'
+				};
+			}
+
+			try {
+				document = writeApnPresetDocument(country, presets);
+			}
+			catch (err) {
+				return {
+					result: false,
+					code: -3,
+					message: `failed to save apn presets: ${err}`
+				};
+			}
+
+			if (!document) {
+				return {
+					result: false,
+					code: -1,
+					message: 'failed to save apn presets'
+				};
+			}
+
+			return {
+				result: true,
+				country: country,
+				presets: document.presets
+			};
+		}
+	},
+	apn_presets_reset: {
+		call: function() {
+			let country = resolveApnCountry(readApnCountryConfig());
+			let defaultPath = defaultApnPath(country);
+			let document = readApnDocument(defaultPath, country);
+			let saved = null;
+
+			try {
+				saved = writeApnPresetDocument(country, document.presets);
+			}
+			catch (err) {
+				return {
+					result: false,
+					code: -3,
+					message: `failed to reset apn presets: ${err}`
+				};
+			}
+
+			if (!saved) {
+				return {
+					result: false,
+					code: -1,
+					message: 'failed to reset apn presets'
+				};
+			}
+
+			return {
+				result: true,
+				country: country,
+				presets: saved.presets
+			};
+		}
+	},
+	sqm_status: {
+		call: function() {
+			// Everything here is shell, never an inline ubus call: an rpcd
+			// method that calls ubus deadlocks rpcd against itself.
+			let one = (cmd) => trimSafe(readCommandOutput(cmd) || '');
+
+			let wan = one("uci -q get chester_sqm.main.wan_interface");
+			if (!wan)
+				// Deliberately free of backslashes. A capture group written
+				// here as \( ... \) never reaches the shell: ucode consumes the
+				// escape inside the string literal and sed receives a corrupt
+				// pattern, so this silently returned nothing and the page
+				// showed no WAN device while shaping was in fact running.
+				wan = one("ip -4 route show default 2>/dev/null | sed -n 's/.* dev //p' | cut -d' ' -f1 | head -1");
+
+			// Capability probes, the same ones the service gates on.
+			let police = one("tc actions list action police 2>/dev/null | head -1");
+			let tbfline = wan ? one(`tc -s qdisc show dev ${wan} 2>/dev/null | grep -m1 'qdisc tbf'`) : '';
+			let stats = wan ? one(`tc -s qdisc show dev ${wan} 2>/dev/null | grep -m1 'Sent '`) : '';
+			let lanq = one("tc qdisc show dev br-lan 2>/dev/null | grep -m1 'qdisc fq_codel'");
+
+			let m = match(stats, /Sent (\d+) bytes (\d+) pkt \(dropped (\d+), overlimits (\d+)/);
+			let rate = match(tbfline, /rate ([0-9A-Za-z]+)/);
+
+			// Download does not go through tc at all. act_police and IFB are
+			// both absent here, but nf_tables carries its own byte-oriented
+			// token bucket on a different kernel path, and that is what the
+			// service uses. Probed at a rate nothing can reach so the rule is
+			// inert for the moment it exists.
+			let nftok = one("nft add table inet chester_sqm_uiprobe 2>/dev/null && nft add chain inet chester_sqm_uiprobe c 2>/dev/null && nft add rule inet chester_sqm_uiprobe c limit rate over 4000 mbytes/second burst 1 mbytes counter drop 2>/dev/null && echo yes; nft delete table inet chester_sqm_uiprobe 2>/dev/null");
+
+			// Counters are read back from the live ruleset, so the page shows
+			// what the kernel actually did rather than what we asked for.
+			let dlrule = one("nft list table inet chester_sqm 2>/dev/null | grep -m1 chester-sqm-drop");
+			let dltotal = one("nft list table inet chester_sqm 2>/dev/null | grep -m1 chester-sqm-total");
+			let dm = match(dlrule, /counter packets (\d+) bytes (\d+)/);
+			let tm = match(dltotal, /counter packets (\d+) bytes (\d+)/);
+			let dlrate = match(dlrule, /limit rate over (\d+) kbytes/);
+
+			return {
+				enabled: one("uci -q get chester_sqm.main.enabled") == '1',
+				wan: wan,
+				upload_enabled: one("uci -q get chester_sqm.main.upload_enabled") == '1',
+				upload_kbit: one("uci -q get chester_sqm.main.upload_kbit"),
+				lan_fq_codel: lanq ? true : false,
+				download_available: (nftok == 'yes' || police) ? true : false,
+				download_method: (nftok == 'yes') ? 'nftables' : (police ? 'tc' : ''),
+				download_enabled: one("uci -q get chester_sqm.main.download_enabled") == '1',
+				download_kbit: one("uci -q get chester_sqm.main.download_base_kbit"),
+				download_burst: one("uci -q get chester_sqm.main.download_burst_kbytes"),
+				download_active: dlrule ? true : false,
+				download_kbytes: dlrate ? dlrate[1] : '',
+				dl_seen_bytes: tm ? tm[2] : '',
+				dl_dropped: dm ? dm[1] : '',
+				dl_dropped_bytes: dm ? dm[2] : '',
+				shaping: tbfline ? true : false,
+				tbf_rate: rate ? rate[1] : '',
+				sent_bytes: m ? m[1] : '',
+				dropped: m ? m[3] : '',
+				overlimits: m ? m[4] : '',
+				offload: one("uci -q get firewall.@defaults[0].flow_offloading")
+			};
+		}
+	},
+
+	set_sqm: {
+		args: {
+			enabled: 'String', upload_kbit: 'String', upload_enabled: 'String',
+			download_enabled: 'String', download_kbit: 'String'
+		},
+		call: function(request) {
+			let on = trimSafe(request.args.enabled) == '1';
+			let up = trimSafe(request.args.upload_kbit);
+			let upon = trimSafe(request.args.upload_enabled) == '1';
+			let dlon = trimSafe(request.args.download_enabled) == '1';
+			let dl = trimSafe(request.args.download_kbit);
+
+			// A rate of zero or nonsense would leave tbf unable to pass
+			// traffic, so it is rejected rather than written. Only checked
+			// when that direction is actually being turned on: a stale rate
+			// sitting behind a switched-off shaper must not block the save.
+			if (on && upon && !match(up, /^[0-9]+$/))
+				return { success: false, message: 'upload rate must be a whole number of kbit' };
+			if (on && upon && (+up < 64 || +up > 10000000))
+				return { success: false, message: 'upload rate is out of range' };
+			// Below 8 kbit the kbit-to-kbytes conversion floors to zero and the
+			// limiter would drop everything, so the floor is enforced here.
+			if (on && dlon && !match(dl, /^[0-9]+$/))
+				return { success: false, message: 'download rate must be a whole number of kbit' };
+			if (on && dlon && (+dl < 64 || +dl > 10000000))
+				return { success: false, message: 'download rate is out of range' };
+
+			let cmd = 'uci -q set chester_sqm.main.enabled=' + quoteArg(on ? '1' : '0');
+			cmd += ' && uci -q set chester_sqm.main.upload_enabled=' + quoteArg(upon ? '1' : '0');
+			if (match(up, /^[0-9]+$/))
+				cmd += ' && uci -q set chester_sqm.main.upload_kbit=' + quoteArg(up);
+			cmd += ' && uci -q set chester_sqm.main.download_enabled=' + quoteArg(dlon ? '1' : '0');
+			if (match(dl, /^[0-9]+$/))
+				cmd += ' && uci -q set chester_sqm.main.download_base_kbit=' + quoteArg(dl);
+			cmd += ' && uci -q commit chester_sqm';
+			// Turning a direction off has to tear its shaper down, and reload
+			// is remove-then-apply, so it covers that too. Only a fully
+			// disabled service takes the stop path.
+			cmd += on ? ' && /etc/init.d/chester-sqm reload' : ' && /etc/init.d/chester-sqm stop';
+
+			let r = runCommand('( ' + cmd + ' ) >/dev/null 2>&1');
+			return {
+				success: r.result,
+				enabled: on,
+				upload_enabled: upon,
+				upload_kbit: up,
+				download_enabled: dlon,
+				download_kbit: dl,
+				message: r.result ? null : 'could not apply the smart queue settings'
+			};
+		}
+	},
+
+	update_settings: {
+		call: function() {
+			let ctx = cursor();
+			let auto = ctx ? ctx.get('chester', 'update', 'auto') : null;
+			let time = ctx ? ctx.get('chester', 'update', 'time') : null;
+			let keep = ctx ? ctx.get('chester', 'update', 'keep_settings') : null;
+
+			// Which clock the scheduled time is on. cron runs on the router's
+			// local time, and these ship set to UTC, so "03:00" means 03:00 UTC
+			// until someone picks a timezone -- which is 10pm or 11pm the night
+			// before on the US east coast. Naming it stops that being a
+			// surprise. zonename is the readable form (America/New_York); the
+			// POSIX string is the fallback for a box that only has that.
+			let zone = ctx ? ctx.get('system', '@system[0]', 'zonename') : null;
+			if (!zone)
+				zone = ctx ? ctx.get('system', '@system[0]', 'timezone') : null;
+
+			return {
+				timezone: zone ? zone : 'UTC',
+				// Off unless switched on. Nothing should start reflashing a
+				// customer's router on a schedule they did not ask for.
+				auto: (auto == '1') ? true : false,
+				time: time ? time : '03:00',
+				// Absent means KEEP. A router that loses its Wi-Fi name, its APN
+				// and its admin password because the option had simply never
+				// been written yet is a far worse outcome than one that carries
+				// a stale config forward, so only an explicit '0' wipes.
+				keep_settings: (keep == '0') ? false : true
+			};
+		}
+	},
+
+	set_update_settings: {
+		args: { auto: 'String', time: 'String', keep_settings: 'String' },
+		call: function(request) {
+			let wantAuto = trimSafe(request.args.auto);
+			let wantKeep = trimSafe(request.args.keep_settings);
+			let on = (wantAuto == '1' || lc(wantAuto) == 'true' || lc(wantAuto) == 'on');
+			let keep = !(wantKeep == '0' || lc(wantKeep) == 'false' || lc(wantKeep) == 'off');
+
+			// Validate before storing, because this string becomes a cron field.
+			// A malformed time would otherwise produce a crontab line that
+			// busybox silently refuses, leaving auto-update switched on in the
+			// UI and never firing.
+			let time = trimSafe(request.args.time);
+			let m = match(time, /^([0-9]{1,2}):([0-9]{2})$/);
+			let hh = m ? +m[1] : -1;
+			let mm = m ? +m[2] : -1;
+			if (!(hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59)) {
+				hh = 3; mm = 0;
+				time = '03:00';
+			} else {
+				time = sprintf('%02d:%02d', hh, mm);
+			}
+
+			// The uci CLI, not the ucode cursor, and deliberately so. The
+			// cursor's 4-argument set() cannot create a package that does not
+			// exist yet: against a missing /etc/config/chester it reported
+			// success and wrote nothing, so the schedule appeared to save and
+			// the setting read back as its default forever. This is the same
+			// pattern skip_setup_wizard already uses.
+			let cmd = 'touch /etc/config/chester' +
+				' && uci -q set chester.update=update' +
+				' && uci -q set chester.update.auto=' + quoteArg(on ? '1' : '0') +
+				' && uci -q set chester.update.time=' + quoteArg(time) +
+				' && uci -q set chester.update.keep_settings=' + quoteArg(keep ? '1' : '0') +
+				' && uci -q commit chester';
+
+			// Rebuild the crontab from a copy in /tmp, keyed on a marker
+			// comment, so repeated saves cannot stack duplicate lines.
+			//
+			// Not sed -i: it writes its temporary file into the directory it is
+			// editing, and crond scans that whole directory, so /etc/crontabs
+			// briefly gains a file named after no user at all --
+			//   crond: ignoring file 'rootPGLOpO' (no such user)
+			let line = sprintf('%d %d * * * /usr/sbin/chester-update auto-run >/dev/null 2>&1 # chester-auto-update', mm, hh);
+			cmd += '; touch /etc/crontabs/root' +
+				'; grep -v chester-auto-update /etc/crontabs/root > /tmp/.ck-cron 2>/dev/null';
+			if (on)
+				cmd += '; echo ' + quoteArg(line) + ' >> /tmp/.ck-cron';
+			cmd += '; cp /tmp/.ck-cron /etc/crontabs/root; rm -f /tmp/.ck-cron';
+
+			// crond is enabled but NOT running after a boot, so enabling alone
+			// leaves the schedule written and nothing reading it. restart is
+			// backed by start because restart on a stopped service was observed
+			// to leave it stopped.
+			cmd += '; /etc/init.d/cron enable; /etc/init.d/cron restart; pidof crond >/dev/null || /etc/init.d/cron start';
+			let result = runCommand('( ' + cmd + ' ) >/dev/null 2>&1');
+
+			return {
+				success: result.result,
+				auto: on,
+				time: time,
+				keep_settings: keep,
+				message: result.result ? null : 'saved, but the schedule could not be applied'
+			};
+		}
+	},
+
+	skip_setup_wizard: {
+		call: function() {
+			let result = runCommand(
+				`uci -q set misectel.setup=wizard && ` +
+				`uci -q set misectel.setup.completed=${quoteArg('1')} && ` +
+				`uci -q set misectel.setup.skipped_network=${quoteArg('1')} && ` +
+				`uci -q set misectel.setup.skipped_wifi=${quoteArg('1')} && ` +
+				`uci -q set misectel.setup.skipped_admin=${quoteArg('1')} && ` +
+				`uci -q commit misectel`
+			);
+
+			return {
+				result: result.result,
+				code: result.code,
+				completed: result.result ? '1' : '0',
+				skipped_network: result.result ? '1' : '0',
+				skipped_wifi: result.result ? '1' : '0',
+				skipped_admin: result.result ? '1' : '0',
+				message: result.result ? null : 'failed to persist setup wizard skip state'
+			};
+		}
+	},
+	led_power: {
+		call: function() {
+			let ctx = cursor();
+			let value = ctx ? ctx.get('misectel', 'main', 'led_power') : null;
+			// Absent means on: the panel lights unless told otherwise.
+			return { enabled: (value == '0') ? false : true };
+		}
+	},
+
+	set_led_power: {
+		args: { enabled: 'String' },
+		call: function(request) {
+			let want = trimSafe(request.args.enabled);
+			let on = !(want == '0' || lc(want) == 'false' || lc(want) == 'off');
+			let ctx = cursor();
+			if (!ctx)
+				return { success: false, message: 'failed to open uci cursor' };
+			ctx.set('misectel', 'main', null, 'main');
+			ctx.set('misectel', 'main', 'led_power', on ? '1' : '0');
+			ctx.commit('misectel');
+			// Turning the panel off is more than stopping the service: the
+			// indicators keep whatever brightness they were left at, so they
+			// are cleared explicitly.
+			if (on) {
+				readCommandOutput('/etc/init.d/qmodem_led start >/dev/null 2>&1');
+				readCommandOutput('/etc/init.d/led restart >/dev/null 2>&1');
+			} else {
+				readCommandOutput('/etc/init.d/qmodem_led stop >/dev/null 2>&1');
+				readCommandOutput('for l in /sys/class/leds/*; do echo none > "$l/trigger" 2>/dev/null; echo 0 > "$l/brightness" 2>/dev/null; done');
+			}
+			return { success: true, enabled: on };
+		}
+	}
+};
+
+return { misectel: methods };
