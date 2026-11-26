@@ -3,7 +3,7 @@
 import {cursor} from 'uci';
 import {connect} from 'ubus';
 import {readfile,open,popen,mkdir,rmdir,rename,unlink,chmod,readlink,stat} from 'fs';
-import {validate,plan,activeMode,ipv6} from '/usr/share/chester/ipv6.uc';
+import {validate,plan,activeMode,ipv6,defaults} from '/usr/share/chester/ipv6.uc';
 const DIR='/etc/chester-ipv6',JOURNAL=DIR+'/transaction.json',LOCK='/tmp/chester-ipv6.lock',RUNTIME='/tmp/chester-ipv6';
 const CONFIGS=['network','dhcp','firewall','chester_ipv6'];
 let bus=connect();
@@ -30,6 +30,8 @@ function context(){
  let dhcp=u.get('dhcp','lan','dhcpv6')||'disabled';if(dhcp=='server')dhcp=u.get('dhcp','lan','dhcpv6_na')=='0'?'stateless':'stateful';if(dhcp=='relay')dhcp='stateless';
  let s={mode:mode,slaac:u.get('dhcp','lan','ra_slaac')!='0',dhcpv6:dhcp,prefix:u.get('network',iface,'reqprefix')||'auto',dns:u.get('chester_ipv6','main','dns')||'auto',custom_dns:arr(u.get('chester_ipv6','main','custom_dns')),firewall:u.get('chester_ipv6','main','firewall')!='0',recovery:u.get('chester_ipv6','main','recovery')=='1'};
  for(let key in ['slaac','dhcpv6','prefix']){let v=u.get('chester_ipv6','main',key);if(v!=null)s[key]=key=='slaac'?v=='1':v;}
+ // Missing managed configuration means a fresh installation or factory reset.
+ if(!saved)s={...defaults,custom_dns:[]};
  let ula=u.get('network','globals','ula_prefix')||'';
  return {u:u,settings:s,managed:!!saved,interface:iface,device:best.l3_device||'',up:!!best.up,address:address,mask:mask,prefix:length(prefixes)?prefixes[0].address+'/'+prefixes[0].mask:'',has_pd:has_pd,shared64:shared64,noarp:noarp,lan:lan,lan_device:lan.l3_device||'br-lan',lan_address:primary,lan_addresses:addresses,lan_dns:lan_dns,lan_zone:lan_zone,wan_zone:wan_zone,ula:ula,evidence:evidence,ra:u.get('dhcp','lan','ra')||'disabled'};
 }

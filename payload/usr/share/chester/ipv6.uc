@@ -1,4 +1,5 @@
 'use strict';
+export const defaults = {mode:'auto',slaac:true,dhcpv6:'disabled',prefix:'auto',dns:'auto',custom_dns:[],firewall:true,recovery:true};
 export const modes = ['auto','pd','relay','nat66','disabled'];
 export function ipv6(s) {
  if(type(s)!='string'||!match(s,/^[0-9a-fA-F:]+$/))return false;

@@ -78,5 +78,6 @@
     "etc/init.d/ubus-at-daemon": "3704eb91afe08c3b9632d642ce180cb102be73a9b7d2a48bde77452066eb5c11",
     "etc/hotplug.d/iface/99-chester-ipv6": "eac5856b071cab7a0a44446c1f74a014ab2df96cae82487f9265de82ce79c457"
   },
-  "firmware_built": false
+  "firmware_built": false,
+  "scope": "Initial integration tests and payload hashes; see defaults-validation.json for the later factory-default update."
 }

@@ -1,0 +1,28 @@
+{
+  "date": "2026-11-26",
+  "board": "K43P",
+  "settings": {
+    "mode": "auto",
+    "slaac": true,
+    "dhcpv6": "disabled",
+    "prefix": "auto",
+    "dns": "auto",
+    "custom_dns": [],
+    "firewall": true,
+    "recovery": true
+  },
+  "factory_defaults_fixture": "passed with absent managed configuration and conflicting legacy settings",
+  "existing_saved_choices_preserved_on_code_update": true,
+  "live_apply": "passed",
+  "persistent_after_service_restart": true,
+  "ipv4_connectivity": "passed",
+  "ipv6_router_and_lan_source": "passed",
+  "ipv6_real_lan_client_tcp": "passed",
+  "kernel": "6.12.85",
+  "payload_sha256": {
+    "usr/share/chester/ipv6.uc": "45b2c02d3c70cc9c71920b325820d3e5d83239eb237363fe0350b0dc8cc02f92",
+    "usr/libexec/chester-ipv6": "11ed0b5199b7c773b31a58be275dfd42e19acf8a04c8fa8565186af74825cfc8"
+  },
+  "firmware_built": false,
+  "firmware_flashed": false
+}

@@ -2,6 +2,8 @@
 
 Shared native ucode backend and Chester Day/Night LuCI page for K43P and K45P.
 
+Factory defaults: Automatic, SLAAC enabled, DHCPv6 disabled, automatic requested prefix and DNS, stateful firewall enabled, and automatic IPv6 recovery enabled. These apply when the managed configuration is absent, including after a factory reset. Existing saved selections remain unchanged during normal startup.
+
 - Automatic, Native /64 Relay and NAT66 were tested with router and real LAN-client traffic on both boards.
 - Passthrough is excluded. Forced DHCPv6-PD is hidden and rejected unless the carrier actually delegates a prefix; an extended RA /64 is not reported as DHCPv6-PD. These test connections did not supply PD.
 - Disable stops cellular IPv6 and LAN advertisements, and blocks LAN IPv6 forwarding. IPv4 remains enabled. Enable restores an available mode.
@@ -13,4 +15,4 @@ Run `ucode tests/ipv6.uc` on a router with this payload installed. The firmware 
 
 Diagnostics distinguish router/LAN-source checks from real client tests. The packet-size check confirms a 1280-byte IPv6 packet; it does not claim to measure complete path-MTU discovery. AAAA resolution does not prove the DNS request used IPv6 transport. SLAAC-free Stateful DHCPv6 requires compatible clients.
 
-Validation: `validation.json`. Original IPv6 selections and IPv4 settings were restored. The new backend normalizes the IPv6 UCI options it owns; raw configuration files therefore include the intended IPv6 corrections. The AT service starts before modem discovery to avoid marking a slow-starting modem disabled. No firmware was built or flashed.
+Initial integration validation: `validation.json`. Recommended factory defaults and live application: `defaults-validation.json`. Original IPv6 selections and IPv4 settings were restored. The new backend normalizes the IPv6 UCI options it owns; raw configuration files therefore include the intended IPv6 corrections. The AT service starts before modem discovery to avoid marking a slow-starting modem disabled. No firmware was built or flashed.

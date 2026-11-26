@@ -1,6 +1,8 @@
 'use strict';
-import {validate,plan,activeMode,ipv6} from '/usr/share/chester/ipv6.uc';
+import {validate,plan,activeMode,ipv6,defaults} from '/usr/share/chester/ipv6.uc';
 function check(ok,message){if(!ok)die(message);}
+check(defaults.mode=='auto'&&defaults.slaac&&defaults.dhcpv6=='disabled'&&defaults.prefix=='auto'&&defaults.dns=='auto'&&defaults.firewall&&defaults.recovery&&!length(defaults.custom_dns),'Recommended factory defaults changed');
+check(validate(defaults).enabled,'Factory IPv6 must be enabled');
 const base={mode:'auto',slaac:true,dhcpv6:'stateless',prefix:'auto',dns:'auto',custom_dns:[],firewall:true,recovery:true};
 const ctx={interface:'pcie0v6',lan_zone:'lan',wan_zone:'wan',lan_dns:['9.9.9.9','2001:db8::53'],ula:'fd00:1234::/48'};
 for(let mode in ['auto','pd','relay','nat66','disabled']){
