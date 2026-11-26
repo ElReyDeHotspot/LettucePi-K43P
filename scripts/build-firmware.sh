@@ -12,7 +12,8 @@ work=$(mktemp -d /var/tmp/chester-k43-build.XXXXXX)
 cp -a "$base" "$work/root"
 python3 "$repo/scripts/prepare-rootfs.py" "$work/root"
 for name in lib/modules lib/firmware etc/board.d etc/config/network etc/config/wireless lib/upgrade/platform.sh; do
- diff -qr "$base/$name" "$work/root/$name"
+ if [ -e "$base/$name" ]; then diff -qr "$base/$name" "$work/root/$name"
+ else [ ! -e "$work/root/$name" ]; fi
 done
 printf 'version=25.12\nbuilt=%s\nbuild=%s\nbin=%s\nproduct=K43P\n' "$(date -u +%FT%H:%MZ)" "$(date -u +%Y%m%d%H%M%S)" "$bin" > "$work/root/etc/chester-version"
 mksquashfs "$work/root" "$work/rootfs" -comp xz -Xdict-size 1M -b 1048576 -noappend -nopad -no-xattrs -no-progress
