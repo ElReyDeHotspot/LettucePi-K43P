@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "app_revision": 1,
+  "firmware_bin": 63,
+  "download_bytes": 5082,
+  "real_signature_tampering_rejected": true,
+  "new_boot": true,
+  "ipv4_ipv6_ping_https": true,
+  "settings_preserved": {
+    "network": true,
+    "wireless": true,
+    "firewall": true,
+    "chester_ipv6": true,
+    "qmodem": true,
+    "misectel": true
+  },
+  "kernel_and_calibration_unchanged": true,
+  "recovery_service_enabled": true,
+  "no_pending_transaction": true,
+  "smart_metadata_changes_expected": true
+}

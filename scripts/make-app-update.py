@@ -16,7 +16,7 @@ def allowed(path):
               'usr/libexec/chester-','usr/sbin/chester-','usr/lib/chester/')
     return (re.fullmatch(r'[A-Za-z0-9_./+-]+',path) and '..' not in path
             and path.startswith(prefixes) and 'kernel-profile' not in path
-            and 'app-update' not in path and path!='usr/sbin/chester-update')
+            and 'app-update' not in path and path not in ('usr/sbin/chester-update','usr/libexec/chester-engine'))
 
 def main():
     p=argparse.ArgumentParser()

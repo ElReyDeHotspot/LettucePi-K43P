@@ -1,0 +1,12 @@
+{
+  "app_status": true,
+  "scan_status": true,
+  "sim_capability_probe": true,
+  "ndt_interface_validation": true,
+  "traffic_response": true,
+  "pcie_reconstruction_exact": true,
+  "usb3_reconstruction_exact": true,
+  "no_kernel_write_or_mode_switch": true,
+  "local_app_status_peak_rss_kib": 9904,
+  "read_only_live_checks": true
+}

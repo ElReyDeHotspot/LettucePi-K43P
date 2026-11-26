@@ -1,0 +1,59 @@
+#!/bin/sh
+set -eu
+
+effective="${1:-}"
+selected="${2:-$effective}"
+case "$effective" in
+	pcie|usb3) ;;
+	*) echo INVALID; exit 1 ;;
+esac
+
+image="/usr/lib/chester/kernel-profile-${effective}.fit"
+if [ ! -s "$image" ]; then
+ /usr/libexec/chester-app-update prepare-profile "$effective" >/dev/null || { echo PROFILE_VERIFICATION_FAILED; exit 1; }
+ image="/tmp/chester-kernel-profile-${effective}.fit"
+ trap 'rm -f "$image"' EXIT
+fi
+[ -s "$image" ] || { echo MISSING_PROFILE; exit 1; }
+volumes=''
+for path in /sys/class/ubi/ubi*_*; do
+	[ -f "$path/name" ] || continue
+	[ "$(cat "$path/name")" = kernel ] || continue
+	volume="/dev/$(basename "$path")"
+	[ -e "$volume" ] || continue
+	volumes="${volumes}${volumes:+ }$volume"
+done
+[ -n "$volumes" ] || { echo KERNEL_VOLUME_NOT_FOUND; exit 1; }
+
+# The configuration must exist before UCI can create the modem section.  This
+# is also shipped in the base image, but keeping the guard makes retained-data
+# upgrades and factory variants safe.
+[ -e /etc/config/chester ] || : > /etc/config/chester
+uci -q set chester.modem=settings
+uci -q set chester.modem.transport_profile="$selected"
+uci -q set chester.modem.effective_profile="$effective"
+uci -q commit chester
+
+expected="$(sha256sum "$image" | awk '{print $1}')"
+image_size="$(wc -c < "$image")"
+image_blocks="$(( (image_size + 4095) / 4096 ))"
+: > /tmp/chester-profile-update.log
+for volume in $volumes; do
+	echo "writing $effective profile to $volume" >> /tmp/chester-profile-update.log
+	ubiupdatevol "$volume" "$image" >> /tmp/chester-profile-update.log 2>&1 || {
+		cat /tmp/chester-profile-update.log
+		exit 1
+	}
+	# UBI character devices expose the entire reserved volume, including bytes
+	# beyond the update payload.  Verify exactly the FIT payload length rather
+	# than hashing the padded volume.
+	actual="$(dd if="$volume" bs=4096 count="$image_blocks" 2>/dev/null | head -c "$image_size" | sha256sum | awk '{print $1}')"
+	[ "$actual" = "$expected" ] || {
+		echo "VERIFY_FAILED $volume expected=$expected actual=$actual" | tee -a /tmp/chester-profile-update.log
+		exit 1
+	}
+	echo "verified $volume $actual" >> /tmp/chester-profile-update.log
+done
+sync
+(sleep 3; reboot) >/dev/null 2>&1 &
+echo OK

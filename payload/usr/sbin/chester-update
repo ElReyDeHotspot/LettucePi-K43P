@@ -116,7 +116,7 @@ valid_image_metadata() {
     case "$sha" in ''|*[!0-9a-f]*) return 1;; esac
     case "$siz" in ''|*[!0-9]*) return 1;; esac
     [ "${#sha}" -eq 64 ] && [ "${#siz}" -le 8 ] &&
-        [ "$siz" -gt 0 ] && [ "$siz" -le 50331648 ]
+        [ "$siz" -gt 0 ] && [ "$siz" -le 33554432 ]
 }
 
 filesize() { if [ -f "$1" ]; then stat -c %s "$1"; else echo 0; fi; }

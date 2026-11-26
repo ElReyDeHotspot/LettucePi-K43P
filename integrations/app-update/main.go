@@ -177,7 +177,7 @@ func allowed(p string) bool {
 	}
 	for _, prefix := range []string{"www/luci-static/resources/", "www/luci-static/misectel/", "www/cgi-bin/chester-", "usr/share/luci/menu.d/", "usr/share/rpcd/acl.d/", "usr/share/ucode/luci/template/", "usr/libexec/chester-", "usr/sbin/chester-", "usr/lib/chester/"} {
 		if strings.HasPrefix(p, prefix) {
-			if strings.Contains(p, "kernel-profile") || strings.Contains(p, "app-update") || p == "usr/sbin/chester-update" {
+			if strings.Contains(p, "kernel-profile") || strings.Contains(p, "app-update") || p == "usr/sbin/chester-update" || p == "usr/libexec/chester-engine" {
 				return false
 			}
 			return true
@@ -206,6 +206,9 @@ func (e Engine) state() State {
 	s := State{Files: map[string]string{}}
 	b, _ := os.ReadFile(filepath.Join(e.dir(), "state.json"))
 	_ = json.Unmarshal(b, &s)
+	if s.Base != "" && s.Base != fields(e.path("/rom/etc/chester-version"))["build"] {
+		return State{Files: map[string]string{}}
+	}
 	if s.Files == nil {
 		s.Files = map[string]string{}
 	}
@@ -219,8 +222,20 @@ func verifyManifest(b, sig, pub []byte) (Manifest, error) {
 	if err := json.Unmarshal(b, &m); err != nil {
 		return m, err
 	}
-	if m.Format != 1 || m.Revision < 1 || !digits.MatchString(m.Base) || !digits.MatchString(m.Target.Build) || m.Target.Build <= m.Base || !regexp.MustCompile(`^[0-9.]+$`).MatchString(m.Target.Version) || !regexp.MustCompile(`^[0-9]{1,5}$`).MatchString(m.Target.Bin) || m.Size <= 0 || m.Size > limit || !digest.MatchString(m.SHA) || len(m.Files) == 0 || len(m.Files) > 512 {
+	if m.Format != 1 || m.Revision < 0 || !digits.MatchString(m.Base) || !digits.MatchString(m.Target.Build) || !regexp.MustCompile(`^[0-9.]+$`).MatchString(m.Target.Version) || !regexp.MustCompile(`^[0-9]{1,5}$`).MatchString(m.Target.Bin) || len(m.Notes) > 4096 {
 		return m, errors.New("Invalid app release metadata")
+	}
+	if _, err := time.Parse("2006-01-02T15:04Z", m.Target.Built); err != nil {
+		return m, errors.New("Invalid app build date")
+	}
+	if m.Revision == 0 {
+		if m.Target.Build != m.Base || m.Size != 0 || m.URL != "" || m.SHA != bytesHash(nil) || len(m.Files) != 0 {
+			return m, errors.New("Invalid signed app baseline")
+		}
+		return m, nil
+	}
+	if m.Target.Build <= m.Base || m.Size <= 0 || m.Size > limit || !digest.MatchString(m.SHA) || len(m.Files) == 0 || len(m.Files) > 512 {
+		return m, errors.New("Invalid app package metadata")
 	}
 	seen := map[string]bool{}
 	var total int64
@@ -236,12 +251,18 @@ func verifyManifest(b, sig, pub []byte) (Manifest, error) {
 	}
 	return m, nil
 }
-func (e Engine) compatible(m Manifest) error {
+func (e Engine) compatibleBase(m Manifest) error {
 	rom := fields(e.path("/rom/etc/chester-version"))
 	board, _ := os.ReadFile(e.path("/tmp/sysinfo/board_name"))
 	kernel, _ := os.ReadFile(e.path("/proc/sys/kernel/osrelease"))
 	if rom["product"] != m.Product || rom["build"] != m.Base || strings.TrimSpace(string(board)) != m.Board || strings.TrimSpace(string(kernel)) != m.Kernel || rom["bin"] != m.Target.Bin {
 		return errors.New("This app release requires a different base firmware; use the matching full firmware update")
+	}
+	return nil
+}
+func (e Engine) compatible(m Manifest) error {
+	if err := e.compatibleBase(m); err != nil {
+		return err
 	}
 	st := e.state()
 	if st.Base != "" && st.Base != m.Base {
@@ -525,7 +546,7 @@ func (e Engine) cached() (Manifest, error) {
 	if err != nil {
 		return m, err
 	}
-	if !strings.HasPrefix(m.URL, strings.TrimSuffix(repo, "/apps")+"/apps/releases/") || strings.Contains(m.URL, "?") || strings.Contains(m.URL, "..") {
+	if m.Revision > 0 && (!strings.HasPrefix(m.URL, strings.TrimSuffix(repo, "/apps")+"/apps/releases/") || strings.Contains(m.URL, "?") || strings.Contains(m.URL, "..")) {
 		return m, errors.New("Unexpected app release URL")
 	}
 	return m, nil
@@ -536,10 +557,15 @@ func (e Engine) fetch() (Manifest, error) {
 		return Manifest{}, err
 	}
 	nonce := "?cb=" + strconv.FormatInt(time.Now().UnixNano(), 10)
-	if err = curl(repo+"/latest.json"+nonce, e.path("/tmp/chester-app-manifest.json"), 131072); err != nil {
+	base := fields(e.path("/rom/etc/chester-version"))["build"]
+	if !digits.MatchString(base) {
+		return Manifest{}, errors.New("Invalid firmware base")
+	}
+	channel := repo + "/bases/" + base
+	if err = curl(channel+"/latest.json"+nonce, e.path("/tmp/chester-app-manifest.json"), 131072); err != nil {
 		return Manifest{}, err
 	}
-	if err = curl(repo+"/latest.json.sig"+nonce, e.path("/tmp/chester-app-manifest.sig"), 1024); err != nil {
+	if err = curl(channel+"/latest.json.sig"+nonce, e.path("/tmp/chester-app-manifest.sig"), 1024); err != nil {
 		return Manifest{}, err
 	}
 	return e.cached()
@@ -551,6 +577,7 @@ func (e Engine) status(localOnly bool) {
 	board, _ := os.ReadFile(e.path("/tmp/sysinfo/board_name"))
 	model, _ := os.ReadFile(e.path("/tmp/sysinfo/model"))
 	out := map[string]any{"ok": false, "app_update": true, "installed_version": local["version"], "installed_build": local["build"], "installed_built": local["built"], "installed_bin": rom["bin"], "installed_app": e.state().Revision, "kernel": strings.TrimSpace(string(kernel)), "board": strings.TrimSpace(string(board)), "model": strings.TrimSpace(string(model))}
+	out["os_version"] = strings.Trim(fields(e.path("/etc/os-release"))["VERSION_ID"], "\"")
 	if localOnly {
 		out["ok"] = true
 		out["local_only"] = true
@@ -559,6 +586,11 @@ func (e Engine) status(localOnly bool) {
 	}
 	m, err := e.fetch()
 	if err != nil {
+		out["error"] = err.Error()
+		emit(out)
+		return
+	}
+	if err = e.compatibleBase(m); err != nil {
 		out["error"] = err.Error()
 		emit(out)
 		return
@@ -619,6 +651,14 @@ func main() {
 		}
 		defer f.Close()
 		if err = e.recover(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	case "prepare-profile":
+		if len(os.Args) != 3 {
+			os.Exit(2)
+		}
+		if err := e.prepareProfile(os.Args[2]); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}

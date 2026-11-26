@@ -182,3 +182,32 @@ func TestCommittedTransactionIsNotRolledBack(t *testing.T) {
 		t.Fatal("committed data rolled back")
 	}
 }
+
+func TestSignedBaselineAndStateReset(t *testing.T) {
+	e, m, _ := fixture(t)
+	m.Revision = 0
+	m.Files = nil
+	m.Size = 0
+	m.URL = ""
+	m.SHA = bytesHash(nil)
+	m.Target.Build = m.Base
+	pub, key, _ := ed25519.GenerateKey(rand.Reader)
+	raw, _ := json.Marshal(m)
+	if _, err := verifyManifest(raw, ed25519.Sign(key, raw), pub); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.compatible(m); err == nil {
+		t.Fatal("baseline must not install")
+	}
+	if err := saveJSON(filepath.Join(e.dir(), "state.json"), State{Revision: 7, Base: "20261126000000", Files: map[string]string{"old": "state"}}); err != nil {
+		t.Fatal(err)
+	}
+	if e.state().Revision != 0 {
+		t.Fatal("old firmware app state survived a base change")
+	}
+	m.Size = 1
+	raw, _ = json.Marshal(m)
+	if _, err := verifyManifest(raw, ed25519.Sign(key, raw), pub); err == nil {
+		t.Fatal("baseline with payload accepted")
+	}
+}
