@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-11-25T22:18Z",
-  "build": "20261125221843",
-  "bin": "60",
-  "sha256": "17f301c5488070e76e8884966ed9b09aebe86888d5689dc74b0d2e410f33ccfa",
-  "size": "39321600",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/60-2026-11-25-ChesterK43P-25.12.bin",
-  "notes": "Chester K43/K43P with PCIe and USB3 modem profiles. Fixes Quick Start after a clean flash and improves OTA download verification, reuse, and memory checks. M-Lab and the VPN page are built in. WARP, Tailscale, Ookla, and Live Traffic with Block List are available on demand."
+  "built": "2026-11-26T06:13Z",
+  "build": "20261126061312",
+  "bin": "61",
+  "sha256": "aa5a6a0bef3ea88e2f75242ca9c3a3051ad8bf762c936bb5feac4f665fac6cce",
+  "size": "44040192",
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/61-2026-11-26-ChesterK43P-25.12.bin",
+  "notes": "Smart MTU & MSS controls, per-link M-Lab speed tests and updated Speeds layout. Updated IPv6 and VPN controls, safer full LTE/5G scans, Zapret2 and corrected client topology."
 }
