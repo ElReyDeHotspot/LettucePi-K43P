@@ -1,0 +1,75 @@
+{
+  "verification_date": "2026-11-27",
+  "scope": "Post-migration checks after the user completed the OpenWrt 21 to BIN66 install and reboot.",
+  "bin": 66,
+  "build": "20261127155405",
+  "kernel": "6.12.85",
+  "overlay_matches_rom": true,
+  "rpc_backends_loaded": true,
+  "rpc_permissions_safe": true,
+  "sim1_connected": true,
+  "cellular_ipv4_https": true,
+  "cellular_ipv6_https": true,
+  "live_traffic_installed": false,
+  "failover_enabled": false,
+  "topology_ports": 4,
+  "memory": "MemTotal:         238788 kB\nMemAvailable:      52824 kB\n",
+  "active_sim": "1",
+  "sim_mode": "manual",
+  "sim_idle": true,
+  "failover_idle": true,
+  "settings_byte_identical": false,
+  "changed_config_files": [
+    "network",
+    "wireless",
+    "firewall"
+  ],
+  "sim_failover_preferences_preserved": true,
+  "rebooted_during_verification": false,
+  "new_bin_built_during_verification": false,
+  "pc_k43p_lan_ipv4_https": true,
+  "pc_k43p_lan_ipv6_https": true,
+  "source_version_reported_by_user": "OpenWrt 21.02-SNAPSHOT 2.6.0",
+  "migration_executed_by": "user with corrected published installer",
+  "mlab_results": [
+    {
+      "page": "speeds",
+      "download_mbps": 155.153749,
+      "upload_mbps": 2.85773,
+      "latency_ms": 18.206,
+      "completed": true,
+      "started_from_browser": true,
+      "displayed_result_verified": true
+    },
+    {
+      "page": "failover",
+      "download_mbps": 84.508666,
+      "upload_mbps": 2.947781,
+      "latency_ms": 23.991,
+      "completed": true,
+      "started_from_browser": true,
+      "displayed_result_verified": true
+    },
+    {
+      "page": "sim_selection_sim1",
+      "download_mbps": 160.373303,
+      "upload_mbps": 4.353315,
+      "latency_ms": 18.087,
+      "completed": true,
+      "started_from_browser": true,
+      "displayed_result_verified": true,
+      "original_sim_restored": true
+    }
+  ],
+  "system_update_current": true,
+  "signed_app_baseline_revision": 0,
+  "overview_online_after_reload": true,
+  "topology_browser_discovery": true,
+  "live_traffic_browser_not_installed": true,
+  "limitations": [
+    "Ethernet WAN handover/recovery, SIM 2 measurement and two-working-SIM comparison were not tested.",
+    "No wireless-client association or VPN/paid-service test is claimed.",
+    "Network/wireless/firewall files differed during the session; only SIM/failover preference restoration is asserted. No configurations were overwritten to force matching hashes.",
+    "Overview initially displayed Offline, then correctly displayed Online/Connected on the later read after reload."
+  ]
+}

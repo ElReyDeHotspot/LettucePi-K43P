@@ -1,5 +1,30 @@
 # Changelog
 
+## November 27, 2026 — Live OpenWrt 21 → BIN66 verification
+
+- The user ran the corrected one-line installer on a newly connected K43P
+  reporting OpenWrt 21.02-SNAPSHOT 2.6.0 and confirmed YES. Post-reboot checks
+  verified ROM BIN66/build `20261127155405`, matching overlay identity, kernel
+  6.12.85 and all required RPC backends with safe script permissions.
+- Completed real M-Lab tests from each browser page on this migrated unit:
+  Speeds 155.2/2.9 Mbps, 18.2 ms; Failover 84.5/2.9 Mbps, 24.0 ms with monitoring
+  off; SIM Selection SIM 1 160.4/4.4 Mbps, 18.1 ms. Backend completion and the
+  displayed results were verified separately.
+- SIM 1 was restored, Manual mode and the original Failover preferences were
+  preserved, and tests became idle with no test routing rules remaining. Router
+  cellular HTTPS and interface-bound LAN-client HTTPS passed over IPv4 and IPv6.
+- Network Topology discovered the LAN client and ports. System Update reported
+  BIN66/App Revision 0 up to date. Live Traffic remained Not Installed with no
+  collector process. Overview initially showed Offline and later correctly
+  showed Online/Connected after reload; no firmware repair was applied.
+- Network/wireless/firewall files differed during the session, so an all-settings
+  byte-identical claim is not made. No configuration was overwritten to force
+  matching hashes. No new build, flash or reboot was performed by the checks.
+- WAN handover/recovery, SIM 2, wireless-client association and VPN/paid-service
+  features were not tested. This successful migration evidence is separate from
+  the earlier clean-flash test without a SIM. See
+  `integrations/app-update/migration66-live-validation.json`.
+
 ## November 27, 2026 — OpenWrt 21 one-line installer correction
 
 - Fixed the migration installer's rejection of the current `BIN/` image path.
