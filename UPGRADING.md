@@ -11,12 +11,24 @@ published full firmware instead of a fixed BIN number.
 One line, on the router, over SSH:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/refs/heads/main/openwrt25/install.sh | sh
+curl -fsSL "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/refs/heads/main/openwrt25/install.sh?cb=$(date +%s)" | sh
 ```
 
 The installer selects the **latest published full BIN** on each run. It fetches
 the manifest, image and flash writer from one Git commit, then checks the image
 size, SHA-256 and UBI headers.
+
+Current full firmware: **[BIN66](BIN/66-2026-11-27-ChesterK43P-25.12.bin)**.
+The installer accepts the current `BIN/` folder and the previous
+`ChesterK43P-Bin/` archive. The query string above fetches a fresh installer,
+avoiding a cached copy that rejects the new folder with
+`unexpected firmware download URL`. That error stops before flashing.
+
+To download and verify everything without flashing:
+
+```sh
+curl -fsSL "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/refs/heads/main/openwrt25/install.sh?cb=$(date +%s)" | sh -s -- --dry-run
+```
 
 **This is a clean OpenWrt 21 → 25 migration: settings are erased and both firmware
 banks are overwritten.** When prompted, type **`YES` (ALL CAPS)** to continue.
@@ -36,7 +48,8 @@ That script does four things that matter, and **all four are required**:
 
 Open **Overview → Update** or **System → System Update**.
 
-Current builds check the signed app-update channel. Small app updates verify
+BIN66's System Update page checks both full firmware and signed app updates.
+Small app updates verify
 firmware compatibility and file checksums, preserve settings, and restart the
 router without replacing its kernel or calibration.
 

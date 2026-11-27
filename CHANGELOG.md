@@ -1,5 +1,18 @@
 # Changelog
 
+## November 27, 2026 — OpenWrt 21 one-line installer correction
+
+- Fixed the migration installer's rejection of the current `BIN/` image path.
+  It accepts that exact repository folder and the legacy `ChesterK43P-Bin/`
+  archive, while rejecting other hosts, folders, filenames and traversal paths.
+  Metadata, image and writer remain pinned to one resolved immutable commit.
+- Updated the upgrade guide's one-liner with a fresh-request query string and
+  added a download/check-only command. Board/layout, size, SHA-256, UBI headers,
+  explicit YES confirmation and clean two-bank migration checks remain in place.
+- Regression fixtures cover BIN66's canonical folder, older archive releases,
+  immutable URLs, invalid paths, dry-run/cancellation and clean-install dispatch.
+  This is an installer/documentation update; published firmware bytes are unchanged.
+
 ## BIN66 — November 27, 2026
 
 Full firmware `25.12`, ROM build `20261127155405`, 28.125 MiB.

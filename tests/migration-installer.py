@@ -23,6 +23,7 @@ case "$url" in
  https://api.github.com/*) file=ref.json;;
  */aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/openwrt25/latest.json) file=manifest.json;;
  */aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/ChesterK43P-Bin/*.bin) file=image.bin;;
+ */aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/BIN/*.bin) file=image.bin;;
  */aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/openwrt25/platform.sh) file=writer;;
  *) exit 22;;
 esac
@@ -47,10 +48,16 @@ if [ -n "$out" ]; then cp "$TEST_ROOT/$file" "$out";else cat "$TEST_ROOT/$file";
   return proc
  run('latest-bin64')
  future=dict(bin='65',build='20261127120000',url=base+'/main/ChesterK43P-Bin/65-2026-11-27-ChesterK43P-25.12.bin');run('future-bin65',future)
+ current=dict(bin='66',build='20261127155405',url=base+'/main/BIN/66-2026-11-27-ChesterK43P-25.12.bin');run('bin66-canonical-folder',current)
+ requests=(root/'requests').read_text().splitlines();assert base+'/'+commit+'/BIN/66-2026-11-27-ChesterK43P-25.12.bin' in requests
+ assert not any('/main/BIN/' in request for request in requests),'Image must use the same immutable commit as its manifest'
+ run('bin66-explicit-clean-install',current,args=('--yes',))
+ run('untrusted-directory',dict(current,url=base+'/main/Other/66-2026-11-27-ChesterK43P-25.12.bin'),expect=False)
+ run('path-traversal',dict(current,url=base+'/main/BIN/../66-2026-11-27-ChesterK43P-25.12.bin'),expect=False)
  run('unattended-approved-fixture',args=('--yes',))
  for mode,changes in [('wrong-family',{'family':'Other'}),('wrong-host',{'url':'https://example.com/image.bin'}),('wrong-board-image',{'url':base+'/main/ChesterK43P-Bin/64-K45P.bin'}),('invalid-sha',{'sha256':'x'*64}),('invalid-build',{'build':'oops'}),('oversized',{'size':'33554433'}),('bad-size',{'size':'1048577'}),('checksum',{'sha256':'0'*64})]:run(mode,changes,expect=False)
  bad=bytearray(image);bad[131072:131076]=b'NOPE';run('bad-ubi-header',{'sha256':hashlib.sha256(bad).hexdigest()},image_data=bad,expect=False)
  (root/'sysinfo/board_name').write_text('misectel,m02k45\n');run('reject-k45p',expect=False);(root/'sysinfo/board_name').write_text('M01K43P\n')
  run('no-confirmation-no-write',args=(),expect=False)
  truncated=script.rsplit('lp_main "$@"',1)[0];(root/'install.sh').write_text(truncated);run('truncated-download-no-execution');assert not (root/'requests').exists()
- print('PASS migration: dynamic BIN64/BIN65, immutable commit URLs, size/hash/UBI checks, board guard, dry-run/cancel without staging, and explicit clean-install invocation.')
+ print('PASS migration: legacy BIN64/BIN65 and canonical BIN66 folder, immutable commit URLs, rejected foreign/traversal paths, size/hash/UBI checks, board guard, dry-run/cancel without staging, and explicit clean-install invocation.')

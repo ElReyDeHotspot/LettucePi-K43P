@@ -68,8 +68,12 @@ fetch_release(){
     file=${URL##*/}
     case "$file" in *[!A-Za-z0-9._-]*) die "invalid image filename" ;; esac
     case "$file" in "$BIN"-*-ChesterK43P-25.12.bin) ;; *) die "image filename does not match this K43P release" ;; esac
-    [ "$URL" = "$RAW_BASE/main/ChesterK43P-Bin/$file" ] || die "unexpected firmware download URL"
-    URL="$RAW_BASE/$RELEASE_REF/ChesterK43P-Bin/$file"
+    case "$URL" in
+        "$RAW_BASE/main/BIN/$file") image_dir=BIN ;;
+        "$RAW_BASE/main/ChesterK43P-Bin/$file") image_dir=ChesterK43P-Bin ;;
+        *) die "unexpected firmware download URL" ;;
+    esac
+    URL="$RAW_BASE/$RELEASE_REF/$image_dir/$file"
     PLATFORM_URL="$RAW_BASE/$RELEASE_REF/openwrt25/platform.sh"
     NAME="OpenWrt 25 - BIN$BIN"
 }
