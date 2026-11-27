@@ -34,7 +34,8 @@ folder.** This is an archive for reference and rollback.
 | 61 | 2026-11-26 | [61-2026-11-26-ChesterK43P-25.12.bin](61-2026-11-26-ChesterK43P-25.12.bin) | 42.00 MiB | Previous OTA image. Smart MTU & MSS, per-link Speeds, updated IPv6 and VPN. |
 | 62 | 2026-11-26 | [62-2026-11-26-ChesterK43P-25.12.bin](62-2026-11-26-ChesterK43P-25.12.bin) | 42.00 MiB | Previous OTA image. Automatic OTA preparation and service recovery. |
 | 63 | 2026-11-26 | [63-2026-11-26-ChesterK43P-25.12.bin](63-2026-11-26-ChesterK43P-25.12.bin) | 42.00 MiB | Previous OTA image. Persistent update window and verified restart confirmation. |
-| 64 | 2026-11-26 | [64-2026-11-26-ChesterK43P-25.12.bin](64-2026-11-26-ChesterK43P-25.12.bin) | 28.875 MiB | **Current OTA image.** Smaller full image and signed app updates. |
+| 64 | 2026-11-26 | [64-2026-11-26-ChesterK43P-25.12.bin](64-2026-11-26-ChesterK43P-25.12.bin) | 28.875 MiB | Previous OTA image. Smaller full image and signed app updates. |
+| 65 | 2026-11-26 | [65-2026-11-26-ChesterK43P-25.12.bin](65-2026-11-26-ChesterK43P-25.12.bin) | 28.125 MiB | **Current OTA image.** Speeds/M-Lab, optional Ookla, SIM initialization and Live Traffic memory fix. [Changelog](../CHANGELOG.md). |
 
 ## SHA-256
 
@@ -59,6 +60,7 @@ aa5a6a0bef3ea88e2f75242ca9c3a3051ad8bf762c936bb5feac4f665fac6cce  61-2026-11-26-
 aacb6bcd9b459be1c30a18e149b29d5c0df3f49a72920785b08753f551ba8703  62-2026-11-26-ChesterK43P-25.12.bin
 51be49086b789bc015fb503d69ffe5ff09d647ba7ea53a4ab1a105c112d2eacd  63-2026-11-26-ChesterK43P-25.12.bin
 50782293ab8c1b873ad51cc19c2a017863586a6edda70bea9da779a7b103ffd6  64-2026-11-26-ChesterK43P-25.12.bin
+7a34bb1b1a4585a519c7cf7cb6cffe86fca98a142f1024109545ec1d65bc807f  65-2026-11-26-ChesterK43P-25.12.bin
 ```
 
 ## Two different formats in here

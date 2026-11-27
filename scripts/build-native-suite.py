@@ -17,7 +17,7 @@ def main():
     commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ndt,text=True).strip()
     assert commit=='1f6adcf81a3f29cae933a2e317e86e24826e2900','Use the pinned M-Lab source'
     shutil.copytree(ndt,work,ignore=shutil.ignore_patterns('.git','cmd'))
-    packages={'traffic':k45/'integrations/traffic','sim':k45/'integrations/sim','scan':repo/'integrations/scan','apps':repo/'integrations/app-update','ndt':k45/'integrations/ndt7'}
+    packages={'traffic':repo/'integrations/traffic','sim':k45/'integrations/sim','scan':repo/'integrations/scan','apps':repo/'integrations/app-update','ndt':k45/'integrations/ndt7'}
     applets={'traffic':'chester-traffic','sim':'chester-simd','scan':'chester-scan','apps':'chester-app-update','ndt':'chester-ndt7'}
     sources={}
     for name,source in packages.items():

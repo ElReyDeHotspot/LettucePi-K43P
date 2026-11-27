@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-11-26T15:29Z",
-  "build": "20261126152923",
-  "bin": "64",
-  "sha256": "50782293ab8c1b873ad51cc19c2a017863586a6edda70bea9da779a7b103ffd6",
-  "size": "30277632",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/64-2026-11-26-ChesterK43P-25.12.bin",
-  "notes": "Smaller firmware with all apps retained; signed app update channel; compact native tools; vendor kernel and calibration preserved."
+  "built": "2026-11-27T00:30Z",
+  "build": "20261127003030",
+  "bin": "65",
+  "sha256": "7a34bb1b1a4585a519c7cf7cb6cffe86fca98a142f1024109545ec1d65bc807f",
+  "size": "29491200",
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/ChesterK43P-Bin/65-2026-11-26-ChesterK43P-25.12.bin",
+  "notes": "Restore Speeds and per-link M-Lab testing, optional Ookla install, SIM startup recovery, and K43P Live Traffic memory-reserve fix. Includes Overview app-update and coherent bootstrap fixes; vendor kernel and settings behavior preserved."
 }

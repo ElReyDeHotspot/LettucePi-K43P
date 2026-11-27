@@ -22,6 +22,8 @@ by hand.
 | Firmware | LettucePi on OpenWrt 25.12 |
 | Default LAN address | `192.168.100.1` |
 
+Current full firmware: **BIN65** (28.125 MiB). [Changelog](CHANGELOG.md).
+
 ## Updating
 
 **Already on OpenWrt 25?** Nothing to type. Go to **System → Settings → System

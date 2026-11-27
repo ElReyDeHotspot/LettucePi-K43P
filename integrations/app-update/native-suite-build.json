@@ -1,7 +1,7 @@
 {
   "ndt_source_commit": "1f6adcf81a3f29cae933a2e317e86e24826e2900",
   "source_sha256": {
-    "traffic/daemon.go": "e4b0462c960543622862bb7bf43e48adf6909a8cee8b9a3c47c582d568531eee",
+    "traffic/daemon.go": "ad0a7e6dd09eddb151427fa39fa3c278ce3bd1e8eb2e4ff23fa9887d34ef7316",
     "traffic/daemon_test.go": "241963ec18e5f370940638701eb5cb79ed52e2d295bf26559c72e575ae91ffee",
     "traffic/guard.go": "ff51c186ecffed5f643bdfccead848df2d9ecb02e13aa68a8eabf9c0a7e4066b",
     "traffic/guard_dns.go": "05004ae92d65d0d46642a144b76c1df4dfc27719608807de858866d1b9506817",
@@ -10,6 +10,7 @@
     "traffic/guard_test.go": "922d35a3dab4c667cfc799d8cd328bdbbd18e8caa44496dfdb67dca9bf451a6d",
     "traffic/main.go": "064ddcecb0f56af02d29a768d9ce2e49af5c0ee7db74bed8d3ea7a957386ff7d",
     "traffic/main_test.go": "93ea6ffc9907a961331b470d400f85652a2cdb43029b8c7cc11eef12a44cef5a",
+    "traffic/memory_test.go": "ee89d66c6841970bc74573a03eeb5c7fe7a4a1f9d29971da09b170659602f8ba",
     "sim/hotplug_test.go": "cbdc19e3f11b71e04ade69067f7fd1a4431a098512ffd72230f62b8e4d905f04",
     "sim/main.go": "d0af593e5b37a27d2ccec3d01186d8d45638b72bf2bb0745dce0ed8791039292",
     "sim/main_test.go": "6a0272ad02b0ac0255cfdc4346d370f55c9248e0e538c327666b246c62bcd025",
@@ -19,12 +20,12 @@
     "scan/main_test.go": "402050093c1f9b50f561f54276bdda57c8c305ca03541bc694978061a69de512",
     "scan/session.go": "4c044b3177a5c70baca06836cda248b862a28f62c07b133f79182f557397219b",
     "scan/session_test.go": "fd904d88e6c93ae4491e8d694d84c1ab146d54662744458f74ebc179b77ee8e4",
-    "apps/main.go": "6bbaa018c05254836d7fa6f795ba3f2ad6dfff23770144f323f818b98c6a5721",
-    "apps/main_test.go": "e77055d78094c94ef15adc3beac0dd43b99f6ec658300bb5ce2261206c32721e",
+    "apps/main.go": "07eaa4673afaa5777c7ec846d29db5f8fed5823df0ebf201997de83a71dfcfcb",
+    "apps/main_test.go": "ba4f714e2329c91455e27c383ee0dfc11898bbc0f52a75453697ef110ea14f45",
     "apps/profiles.go": "d7dd068162474bd211906cd4abb0a648b7be531e5d44585d362a67b55e5e3be0",
     "apps/profiles_test.go": "1791aaf2a71d60ecad3da0592a8916430bd9dc0419ce878b218a7f9f522815f4",
     "ndt/main.go": "fe0f67d4409fbe48378574228b505fd7583a70dcb743f497c08ff0c65a0409c3"
   },
   "binary_bytes": 11534460,
-  "sha256": "8ceed542e17156c2af9924a98527bc6a8357335435cbd18736fc14af29e632c1"
+  "sha256": "50c384fdef634770aff57fc88609296153ee9205d0ae09f1945795c4c13389b0"
 }

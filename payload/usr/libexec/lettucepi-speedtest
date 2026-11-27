@@ -1,0 +1,105 @@
+#!/bin/sh
+
+STATE=/tmp/lettucepi-speedtest
+PID="$STATE/pid"
+OUT="$STATE/output.jsonl"
+ERR="$STATE/error.log"
+DONE="$STATE/done"
+CANCELLED="$STATE/cancelled"
+ENGINE="$STATE/engine-pid"
+FAILED="$STATE/failed"
+HISTORY=/etc/lettucepi/speedtest-history.jsonl
+
+speedtest_bin() {
+	for p in /usr/bin/speedtest /usr/sbin/speedtest /sbin/speedtest; do
+		[ -x "$p" ] && { printf '%s\n' "$p"; return 0; }
+	done
+	return 1
+}
+
+is_running() {
+	[ -s "$PID" ] && kill -0 "$(cat "$PID" 2>/dev/null)" 2>/dev/null
+}
+
+json_string() {
+	printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g'
+}
+
+record_result() {
+	line=
+	while IFS= read -r candidate; do
+		[ "$(jsonfilter -s "$candidate" -e '@.type' 2>/dev/null)" = result ] && line="$candidate"
+	done < "$OUT" 2>/dev/null
+	[ -n "$line" ] || return 0
+	down="$(jsonfilter -s "$line" -e '@.download.bandwidth' 2>/dev/null)"
+	up="$(jsonfilter -s "$line" -e '@.upload.bandwidth' 2>/dev/null)"
+	latency="$(jsonfilter -s "$line" -e '@.ping.latency' 2>/dev/null)"
+    jitter="$(jsonfilter -s "$line" -e '@.ping.jitter' 2>/dev/null)"
+	loss="$(jsonfilter -s "$line" -e '@.packetLoss' 2>/dev/null)"
+	isp="$(jsonfilter -s "$line" -e '@.isp' 2>/dev/null)"
+	server="$(jsonfilter -s "$line" -e '@.server.name' 2>/dev/null)"
+	location="$(jsonfilter -s "$line" -e '@.server.location' 2>/dev/null)"
+	url="$(jsonfilter -s "$line" -e '@.result.url' 2>/dev/null)"
+	down_mbps="$(awk -v n="${down:-0}" 'BEGIN { printf "%.2f", (n * 8) / 1000000 }')"
+	up_mbps="$(awk -v n="${up:-0}" 'BEGIN { printf "%.2f", (n * 8) / 1000000 }')"
+	mkdir -p "$(dirname "$HISTORY")"
+	printf '{"timestamp":%s,"download_mbps":%s,"upload_mbps":%s,"latency_ms":%s,"jitter_ms":%s,"packet_loss":%s,"isp":"%s","server":"%s","location":"%s","result_url":"%s"}\n' \
+		"$(date +%s)" "$down_mbps" "$up_mbps" "${latency:-0}" "${jitter:-0}" "${loss:-null}" \
+		"$(json_string "$isp")" "$(json_string "$server")" "$(json_string "$location")" "$(json_string "$url")" >> "$HISTORY"
+	tail -n 10 "$HISTORY" > "$HISTORY.tmp" && mv "$HISTORY.tmp" "$HISTORY"
+}
+
+history() {
+	printf '{"results":['
+	first=1
+	tail -n 10 "$HISTORY" 2>/dev/null | while IFS= read -r line; do
+		[ -n "$line" ] || continue
+		[ "$first" = 1 ] || printf ','
+		printf '%s' "$line"
+		first=0
+	done
+	printf ']}\n'
+}
+
+status() { /usr/libexec/chester-speedtest-status; }
+
+case "${1:-status}" in
+    install)
+        exec /usr/libexec/chester-ookla-install start
+        ;;
+	start)
+		if [ -d /tmp/chester-sim.lock ]; then printf '{"ok":false,"error":"Wait for SIM selection to finish."}\n'; exit 0; fi
+		bin="$(speedtest_bin 2>/dev/null || true)"
+		[ -n "$bin" ] || { printf '{"ok":false,"error":"official_cli_not_installed"}\n'; exit 0; }
+		if is_running; then printf '{"ok":false,"error":"already_running"}\n'; exit 0; fi
+		mkdir -p "$STATE"
+		rm -f "$OUT" "$ERR" "$DONE" "$FAILED" "$PID" "$ENGINE" "$CANCELLED"
+        /bin/sh -c 'trap "" HUP; exec "$@"' _ "$0" worker </dev/null >/dev/null 2>&1 &
+		echo $! > "$PID"
+		printf '{"ok":true,"started":true}\n'
+		;;
+    worker)
+        echo $$ > "$PID"
+        engine=
+        cleanup() {
+            trap - EXIT TERM INT
+            [ -z "$engine" ] || { kill "$engine" 2>/dev/null || true; wait "$engine" 2>/dev/null || true; }
+            rm -f "$PID" "$ENGINE"
+        }
+        trap cleanup EXIT
+        trap 'touch "$CANCELLED"; exit 0' TERM INT
+        bin=$(speedtest_bin)
+        HOME=/root LANG=C "$bin" --accept-license --accept-gdpr --format=jsonl >"$OUT" 2>"$ERR" &
+        engine=$!; echo "$engine" > "$ENGINE"
+        if wait "$engine"; then record_result; touch "$DONE"; else touch "$FAILED"; fi
+        engine=
+        ;;
+    cancel)
+        if is_running; then touch "$CANCELLED"; kill "$(cat "$PID")" 2>/dev/null || true; fi
+        printf '{"ok":true}\n'
+        ;;
+
+	history) history ;;
+	status) status ;;
+	*) printf '{"ok":false,"error":"invalid_action"}\n' ;;
+esac

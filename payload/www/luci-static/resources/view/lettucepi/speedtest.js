@@ -4,9 +4,9 @@
 'require poll';
 'require ui';
 'require chester-ui.settings as kit';
-'require chester-ui.feature-install as installer';
 var ooklaStatus=rpc.declare({object:'luci.lettucepi.speedtest',method:'status',expect:{}});
 var ooklaHistory=rpc.declare({object:'luci.lettucepi.speedtest',method:'history',expect:{}});
+var ooklaInstall=rpc.declare({object:'luci.lettucepi.speedtest',method:'install',expect:{}});
 var ooklaStart=rpc.declare({object:'luci.lettucepi.speedtest',method:'start',expect:{}});
 var ooklaCancel=rpc.declare({object:'luci.lettucepi.speedtest',method:'cancel',expect:{}});
 var linkStatus=rpc.declare({object:'failover',method:'status',expect:{}});
@@ -48,7 +48,7 @@ return view.extend({
   ]);
   this.update();poll.add(function(){return self.refresh();},2);return root;
  },
- nativeRunning:function(){var d=this.data||[];return !!((d[0]||{}).running||(((d[2]||{}).link_tests||{}).running));},
+ nativeRunning:function(){var d=this.data||[];return !!((d[0]||{}).installing||(d[0]||{}).running||(((d[2]||{}).link_tests||{}).running));},
  choose:function(key){if(this.busy)return;this.closeFast();this.provider=key;this.error='';this.update();},
  closeFast:function(){if(this.fastFrame){this.fastFrame.remove();this.fastFrame=null;}},
  refresh:async function(){try{this.data=await Promise.all([ooklaStatus(),ooklaHistory(),L.resolveDefault(linkStatus(),{})]);this.update();}catch(e){this.message.textContent='Status is temporarily unavailable.';}},
@@ -64,13 +64,13 @@ return view.extend({
   var running=isOokla?!!o.running:isMlab?!!tests.running:false;
   var activeRole=true;
   this.startButton.disabled=this.busy||this.nativeRunning();
-  this.startButton.textContent=isNetflix?(this.fastFrame?'Restart Test':'Run Fast.com Test'):isOokla&&!o.installed?'Install Ookla':'Run Speed Test';
+  this.startButton.textContent=o.installing&&isOokla?'Installing Ookla…':isNetflix?(this.fastFrame?'Restart Test':'Run Fast.com Test'):isOokla&&!o.installed?'Install Ookla':'Run Speed Test';
   this.cancelButton.style.display=!isMlab&&(running||this.fastFrame)?'':'none';this.cancelButton.disabled=this.busy||(!activeRole&&!this.fastFrame);this.cancelButton.textContent=isNetflix?'Close Test':'Cancel Test';
   this.metricGrid.style.display=isOokla?'grid':'none';this.detail.style.display=isOokla?'grid':'none';this.metrics.jitter.node.style.display=isOokla?'':'none';this.metricGrid.style.gridTemplateColumns=isOokla?'':'repeat(3,minmax(0,1fr))';
   this.metrics.download.value.textContent=format(result.download_mbps);this.metrics.upload.value.textContent=format(result.upload_mbps);this.metrics.latency.value.textContent=format(result.latency_ms);this.metrics.jitter.value.textContent=format(result.jitter_ms);
   var phase=isOokla?o.test_phase:result.phase;
   this.message.className='sp-message'+(this.error||result.phase==='failed'?' error':'');
-  this.message.textContent=this.error||(isNetflix?(this.fastFrame?'The official FAST.com test is shown below.':'Ready to test Netflix performance.'):running?(!activeRole?'A test is running on the other connection.':phase==='download'?'Measuring download…':phase==='upload'?'Measuring upload…':phase==='ping'?'Measuring latency…':'Preparing your connection test…'):result.phase==='completed'?'Last test complete':result.phase==='cancelled'?'Test cancelled':result.phase==='failed'?'The test could not complete. Check this connection and try again.':'Ready to test');
+  this.message.textContent=this.error||o.install_error||(o.installing&&isOokla?'Installing the official Ookla engine…':isNetflix?(this.fastFrame?'The official FAST.com test is shown below.':'Ready to test Netflix performance.'):running?(!activeRole?'A test is running on the other connection.':phase==='download'?'Measuring download…':phase==='upload'?'Measuring upload…':phase==='ping'?'Measuring latency…':'Preparing your connection test…'):result.phase==='completed'?'Last test complete':result.phase==='cancelled'?'Test cancelled':result.phase==='failed'?'The test could not complete. Check this connection and try again.':'Ready to test');
   if(isMlab&&!this.error&&!otherEngine)this.message.textContent='';
   if(!this.error&&otherEngine)this.message.textContent=otherEngine+' test is running. Select its tab to view or cancel it.';
   this.progress.style.display=isOokla&&running?'':'none';var pct=isOokla?(phase==='upload'?50+50*(o.progress||0):phase==='download'?Math.max(4,50*(o.progress||0)):3):phase==='upload'?75:phase==='download'?25:3;this.progressBar.style.width=Math.min(100,pct)+'%';this.progress.setAttribute('aria-valuenow',String(Math.round(pct)));
@@ -89,7 +89,9 @@ return view.extend({
    ref.role=role;ref.roleBadge.textContent=role==='primary'?'Primary':role==='secondary'?'Secondary':'Not Assigned';ref.node.hidden=kind==='ethernet'&&(f.wan_is_lan===true||f.wan_is_lan==='1');
    ref.health.textContent=!v.up?'Not Connected':v.health==='down'?'No Internet':'Connected';ref.health.classList.toggle('is-connected',!!v.up&&v.health!=='down');ref.ip.textContent=v.ip&&v.ip!=='-'?v.ip:'';
    var result=(tests.results||[]).filter(function(x){return x.iface===iface;}).sort(function(a,b){return b.timestamp-a.timestamp;})[0]||{},active=!!tests.running&&tests.role===role;
-   ref.button.textContent=active?'Cancel Test':'Test Speed';ref.button.disabled=self.busy||!role||(!active&&(self.nativeRunning()||!v.up));
+   var readiness=f.link_connections?.[iface],ready=readiness?readiness.ready===true:v.up===true;
+   ref.health.textContent=readiness?(ready?'Connected':'Not Connected'):ref.health.textContent;ref.health.classList.toggle('is-connected',ready&&v.health!=='down');
+   ref.button.textContent=active?'Cancel Test':'Test Speed';ref.button.disabled=self.busy||!role||(!active&&(self.nativeRunning()||!ready));
    Object.keys(ref.metrics).forEach(function(k){ref.metrics[k].textContent=format(result[k]);});
    ref.phase.textContent=active?(result.phase==='upload'?'Testing Upload...':result.phase==='download'?'Testing Download...':'Preparing M-Lab Test...'):result.phase==='failed'?result.error||'The Test Could Not Complete.':result.phase==='cancelled'?'Test Cancelled':result.phase==='completed'?'Last Test Completed':'Ready to Test';
    ref.date.textContent=result.timestamp?'Last Test · '+new Date(result.timestamp*1000).toLocaleString():'';
@@ -105,7 +107,9 @@ return view.extend({
     E('button',{class:'btn',click:ui.hideModal},['Cancel']),
     E('button',{class:'btn',click:async()=>{
      ui.hideModal();this.busy=true;this.update();
-     try{await installer.start('ookla',text=>{this.message.textContent=text;});await this.refresh();}
+     try{var result=await ooklaInstall();if(result.ok===false||result.error)throw new Error(result.error||'Could not install the Ookla engine.');
+     for(var attempt=0;attempt<110;attempt++){await this.refresh();var state=this.data[0]||{};if(state.installed)break;if(state.install_error)throw new Error(state.install_error);await new Promise(resolve=>window.setTimeout(resolve,1000));}
+     if(!(this.data[0]||{}).installed)throw new Error('Installation is still pending. Check the Ookla tab again shortly.');}
      catch(e){this.error=e.message;}
      finally{this.busy=false;this.update();}
     }},['Accept & Install'])

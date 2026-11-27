@@ -1,0 +1,73 @@
+#!/usr/bin/ucode
+'use strict';
+import {open,popen,rename,unlink,mkdir} from 'fs';
+import {cursor} from 'uci';
+function read(path){let f=open(path,'r');if(!f)return '';let v=f.read('all')||'';f.close();return v;}
+function run(command){let f=popen(command,'r');if(!f)return '';let s=f.read('all')||'';f.close();return s;}
+function invalid(message){return {success:false,error:message};}
+function state(){
+ let out;try{out=json(read('/tmp/chester-sim/state.json'));}catch(e){out={running:false,busy:false,cards:{},events:[]};}
+ // An accepted request is already busy, even before the daemon consumes it.
+ try{let pending=json(read('/tmp/chester-sim/request.json'));if(pending.action){out.busy=true;out.operation=pending.action;out.test_slot=pending.slot||'';out.phase='queued';out.message=pending.action=='switch'?'Selecting SIM '+pending.slot+'…':pending.action=='test'?'Preparing SIM '+pending.slot+' test…':'Refreshing SIM controls…';}}catch(e){}
+ return out;
+}
+function config(){try{return json(run('/usr/libexec/chester-sim-config'));}catch(e){return {};}}
+function queue(action,slot){
+ if(state().busy)return {success:false,busy:true};
+ mkdir('/tmp/chester-sim',0700);
+ unlink('/tmp/chester-sim/cancel');
+ let f=open('/tmp/chester-sim/request.json.tmp','w');if(!f)return invalid('Could not queue the SIM operation.');
+ f.write(sprintf('%J',{action:action,slot:slot||'',queued:true}));f.close();rename('/tmp/chester-sim/request.json.tmp','/tmp/chester-sim/request.json');
+ run('/etc/init.d/chester_sim enabled || /etc/init.d/chester_sim enable; /etc/init.d/chester_sim running || /etc/init.d/chester_sim start');
+ return {success:true};
+}
+return {'chester.sim':{
+ status:{call:function(){let out=state();out.config=config();let u=cursor(),modems=[];u.foreach('qmodem','modem-device',function(s){push(modems,{id:s['.name'],label:s.alias||s['.name']});});out.modems=modems;out.legacy_monitor=u.get('qmodem',out.config.modem,'monitor_enabled')=='1';return out;}},
+ refresh:{call:function(){return queue('refresh');}},
+ switch:{args:{slot:'String'},call:function(request){
+  let slot=request.args.slot,c=config();if(slot!='1'&&slot!='2')return invalid('Choose SIM 1 or SIM 2.');
+  if(c.mode!='manual')return invalid('Save Manual mode before selecting a SIM.');
+  if(!state().supported)return invalid('This modem does not report two switchable slots.');
+  return queue('switch',slot);
+ }},
+ test:{args:{slot:'String',notice:'String'},call:function(request){
+  let slot=request.args.slot;
+  if(slot!='1'&&slot!='2')return invalid('Choose SIM 1 or SIM 2.');
+  if(request.args.notice!='1')return invalid('Review the M-Lab test notice first.');
+  if(config().mode!='manual')return invalid('Save Manual mode before testing a SIM.');
+  if(!state().supported)return invalid('This modem does not report two switchable slots.');
+  return queue('test',slot);
+ }},
+ run_selection:{args:{notice:'String'},call:function(request){
+  if(request.args.notice!='1')return invalid('Review the M-Lab test notice first.');
+  if(config().mode=='auto_switch')return invalid('Use Manual or Auto-Select before running a comparison.');
+  return queue('select');
+ }},
+ cancel:{call:function(){let f=open('/tmp/chester-sim/cancel','w');if(f)f.close();return {success:true};}},
+ save:{args:{settings:'String'},call:function(request){
+  if(state().busy)return {success:false,busy:true};
+  let a;try{a=json(request.args.settings);}catch(e){return invalid('Invalid SIM settings.');}
+  if(type(a)!='object'||length(request.args.settings)>4096)return invalid('Invalid SIM settings.');
+  if(index(['manual','auto_select','auto_switch'],a.mode)<0)return invalid('Choose Manual, Auto-Select or Auto-Switch.');
+  if(a.mode=='auto_select'&&a.notice!==true)return invalid('Allow the M-Lab startup test before enabling Auto-Select.');
+  let u=cursor();if(!match(a.modem||'',/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,31}$/)||u.get('qmodem',a.modem)!='modem-device')return invalid('Choose a configured modem.');
+  if(a.preferred!='1'&&a.preferred!='2')return invalid('Choose a preferred SIM.');
+  if(index(['DL','UL','DLUL'],a.criteria)<0)return invalid('Choose a speed selection criterion.');
+  for(let spec in [['min_down',1,2500],['min_up',1,2500],['rsrp',-140,-50],['dwell',5,600],['failures',1,12],['cooldown',30,86400],['max_switches',1,12],['failback_seconds',60,86400],['attach_seconds',15,180]]){
+   let v=a[spec[0]];if(type(v)!='int'||v<spec[1]||v>spec[2])return invalid('Check the range for '+spec[0]+'.');
+  }
+  for(let key in ['include1','include2','compare_both','only_threshold','signal','connection','failback'])if(type(a[key])!='bool')return invalid('Invalid option: '+key+'.');
+  if(!a.include1&&!a.include2)return invalid('Include at least one SIM.');
+  if(a.mode=='auto_switch'&&(!a.include1||!a.include2))return invalid('Auto-Switch needs both SIMs included.');
+  if(a.mode=='auto_switch'&&!a.signal&&!a.connection)return invalid('Enable signal or internet monitoring for Auto-Switch.');
+  if(a.mode!='manual'&&u.get('qmodem',a.modem,'monitor_enabled')=='1')return invalid('Turn off the existing QModem monitor before enabling automatic SIM selection.');
+  for(let key in ['apn1','apn2'])if(type(a[key])!='string'||length(a[key])>100||(length(a[key])&&!match(a[key],/^[A-Za-z0-9][A-Za-z0-9.-]*$/)))return invalid('Enter a valid APN or leave it blank.');
+  if(a.mode!='manual'&&!state().supported)return invalid('Automatic selection requires two switchable physical slots.');
+  if(!u.get('chester_sim','main'))u.set('chester_sim','main','selection');
+  for(let key in ['mode','modem','preferred','criteria','min_down','min_up','rsrp','dwell','failures','cooldown','max_switches','failback_seconds','attach_seconds','apn1','apn2'])u.set('chester_sim','main',key,''+a[key]);
+  for(let key in ['include1','include2','compare_both','only_threshold','signal','connection','failback'])u.set('chester_sim','main',key,a[key]?'1':'0');
+  if(u.commit('chester_sim')!==true)return invalid('Could not save SIM selection settings.');
+  run('/etc/init.d/chester_sim enabled || /etc/init.d/chester_sim enable; /etc/init.d/chester_sim running || /etc/init.d/chester_sim start');
+  return {success:true};
+ }}
+}};

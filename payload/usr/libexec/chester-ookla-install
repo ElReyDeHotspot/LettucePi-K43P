@@ -1,0 +1,55 @@
+#!/bin/sh
+# Optional official ARM64 engine. Never modifies routing or customer settings.
+STATE=/tmp/chester-ookla-install
+URL=https://install.speedtest.net/app/cli/ookla-speedtest-1.2.0-linux-aarch64.tgz
+SHA=3953d231da3783e2bf8904b6dd72767c5c6e533e163d3742fd0437affa431bd3
+installed() { for p in /usr/bin/speedtest /usr/sbin/speedtest /sbin/speedtest; do [ -x "$p" ] && return 0; done; return 1; }
+running() {
+ pid=$(cat "$STATE/pid" 2>/dev/null)
+ case "$pid" in ''|*[!0-9]*) return 1;; esac
+ kill -0 "$pid" 2>/dev/null && grep -q 'chester-ookla-install' "/proc/$pid/cmdline" 2>/dev/null
+}
+status() {
+ if running; then printf '{"ok":true,"installing":true}\n'
+ elif installed; then printf '{"ok":true,"installing":false}\n'
+ elif [ -f "$STATE/error.json" ]; then cat "$STATE/error.json"
+ else printf '{"ok":true,"installing":false}\n'; fi
+}
+fail() { printf '{"ok":false,"installing":false,"install_error":"%s"}\n' "$1" > "$STATE/error.json"; exit 1; }
+case "${1:-status}" in
+ status) status;;
+ start)
+  [ "$(cat /tmp/sysinfo/board_name 2>/dev/null)" = misectel,m01k43 ] || { printf '{"ok":false,"error":"This installer requires K43P."}\n'; exit; }
+  installed && { printf '{"ok":true,"installed":true}\n'; exit; }
+  mkdir -p "$STATE"; chmod 700 "$STATE"
+  if ! mkdir "$STATE/lock" 2>/dev/null; then
+   if running; then status; exit; fi
+   age=$(($(date +%s)-$(stat -c %Y "$STATE/lock")))
+   if [ "$age" -lt 120 ]; then printf '{"ok":true,"installing":true}\n'; exit; fi
+   rmdir "$STATE/lock" 2>/dev/null && mkdir "$STATE/lock" 2>/dev/null || { printf '{"ok":false,"error":"Another installation is starting."}\n'; exit; }
+  fi
+  rm -f "$STATE/error.json"
+  /bin/sh -c 'trap "" HUP; exec "$@"' _ "$0" worker </dev/null >"$STATE/worker.log" 2>&1 &
+  echo $! > "$STATE/pid"
+  printf '{"ok":true,"installing":true}\n'
+  ;;
+ worker)
+  echo $$ > "$STATE/pid"
+  cleanup() { rm -f "$STATE/archive.tgz" "$STATE/speedtest" /usr/bin/.chester-ookla-new; rm -f "$STATE/pid"; rmdir "$STATE/lock" 2>/dev/null || true; }
+  trap cleanup EXIT
+  trap 'fail "Installation interrupted. Please retry."' HUP INT TERM
+  [ "$(cat /tmp/sysinfo/board_name 2>/dev/null)" = misectel,m01k43 ] || fail 'Wrong device.'
+  installed && exit 0
+  # Keep room for the executable and atomic rename on writable flash.
+  available=$(df -Pk /overlay | awk 'NR==2 {print $4}')
+  case "$available" in ''|*[!0-9]*) fail 'Could not check writable flash space.';; esac
+  [ "$available" -ge 4096 ] || fail 'At least 4 MiB of writable flash is required.'
+  curl -fL --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 90 --max-filesize 4194304 -o "$STATE/archive.tgz" "$URL" || fail 'Official Ookla download failed. Please retry.'
+  actual=$(sha256sum "$STATE/archive.tgz" | awk '{print $1}')
+  [ "$actual" = "$SHA" ] || fail 'Ookla archive checksum did not match.'
+  tar -xzf "$STATE/archive.tgz" -C "$STATE" speedtest || fail 'Could not extract the verified Ookla engine.'
+  [ -f "$STATE/speedtest" ] && [ ! -L "$STATE/speedtest" ] || fail 'Invalid engine file.'
+  cp "$STATE/speedtest" /usr/bin/.chester-ookla-new && chmod 755 /usr/bin/.chester-ookla-new && mv /usr/bin/.chester-ookla-new /usr/bin/speedtest || fail 'Could not install the Ookla engine.'
+  ;;
+ *) printf '{"ok":false,"error":"Invalid installer action."}\n';;
+esac

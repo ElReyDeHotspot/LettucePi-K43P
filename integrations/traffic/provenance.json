@@ -1,0 +1,24 @@
+{
+  "updated_date": "2026-11-27",
+  "target": "linux/arm64, CGO_ENABLED=0",
+  "source_origin": "LettucePi-K45 traffic module at 038f55f71da121ee484264ffb0a03a8577ab58fa",
+  "local_change": "Board-specific Live Traffic reserve: 16 MiB for K43P; existing 64 MiB reserve for K45P and unknown boards. Collection limits and cadence unchanged.",
+  "binary_kind": "shared Chester native suite",
+  "binary_sha256": "50c384fdef634770aff57fc88609296153ee9205d0ae09f1945795c4c13389b0",
+  "build_record": "../app-update/native-suite-build.json",
+  "dependencies": "Pinned go.mod/go.sum; third-party licenses included",
+  "sources_sha256": {
+    "daemon.go": "ad0a7e6dd09eddb151427fa39fa3c278ce3bd1e8eb2e4ff23fa9887d34ef7316",
+    "daemon_test.go": "241963ec18e5f370940638701eb5cb79ed52e2d295bf26559c72e575ae91ffee",
+    "go.mod": "1cb15bd93aa8035826239a761a8a1210b1f42c23874206af83d5562a150be749",
+    "go.sum": "c41f512e831b1ad3d9ff48c4ce4c4566a502bf7767b0e045c123f2d22c93eea1",
+    "guard.go": "ff51c186ecffed5f643bdfccead848df2d9ecb02e13aa68a8eabf9c0a7e4066b",
+    "guard_dns.go": "05004ae92d65d0d46642a144b76c1df4dfc27719608807de858866d1b9506817",
+    "guard_nft.go": "b5719e41af7efe7f57a532a4ea2c2186748a4abaab6db789e90e9b72c9a2eb16",
+    "guard_policy.go": "677bfc44a892671449e013180a693a598c05a623eb3b4222f76909ef5285c513",
+    "guard_test.go": "922d35a3dab4c667cfc799d8cd328bdbbd18e8caa44496dfdb67dca9bf451a6d",
+    "main.go": "064ddcecb0f56af02d29a768d9ce2e49af5c0ee7db74bed8d3ea7a957386ff7d",
+    "main_test.go": "93ea6ffc9907a961331b470d400f85652a2cdb43029b8c7cc11eef12a44cef5a",
+    "memory_test.go": "ee89d66c6841970bc74573a03eeb5c7fe7a4a1f9d29971da09b170659602f8ba"
+  }
+}

@@ -16,6 +16,12 @@ for name in aliases:
         assert path.resolve()==(root/'usr/libexec/chester-engine').resolve()
         path.unlink()
 shutil.copytree(repo / 'payload', root, dirs_exist_ok=True)
+# Ookla is optional; M-Lab remains in the compact native suite.
+for name in ['usr/bin/speedtest', 'usr/sbin/speedtest', 'sbin/speedtest']:
+    binary=root/name
+    if binary.is_file() or binary.is_symlink():
+        binary.unlink()
+
 # Set runtime permissions explicitly, including when staged from a Windows checkout.
 for folder in ['usr/libexec', 'usr/sbin', 'usr/bin', 'etc/init.d', 'etc/hotplug.d', 'etc/uci-defaults', 'etc/odhcp6c.user.d', 'lib/netifd', 'www/cgi-bin']:
     for source in (repo / 'payload' / folder).rglob('*'):
@@ -37,5 +43,5 @@ assert engine.is_file(), 'Build the native suite before staging firmware'
 engine.chmod(0o755)
 for name in aliases:
     path=root/name
-    path.unlink()
+    path.unlink(missing_ok=True)
     path.symlink_to('../libexec/chester-engine' if name.startswith('usr/sbin/') else 'chester-engine')

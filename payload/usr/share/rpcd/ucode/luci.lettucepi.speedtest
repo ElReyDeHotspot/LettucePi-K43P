@@ -1,0 +1,15 @@
+#!/usr/bin/ucode
+'use strict';
+import {popen} from 'fs';
+function run(command){
+ let fd=popen(command,'r');if(!fd)return {ok:false,error:'backend_unavailable'};
+ let text=fd.read('all')||'';fd.close();
+ try{return json(text);}catch(e){return {ok:false,error:'invalid_backend_response'};}
+}
+return {'luci.lettucepi.speedtest':{
+ status:{call:function(){let result=run('/usr/libexec/lettucepi-speedtest status'),install=run('/usr/libexec/chester-ookla-install status');result.installing=install.installing===true;if(install.install_error)result.install_error=install.install_error;return result;}},
+ history:{call:()=>run('/usr/libexec/lettucepi-speedtest history')},
+ install:{call:()=>run('/usr/libexec/lettucepi-speedtest install')},
+ start:{call:()=>run('/usr/libexec/lettucepi-speedtest start')},
+ cancel:{call:()=>run('/usr/libexec/lettucepi-speedtest cancel')}
+}};

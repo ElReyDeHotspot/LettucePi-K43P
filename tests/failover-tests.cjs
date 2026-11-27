@@ -1,0 +1,14 @@
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const source=fs.readFileSync(__dirname+'/../payload/www/luci-static/resources/view/lettucepi/failover.js','utf8');
+const calls=[];const rpc={declare:s=>async(...a)=>{calls.push([s.method,a]);return s.method==='status'?{}:{success:true};}};
+const page=Function('view','rpc','linkResult','ui','poll','uci',source)({extend:o=>o},rpc,{render(){}},{},{},{});
+const node=()=>({style:{},classList:{toggle(){}}});
+const refs=['pcie0','wan'].map((name,index)=>({name,index,testButton:{},testResult:{},health:node(),lanAction:node(),active:node(),detail:{}}));
+Object.assign(page,{priorityRefs:refs,connectionKind:n=>n==='wan'?'wan':'cell',primary:{value:'pcie0'},backup:{value:'wan'},lastStatus:{running:false,config:{primary:'pcie0',backup:'wan'},link_tests:{running:false,results:[]},link_connections:{pcie0:{ready:true},wan:{ready:false}}}});
+page.updatePriorityVitals();assert.equal(refs[0].testButton.disabled,false);assert.equal(refs[1].testButton.disabled,true);
+page.lastStatus.link_connections.pcie0.ready=false;page.lastStatus.wan={iface:'pcie0',up:true};page.updatePriorityVitals();assert.equal(refs[0].testButton.disabled,true,'Fresh unavailable link must override stale monitor state');
+page.lastStatus.link_connections.pcie0.ready=true;page.primary.value='wan';page.updatePriorityVitals();assert.equal(refs[0].testButton.disabled,true,'Unsaved priority cannot start tests');page.primary.value='pcie0';
+page.lastStatus.link_tests={running:true,role:'primary',results:[]};page.updatePriorityVitals();assert.equal(refs[0].testButton.disabled,false,'Queued test must remain cancellable before result appears');assert.equal(refs[0].testButton.textContent,'Cancel Test');assert.equal(refs[1].testButton.disabled,true);
+page.wanIsLan=true;page.lastStatus.link_connections.wan.ready=true;page.updatePriorityVitals();assert.equal(refs[1].testButton.disabled,true);
+assert.equal(calls.length,0,'Rendering must not change router settings');
+console.log('PASS failover: monitor-off test readiness, stale health rejection, disconnected/LAN WAN, unsaved priority and queued cancellation.');

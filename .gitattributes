@@ -10,3 +10,5 @@ ChesterK43P-Bin/** -text
 # Preserve the upstream runtime formatting and packet fixtures.
 payload/opt/zapret2/** whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
 payload/opt/zapret2/files/fake/*.bin binary
+# Preserve upstream third-party license formatting.
+integrations/traffic/licenses/** whitespace=-blank-at-eol

@@ -1,0 +1,39 @@
+{
+  "bin": 65,
+  "build": "20261127003030",
+  "size_bytes": 29491200,
+  "size_mib": 28.125,
+  "sha256": "7a34bb1b1a4585a519c7cf7cb6cffe86fca98a142f1024109545ec1d65bc807f",
+  "within_32_mib": true,
+  "vendor_kernel_byte_identical": true,
+  "modules_firmware_board_artifacts_byte_identical": true,
+  "default_network_wireless_unchanged": true,
+  "kernel_profile_metadata_preserved": true,
+  "app_public_key_unchanged": true,
+  "private_pem_signing_key_absent": true,
+  "all_native_aliases_correct": true,
+  "reviewed_feature_files_match": true,
+  "ookla_optional": true,
+  "flashed_on_device": false,
+  "live_tests": {
+    "speeds_mlab": true,
+    "failover_mlab_cancel_restart": true,
+    "sim1_mlab_and_restoration": true,
+    "empty_sim_and_manual_retention": true,
+    "automatic_cellular_backup_when_wan_absent": true,
+    "router_and_lan_ipv4_ipv6_after_recovery": true,
+    "traffic_below_64_mib_without_reduced_limits": true,
+    "customer_settings_unchanged_by_traffic_fix": true
+  },
+  "test_suites": [
+    "Native traffic memory boundaries, shared collector and idle-cache tests",
+    "Native SIM, scanner and app-update fixtures",
+    "Speeds and Failover frontend regressions",
+    "Native SIM first-use initialization fixture",
+    "Five isolated optional Ookla installer tests"
+  ],
+  "limitations": [
+    "No second working SIM or live Ethernet WAN for successful two-link handover/comparison tests.",
+    "BIN65 was validated offline; live fixes were tested as overlays on BIN64."
+  ]
+}
