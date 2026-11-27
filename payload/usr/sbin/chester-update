@@ -40,7 +40,8 @@ MANIFEST_URL="https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/ma
 # release would otherwise show up late. A unique query string per check avoids
 # serving the customer a stale answer.
 cachebust() { printf '%s?cb=%s' "$1" "$(date +%s)"; }
-VERSION_FILE=/etc/chester-version
+VERSION_FILE=/rom/etc/chester-version
+[ -r "$VERSION_FILE" ] || VERSION_FILE=/etc/chester-version
 IMG=/tmp/snand-ubi.bin
 PART=/tmp/snand-ubi.bin.part
 PART_URL=/tmp/snand-ubi.bin.url

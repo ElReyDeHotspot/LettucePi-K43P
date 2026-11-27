@@ -1,5 +1,26 @@
 # Changelog
 
+## November 27, 2026 — BIN65 discovery and download location
+
+- Added the unchanged BIN65 image under `BIN/` and pointed the full-firmware
+  manifests there. The previously published archive URL remains available.
+- Fixed System Update checking only the installed BIN's app channel. It now
+  checks both channels and offers a newer full BIN before a same-base app
+  update. Failed full-firmware checks do not report all software up to date.
+- Added exact RPC permissions and explicit full-firmware install routing,
+  retained across progress-window reloads. App installs keep their existing
+  route. Keep My Settings is visible for full updates.
+- Full-firmware comparisons now use the ROM build rather than an independently
+  advancing overlay app timestamp. Updated the browser cache tag and update-type
+  explanation so the new page loads and describes the selected update correctly.
+- Verified on the identified K43P: installed BIN64, latest BIN65, Update Now
+  available and Keep My Settings on. Settings and boot ID were unchanged;
+  no firmware install was started. Channel-selection, progress and ROM-counter
+  regression fixtures passed.
+- These updater fixes are installed as a local BIN64 overlay and committed for
+  future full builds. Published BIN65 bytes were not rebuilt or overwritten;
+  its ROM updater still has the earlier channel-selection behavior.
+
 ## BIN65 — November 27, 2026
 
 Full firmware: `25.12`, ROM build `20261127003030` (UTC), 28.125 MiB.

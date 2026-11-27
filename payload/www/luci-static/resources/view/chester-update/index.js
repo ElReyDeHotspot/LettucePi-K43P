@@ -10,6 +10,11 @@
 const callUpdateSettings=rpc.declare({object:'misectel',method:'update_settings',expect:{}});
 const callSetUpdateSettings=rpc.declare({object:'misectel',method:'set_update_settings',params:['auto','time','keep_settings'],expect:{}});
 function decode(result){try{return JSON.parse(result.stdout||'{}');}catch(e){return {ok:false,error:'The router returned an unreadable update response.'};}}
+function chooseRelease(app,firmware){
+ if(firmware.ok===true&&firmware.manifest_checked===true&&firmware.update_available===true)return Object.assign({},app,firmware,{app_update:false,requires_firmware:false,error:''});
+ if(firmware.ok!==true&&app.update_available!==true)return Object.assign({},app,{ok:false,manifest_checked:false,error:'The full firmware release could not be checked. Try again.'});
+ return app;
+}
 function releaseNotes(value){
  const notes=Array.isArray(value)?value:typeof value==='string'?value.split(/\n+|\.\s+(?=[A-Z])/):[];
  return notes.filter(v=>typeof v==='string').map(v=>v.replace(/^\s*[-*#]+\s*/,'').replace(/\bBin\s+(\d+)/g,'Bin $1').trim()).filter(Boolean);
@@ -42,7 +47,11 @@ return view.extend({
   this.checking=true;this.checkButton.disabled=true;this.checkButton.textContent='Checking…';this.installButton.disabled=true;
   this.paintStatus(this.info,true);
   try{
-   const result=decode(await fs.exec('/usr/sbin/chester-update',['status']));
+   const [app,firmware]=await Promise.all([
+    fs.exec('/usr/sbin/chester-update',['status']).then(decode),
+    fs.exec('/usr/sbin/chester-update',['firmware-status']).then(decode).catch(()=>({ok:false}))
+   ]);
+   const result=chooseRelease(app,firmware);
    this.info=Object.assign({},this.info,result);this.checkedAt=new Date();
   }catch(error){this.info=Object.assign({},this.info,{ok:false,local_only:false,manifest_checked:false,error:'The update service did not respond. Your installed firmware is unchanged.'});this.checkedAt=new Date();}
   finally{this.checking=false;this.checkButton.disabled=false;this.checkButton.textContent='Check for Updates';this.paintStatus(this.info,false);}
@@ -55,6 +64,7 @@ return view.extend({
   this.statusTitle.textContent=checking?'Checking for Updates…':newer?'A fresh update is ready.':verified?'Your software is up to date.':'We couldn’t check for updates.';
   this.statusCopy.textContent=info.requires_firmware?info.error:checking?'Looking for the latest published release for your K43P.':newer?versionLabel(info,'latest')+' is available for your router.':verified?'No newer K43P release is available.':(info.error==='offline'?'The router could not reach the update server.':info.error)||'Check your internet connection and try again.';
   this.installButton.hidden=!newer;this.installButton.disabled=!newer||this.preferencesUnavailable;
+  this.footnoteNode.textContent=info.app_update?'App updates verify an independent signature, exact firmware compatibility and file checksums. An interrupted installation is rolled back at boot.':'Full firmware updates verify the image size, checksum and firmware format before installation. The router restarts to finish.';
   this.checkedNode.textContent=this.checkedAt?(verified?'Last checked ':'Last attempt ')+this.checkedAt.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'Updates are checked securely against the published release.';
   dom.content(this.installedBody,[E('div',{'class':'up-version'},[info.installed_version||'Reading details…']),line('Firmware',info.installed_bin?'BIN'+info.installed_bin:'Not Reported'),...(info.app_update?[line('App Revision',String(info.installed_app||0))]:[]),line('Built',releaseDate(info.installed_built)),line('OpenWrt',info.os_version),line('Kernel',info.kernel),line('Device',info.model||'Chester K43P')]);
   const latest=checking?[E('p',{'class':'st-muted up-checking'},['Checking the published release…'])]:verified?[
@@ -82,10 +92,11 @@ return view.extend({
   this.checkedNode=E('p',{'class':'st-muted up-checked'},[]);
   this.latestBody=E('div',{'class':'up-info-body'});this.changesBody=E('div',{'class':'up-notes'});this.changesSub=E('p',{'class':'st-muted'});this.detailsBody=E('div',{});
   this.installedBody=E('div',{});const installed=infoCard('Installed Firmware','Currently running on this router.',[this.installedBody],'router');
+  this.footnoteNode=E('p',{'class':'st-muted up-footnote'});
   const latest=infoCard('Latest Release','Firmware for Chester K43P.',[this.latestBody],'shield');
   const changes=E('section',{'class':'st-card up-changes'},[E('div',{'class':'up-changes-head'},[settings.icon('plus'),E('div',{},[E('h3',{},['What’s Changed']),this.changesSub])]),this.changesBody]);
   const preferenceCard=infoCard('Update Options','Choose how updates are installed.',[
-   E('div',{'class':'up-option-grid'},[this.info.app_update?E('p',{class:'st-muted'},'App updates always preserve your settings.'):settings.toggle('Keep My Settings',this.keepInput,'Preserve Wi-Fi, APN, passwords and router settings. Turn off for a fresh setup.'),
+   E('div',{'class':'up-option-grid'},[settings.toggle('Keep My Settings',this.keepInput,'Preserve Wi-Fi, APN, passwords and router settings. App updates always preserve settings.'),
    settings.toggle('Automatic Updates',this.autoInput,'Install available K43P releases daily at the selected time.')]),
    E('div',{'class':'up-schedule'},[settings.field('Install At',this.timeInput,'Router timezone: '+this.zone)]),
    settings.footer(settings.button('Save Options',async ev=>{const b=ev.currentTarget;b.disabled=true;try{await this.savePreferences();}catch(e){}finally{b.disabled=this.preferencesUnavailable;}},{disabled:this.preferencesUnavailable?'disabled':null}),this.preferenceNote)
@@ -96,7 +107,7 @@ return view.extend({
    E('section',{'class':'st-card up-hero','aria-live':'polite'},[E('div',{'class':'up-hero-copy'},[E('div',{'class':'up-hero-icon'},[E('img',{src:'/luci-static/misectel/green-leaf.svg',alt:'',width:38,height:38})]),E('div',{},[this.pill,this.statusTitle,this.statusCopy])]),E('div',{'class':'up-actions'},[this.checkButton,this.installButton])]),
    this.checkedNode,E('div',{'class':'up-columns'},[installed,latest]),changes,preferenceCard,
    E('details',{'class':'st-advanced up-details'},[E('summary',{},['Firmware Details']),this.detailsBody]),
-   E('p',{'class':'st-muted up-footnote'},[this.info.app_update?'App updates verify an independent signature, exact firmware compatibility and file checksums. An interrupted installation is rolled back at boot.':'Updates verify the image size, checksum and firmware format before installation. The router restarts to finish.'])
+   this.footnoteNode
   ],'up-page');
   this.paintStatus(this.info,true);const resumed=progress.resume({product:'K43P'});if(!resumed)Promise.resolve().then(()=>this.checkForUpdates());return page;
  },
@@ -109,7 +120,7 @@ return view.extend({
     settings.button('Cancel',()=>ui.hideModal(),{class:'st-button secondary'}),
     settings.button('Update Now',async()=>{
      ui.hideModal();let status;
-     try{status=progress.open({product:'K43P',build:String(this.info.latest_build||''),revision:String(this.info.latest_bin||''),keep});}
+     try{status=progress.open({product:'K43P',build:String(this.info.latest_build||''),revision:String(this.info.latest_bin||''),keep:this.info.app_update?true:keep,firmware:this.info.app_update===false});}
      catch(error){ui.showModal('Update Could Not Start',[E('p',{},error.message),settings.button('Close',()=>ui.hideModal())]);return;}
      try{await this.savePreferences();await status.install();}
      catch(error){status.fail(error.message||'Update options could not be saved. The update has not started.');}

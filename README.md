@@ -22,7 +22,7 @@ by hand.
 | Firmware | LettucePi on OpenWrt 25.12 |
 | Default LAN address | `192.168.100.1` |
 
-Current full firmware: **BIN65** (28.125 MiB). [Changelog](CHANGELOG.md).
+Current full firmware: **[BIN65](BIN/65-2026-11-26-ChesterK43P-25.12.bin)** (28.125 MiB). [BIN folder](BIN/) · [Changelog](CHANGELOG.md).
 
 ## Updating
 

@@ -14,6 +14,9 @@
         ],
         "/usr/libexec/chester-home-update": [
           "exec"
+        ],
+        "/usr/sbin/chester-update firmware-status": [
+          "exec"
         ]
       }
     },
@@ -23,6 +26,12 @@
           "exec"
         ],
         "/usr/sbin/chester-update install *": [
+          "exec"
+        ],
+        "/usr/sbin/chester-update firmware-install": [
+          "exec"
+        ],
+        "/usr/sbin/chester-update firmware-install *": [
           "exec"
         ]
       }

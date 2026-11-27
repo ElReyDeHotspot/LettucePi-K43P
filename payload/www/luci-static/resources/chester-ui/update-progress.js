@@ -86,13 +86,13 @@ class Window{
   this.baseline=options.boot?Promise.resolve():this.io.probe().then(value=>{if(value.product!==this.model.product||!value.boot)throw new Error('The router identity could not be read.');this.model.boot=value.boot;this.persist();});
   this.baseline.catch(()=>{});this.schedule(0);
  }
- persist(){if(this.model.preview)return;try{const m=this.model;window.sessionStorage.setItem(STORE,JSON.stringify({id:m.id,product:m.product,build:m.build,revision:m.revision,boot:m.boot,keep:m.keep,started:m.started,stage:m.stage,issued:m.issued,accepted:m.accepted}));}catch(e){}}
+ persist(){if(this.model.preview)return;try{const m=this.model;window.sessionStorage.setItem(STORE,JSON.stringify({id:m.id,product:m.product,build:m.build,revision:m.revision,boot:m.boot,keep:m.keep,firmware:m.firmware===true,started:m.started,stage:m.stage,issued:m.issued,accepted:m.accepted}));}catch(e){}}
  schedule(delay){window.clearTimeout(this.timer);if(!this.closed)this.timer=window.setTimeout(()=>this.tick(),delay);}
  async install(){
   if(this.model.issued)return;
   try{await this.baseline;}catch(e){this.fail('The router status could not be read. The update has not started.');return;}
   this.model.issued=true;this.persist();
-  try{const response=await this.io.exec(['install',this.model.id]);const text=(response.stdout||'').trim();if(response.code!==0||!text.startsWith('OK:'))this.fail(text||'The update could not be started.');else{this.model.accepted=true;this.persist();}}
+  try{const response=await this.io.exec([this.model.firmware===true?'firmware-install':'install',this.model.id]);const text=(response.stdout||'').trim();if(response.code!==0||!text.startsWith('OK:'))this.fail(text||'The update could not be started.');else{this.model.accepted=true;this.persist();}}
   catch(e){if(e.authentication)this.fail('Sign in again before starting the update. The update has not started.');else{this.model.disconnected();this.model.detail='Checking whether the update started. Do not start another update.';}}
   this.paint();
  }
