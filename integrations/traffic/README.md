@@ -18,3 +18,15 @@ update tests passed. Memory-boundary tests cover K43P, K45P and unknown boards.
 The live collector and browser resumed with approximately 38 MiB available RAM,
 and settings hashes remained identical across the native update. See
 `../app-update/firmware65-validation.json` for the sanitized release record.
+
+## Optional installation from BIN66
+
+Clean images leave Live Traffic uninstalled: no collector alias or startup link
+is present. Its page shows Install Live Traffic and performs no client reads,
+snapshots or polling until explicitly installed. Installation activates the
+bundled collector; uninstall stops/disables it and removes its marker/alias.
+The native engine remains shared with SIM, M-Lab and other tools.
+
+The clean-flashed BIN66 router reported Not Installed with no collector process.
+Isolated installer tests cover activation, uninstall and failed-start rollback.
+The optional installation marker is retained by ordinary keep-settings upgrades.

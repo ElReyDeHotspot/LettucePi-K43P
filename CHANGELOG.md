@@ -1,5 +1,82 @@
 # Changelog
 
+## BIN66 — November 27, 2026
+
+Full firmware `25.12`, ROM build `20261127155405`, 28.125 MiB.
+
+- Baked in the local fixes documented below: safe RPC module/ACL permissions,
+  restored Failover/Network Topology/Speeds/SIM backends, optional Live Traffic,
+  and full-firmware discovery with explicit installation routing and ROM counters.
+- Live Traffic is uninstalled by default, with no collector alias/startup link.
+  Its install prompt makes no client/counter requests. Ookla remains optional;
+  M-Lab and Fast.com remain available in Speeds.
+- Added the signed revision-zero app baseline for this exact ROM build.
+  Existing release images and signing trust are unchanged.
+- Clean-flashed the local K43P with keep-settings disabled. A pre-flash saved
+  configuration probe was absent afterward, the ROM/overlay identity matched
+  BIN66, and the per-device Factory partition hash was unchanged. No private
+  backup was restored. Kernel, matching modules, radio firmware and board
+  artifacts were preserved in the extracted-image comparison.
+- Required RPC objects registered directly from the clean firmware with no
+  world-writable modules or manual permission repairs. Failover controls loaded,
+  topology discovered the LAN device/ports, and Speeds correctly disabled tests
+  on disconnected links. Live Traffic showed Not Installed and Ookla offered
+  installation. PC-to-router LAN access passed over IPv4 and IPv6.
+- The user removed the SIM and requested continued testing without it. No BIN66
+  cellular Internet or M-Lab throughput result is claimed; Ethernet WAN was also
+  disconnected. The earlier BIN65 measurements below remain distinct evidence.
+  An empty-SIM test was started, but final timeout/recovery completion was not
+  verified after its SSH connection closed.
+- Source regressions passed for Speeds, Failover, optional traffic lifecycle and
+  no-polling gate, RPC staging permissions, update channels/progress and ROM
+  counters. Publication was explicitly requested after these available checks.
+
+## Local BIN65 M-Lab verification — November 27, 2026 (included in BIN66)
+
+- Started real cellular M-Lab tests from each browser page and verified both
+  backend completion and displayed download/upload/latency results:
+  - Speeds: 48.0 Mbps down, 2.3 Mbps up, 24.1 ms latency.
+  - Failover: 49.0 Mbps down, 5.6 Mbps up, 27.3 ms latency, with monitoring off.
+  - SIM Selection, SIM 1: 77.3 Mbps down, 4.7 Mbps up, 28.4 ms latency.
+- SIM Selection reported Original SIM Restored and became idle. Original SIM 1,
+  Manual mode and disabled Failover configuration remained in place. Network,
+  wireless, firewall, Failover, SIM and qmodem configuration hashes matched the
+  pre-test snapshot; no pending UCI changes were introduced. Temporary test
+  routing rules were absent after completion.
+- Interface-bound cellular IPv4 and IPv6 HTTPS returned 204 after all tests.
+  Live Traffic remained uninstalled. Boot ID and ROM BIN65 identity were
+  unchanged. No new BIN was built, flashed or published.
+- These checks used the local RPC permission repairs documented below.
+  Ethernet WAN and SIM 2 measurements were not tested in this run. Results
+  demonstrate successful real measurements, not guaranteed cellular speeds or
+  comprehensive failover/SIM interoperability under every condition.
+
+## Local review — November 27, 2026 (included in BIN66)
+
+- Repaired BIN65's missing RPC objects affecting Failover, Network Topology,
+  Speeds, SIM, scanning and related pages. Windows-derived staging permissions
+  left modules world-writable; rpcd intentionally ignores those files. Restored
+  safe permissions on the local router and normalized RPC module/ACL modes to
+  0644 in the staging script for future builds.
+- Verified the local Failover page renders its priority, mode and M-Lab test
+  controls; Network Topology discovers the connected device/ports; Speeds loads
+  M-Lab with cellular ready and offers optional Ookla installation. These are
+  page/backend recovery checks, not a new handover or throughput test.
+- Made Live Traffic optional on K43P. Its page shows Not Installed and Install
+  Live Traffic before any client reads, snapshots or polling. Explicit install
+  activates the collector; uninstall stops/disables it and removes its alias.
+  The shared native engine remains available to M-Lab, SIM and other tools.
+- The local BIN65 collector is stopped/disabled and the installation flag and
+  traffic alias are absent. Added a guarded service, upgrade preservation for
+  the optional installation flag and isolated install/uninstall/rollback tests.
+  Future clean builds omit the traffic alias and startup link by default.
+- Customer network, wireless, Failover and SIM preferences, shared-engine bytes
+  and boot ID remained unchanged during these local repairs. RPC service was
+  restarted; the router was not rebooted or flashed.
+- These changes are local development overlays/source only. At the user's
+  request, no new firmware is built or published while review continues.
+  Published BIN65 remains unchanged and retains the original packaging issue.
+
 ## November 27, 2026 — BIN65 discovery and download location
 
 - Added the unchanged BIN65 image under `BIN/` and pointed the full-firmware

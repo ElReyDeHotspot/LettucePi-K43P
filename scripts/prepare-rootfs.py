@@ -5,6 +5,14 @@ import runpy
 import shutil
 import sys
 
+def normalize_rpc_permissions(root):
+    # rpcd deliberately ignores world-writable ucode modules. Windows copytree
+    # permissions can otherwise silently remove whole RPC objects after reboot.
+    for folder in ['usr/share/rpcd/ucode', 'usr/share/rpcd/acl.d']:
+        for path in (root / folder).glob('*'):
+            if path.is_file() and not path.is_symlink():
+                path.chmod(0o644)
+
 root = Path(sys.argv[1]).resolve()
 repo = Path(__file__).resolve().parents[1]
 assert root != Path(root.anchor) and (root / 'etc/openwrt_release').is_file()
@@ -16,6 +24,7 @@ for name in aliases:
         assert path.resolve()==(root/'usr/libexec/chester-engine').resolve()
         path.unlink()
 shutil.copytree(repo / 'payload', root, dirs_exist_ok=True)
+normalize_rpc_permissions(root)
 # Ookla is optional; M-Lab remains in the compact native suite.
 for name in ['usr/bin/speedtest', 'usr/sbin/speedtest', 'sbin/speedtest']:
     binary=root/name
@@ -44,4 +53,10 @@ engine.chmod(0o755)
 for name in aliases:
     path=root/name
     path.unlink(missing_ok=True)
+    if name == 'usr/libexec/chester-traffic':
+        continue # Optional feature; its installer creates the alias on demand.
     path.symlink_to('../libexec/chester-engine' if name.startswith('usr/sbin/') else 'chester-engine')
+
+# Clean images leave Live Traffic uninstalled and do not start its collector.
+for rc in (root / 'etc/rc.d').glob('*chester_traffic'):
+    rc.unlink()

@@ -1,11 +1,11 @@
 {
   "family": "Immortal-Chester-25",
   "version": "25.12",
-  "built": "2026-11-27T00:30Z",
-  "build": "20261127003030",
-  "bin": "65",
-  "sha256": "7a34bb1b1a4585a519c7cf7cb6cffe86fca98a142f1024109545ec1d65bc807f",
+  "built": "2026-11-27T15:54Z",
+  "build": "20261127155405",
+  "bin": "66",
+  "sha256": "10990ee996ae219be9a044120c2a87cfdf4c935b58cd0cee0c573748cb7b5562",
   "size": "29491200",
-  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/BIN/65-2026-11-26-ChesterK43P-25.12.bin",
-  "notes": "Restore Speeds and per-link M-Lab testing, optional Ookla install, SIM startup recovery, and K43P Live Traffic memory-reserve fix. Includes Overview app-update and coherent bootstrap fixes; vendor kernel and settings behavior preserved."
+  "url": "https://raw.githubusercontent.com/ElReyDeHotspot/LettucePi-K43P/main/BIN/66-2026-11-27-ChesterK43P-25.12.bin",
+  "notes": "Fix RPC permissions restoring Failover, Network Topology, Speeds and SIM pages. Make Live Traffic optional and uninstalled by default. Include full-firmware update discovery and explicit install routing. Clean-flashed and boot-checked; post-flash M-Lab throughput was not tested because the SIM was removed."
 }

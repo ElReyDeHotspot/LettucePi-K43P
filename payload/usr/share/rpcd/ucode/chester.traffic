@@ -1,0 +1,17 @@
+#!/usr/bin/ucode
+'use strict';
+import {popen,stat} from 'fs';
+function installed(){return !!stat('/etc/chester-traffic.installed')&&!!stat('/usr/libexec/chester-traffic');}
+return {'chester.traffic':{
+ feature_status:{call:function(){return {installed:installed()};}},
+ feature_change:{args:{action:'String'},call:function(request){
+  if(request.args.action!='install'&&request.args.action!='uninstall')return {success:false,error:'Invalid Live Traffic action.'};
+  let result=system('/usr/libexec/chester-traffic-package '+request.args.action);
+  return {success:result==0,installed:installed(),error:result==0?'':'Could not change Live Traffic installation.'};
+ }},
+ snapshot:{call:function(){
+  if(!installed())return {success:false,installed:false,error:'Live Traffic is not installed.'};
+  let file=popen('/usr/libexec/chester-traffic','r');if(!file)return {success:false,error:'Traffic collector unavailable.'};
+  let data=file.read('all');file.close();try{return json(data);}catch(e){return {success:false,error:'Could not read traffic counters.'};}
+ }}
+}};

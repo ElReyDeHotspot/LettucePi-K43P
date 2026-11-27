@@ -1,0 +1,33 @@
+#!/bin/sh
+# Optional collector activation; the native suite is shared with other tools.
+set -eu
+marker=/etc/chester-traffic.installed
+alias=/usr/libexec/chester-traffic
+case "${1:-status}" in
+ status)
+  if [ -f "$marker" ] && [ -x "$alias" ]; then printf '{"installed":true}\n'; else printf '{"installed":false}\n'; fi
+  ;;
+ install|uninstall)
+  exec 9>/var/lock/chester-traffic-package.lock
+  flock -n 9 || exit 1
+  if [ "$1" = install ]; then
+   [ -x /usr/libexec/chester-engine ]
+   [ ! -e "$alias" ] || [ -L "$alias" ]
+   ln -sf chester-engine "$alias"
+   (umask 077; printf '1\n' > "$marker")
+   if ! /etc/init.d/chester_traffic enable || ! /etc/init.d/chester_traffic start; then
+    /etc/init.d/chester_traffic stop || true
+    /etc/init.d/chester_traffic disable || true
+    rm -f "$marker"
+    [ ! -L "$alias" ] || rm -f "$alias"
+    exit 1
+   fi
+  else
+   /etc/init.d/chester_traffic stop
+   /etc/init.d/chester_traffic disable
+   rm -f "$marker"
+   [ ! -L "$alias" ] || rm -f "$alias"
+  fi
+  ;;
+ *) exit 2 ;;
+esac

@@ -1,0 +1,29 @@
+{
+  "luci-app-chester-traffic": {
+    "description": "Read local live connection counters",
+    "read": {
+      "ubus": {
+        "chester.traffic": [
+          "snapshot",
+          "feature_status"
+        ],
+        "chester.clients": [
+          "list"
+        ],
+        "chester.guard": [
+          "status"
+        ]
+      }
+    },
+    "write": {
+      "ubus": {
+        "chester.guard": [
+          "save"
+        ],
+        "chester.traffic": [
+          "feature_change"
+        ]
+      }
+    }
+  }
+}
